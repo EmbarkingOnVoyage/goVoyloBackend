@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="GoVoylo.Api/GoVoylo.Api.csproj" />
+  <Project Path="GoVoylo.Application/GoVoylo.Application.csproj" />
+  <Project Path="GoVoylo.Domain/GoVoylo.Domain.csproj" />
+  <Project Path="GoVoylo.Infrastructure/GoVoylo.Infrastructure.csproj" />
+</Solution>
