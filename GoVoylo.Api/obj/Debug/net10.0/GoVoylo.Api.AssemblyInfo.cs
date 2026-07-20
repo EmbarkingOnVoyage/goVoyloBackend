@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GoVoylo.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f3918df90625b7e8df3194974e414df71daa94b1")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+aea9dd0f9aecadf7a08ad40e5fe1076a90d33bae")]
 [assembly: System.Reflection.AssemblyProductAttribute("GoVoylo.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GoVoylo.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

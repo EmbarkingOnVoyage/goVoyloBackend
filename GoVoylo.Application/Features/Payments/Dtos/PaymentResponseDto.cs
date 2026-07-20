@@ -4,7 +4,7 @@ namespace GoVoylo.Application.Features.Payments.Dtos
 {
     public record PaymentResponseDto
                 (Guid TransactionId,
-                string ReferenceNumber,
+                string BookingReference,
                 decimal Amount,
                 string Currency,
                 string Status,

@@ -5,10 +5,11 @@ using GoVoylo.Application.Features.Payments.Dtos;
 namespace GoVoylo.Application.Features.Payments.Commands.ProcessPayment
 {
     public record ProcessPaymentCommand(
+         string BookingReference,
          decimal Amount,
          string Currency,
          string SourceClient,
-         string PaymentMethodToken   
+         string PaymentMethodToken
 
     ) : IRequest<PaymentResponseDto>;
 }

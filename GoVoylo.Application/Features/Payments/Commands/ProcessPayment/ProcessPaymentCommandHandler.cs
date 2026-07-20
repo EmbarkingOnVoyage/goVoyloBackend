@@ -10,30 +10,46 @@ namespace GoVoylo.Application.Features.Payments.Commands.ProcessPayment;
 public class ProcessPaymentCommandHandler : IRequestHandler<ProcessPaymentCommand, PaymentResponseDto>
 {
     private readonly IPaymentRepository _paymentRepository;
-    public ProcessPaymentCommandHandler(IPaymentRepository paymentRepository)
+    private readonly IActivityLogRepository _activityLogRepository;
+    public ProcessPaymentCommandHandler(IPaymentRepository paymentRepository, IActivityLogRepository activityLogRepository)
     {
         _paymentRepository = paymentRepository;
+        _activityLogRepository = activityLogRepository;
     }
 
     public async Task<PaymentResponseDto> Handle(ProcessPaymentCommand request, CancellationToken cancellationToken)
     {
         // 1. Instantiate domain entity executing encapsulated business invariants
         var transaction = PaymentTransaction.Create(
-            request.Amount, 
-            request.Currency, 
+            request.Amount,
+            request.Currency,
             request.SourceClient
         );
-         // 2. Persist using the abstraction contract
-        await _paymentRepository.SaveAsync(transaction, cancellationToken);
+        // 1. Enforce Domain Business Rules
+        var payment = new BookingPayment(request.BookingReference, request.Amount, request.Currency);
 
-        // 3. Return mapped DTO output
+        // 2. Persist using the abstraction contract
+        await _paymentRepository.SaveAsync(transaction, cancellationToken);
+        // 2. Persist tracking details (PostgreSQL target interface)
+        await _paymentRepository.SaveAsync(payment);
+
+        // 3. Dump analytics data for dropout tracking (MongoDB target interface)
+        var log = new UserActivityLog(
+            userId: "SYSTEM_USER", 
+            actionType: "PaymentInitiated",
+            payloadJson: $"{{ \"BookingReference\": \"{request.BookingReference}\" }}",
+            sourcePlatform: request.SourceClient
+        );
+        await _activityLogRepository.LogActivityAsync(log);
+
+        // 4. Map the domain entity state to your new DTO contract
         return new PaymentResponseDto(
-            transaction.Id,
-            transaction.ReferenceNumber,
-            transaction.Amount,
-            transaction.Currency,
-            transaction.Status.ToString(),
-            transaction.CreatedAt
+            payment.Id,
+            payment.BookingReference,
+            payment.TotalAmount,
+            payment.Currency,
+            payment.PaymentStatus,
+            payment.CreatedAt
         );
     }
 }

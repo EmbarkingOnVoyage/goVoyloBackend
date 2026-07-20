@@ -1,4 +1,6 @@
-
+using System.Threading.RateLimiting;
+using GoVoylo.Infrastructure;
+using Microsoft.AspNetCore.RateLimiting;
 namespace GoVoylo.Api;
 
 public class Program
@@ -7,43 +9,52 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        // Add services to the container.
+        // --- 1. EXISTING TEMPLATE SERVICES ---
         builder.Services.AddAuthorization();
-
-        // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
+        builder.Services.AddControllers(); // Add this line so .NET finds your PaymentsController
+
+        // --- 2. CLEAN ARCHITECTURE SERVICE WIRE UP ---
+        // Registers your repository interfaces and your In-Memory database
+        builder.Services.AddInfrastructureServices();
+
+        // Registers MediatR and scans your Application project for Handlers
+        builder.Services.AddMediatR(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(GoVoylo.Application.Features.Payments.Commands.ProcessPayment.ProcessPaymentCommand).Assembly));
+
+        // --- 3. HEAVY TRAFFIC RATE LIMITING DEFENSE ---
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.AddPolicy("HeavyTrafficPolicy", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 100,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 10,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+                    }));
+        });
 
         var app = builder.Build();
 
-        // Configure the HTTP request pipeline.
+        // --- 4. HTTP PIPELINE MIDDLEWARE CONFIGURATION ---
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
         }
 
-        app.UseHttpsRedirection();
+        // Enable the heavy traffic protection middleware
+        app.UseRateLimiter();
 
+        app.UseHttpsRedirection();
         app.UseAuthorization();
 
-        var summaries = new[]
-        {
-            "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-        };
-
-        app.MapGet("/weatherforecast", (HttpContext httpContext) =>
-        {
-            var forecast =  Enumerable.Range(1, 5).Select(index =>
-                new WeatherForecast
-                {
-                    Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                    TemperatureC = Random.Shared.Next(-20, 55),
-                    Summary = summaries[Random.Shared.Next(summaries.Length)]
-                })
-                .ToArray();
-            return forecast;
-        })
-        .WithName("GetWeatherForecast");
+        // Map your controllers so the API routing endpoints actually work
+        app.MapControllers();
 
         app.Run();
     }
+
 }
