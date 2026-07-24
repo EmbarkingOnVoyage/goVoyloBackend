@@ -1,0 +1,16 @@
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\bin\Debug\net10.0\GoVoylo.Infrastructure.deps.json
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\bin\Debug\net10.0\GoVoylo.Infrastructure.dll
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\bin\Debug\net10.0\GoVoylo.Infrastructure.pdb
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\bin\Debug\net10.0\GoVoylo.Domain.dll
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\bin\Debug\net10.0\GoVoylo.Domain.pdb
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\obj\Debug\net10.0\GoVoylo.Infrastructure.csproj.AssemblyReference.cache
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\obj\Debug\net10.0\GoVoylo.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\obj\Debug\net10.0\GoVoylo.Infrastructure.AssemblyInfoInputs.cache
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\obj\Debug\net10.0\GoVoylo.Infrastructure.AssemblyInfo.cs
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\obj\Debug\net10.0\GoVoylo.Infrastructure.csproj.CoreCompileInputs.cache
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\obj\Debug\net10.0\GoVoylo.Infrastructure.sourcelink.json
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\obj\Debug\net10.0\GoVoylo..F8B91461.Up2Date
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\obj\Debug\net10.0\GoVoylo.Infrastructure.dll
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\obj\Debug\net10.0\refint\GoVoylo.Infrastructure.dll
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\obj\Debug\net10.0\GoVoylo.Infrastructure.pdb
+C:\GITHUB\goVoyloBackend\GoVoylo.Infrastructure\obj\Debug\net10.0\ref\GoVoylo.Infrastructure.dll
