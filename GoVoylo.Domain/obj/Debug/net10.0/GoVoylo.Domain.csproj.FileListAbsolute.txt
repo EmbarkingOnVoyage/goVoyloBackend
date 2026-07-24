@@ -1,0 +1,12 @@
+C:\GITHUB\goVoyloBackend\GoVoylo.Domain\bin\Debug\net10.0\GoVoylo.Domain.deps.json
+C:\GITHUB\goVoyloBackend\GoVoylo.Domain\bin\Debug\net10.0\GoVoylo.Domain.dll
+C:\GITHUB\goVoyloBackend\GoVoylo.Domain\bin\Debug\net10.0\GoVoylo.Domain.pdb
+C:\GITHUB\goVoyloBackend\GoVoylo.Domain\obj\Debug\net10.0\GoVoylo.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\GITHUB\goVoyloBackend\GoVoylo.Domain\obj\Debug\net10.0\GoVoylo.Domain.AssemblyInfoInputs.cache
+C:\GITHUB\goVoyloBackend\GoVoylo.Domain\obj\Debug\net10.0\GoVoylo.Domain.AssemblyInfo.cs
+C:\GITHUB\goVoyloBackend\GoVoylo.Domain\obj\Debug\net10.0\GoVoylo.Domain.csproj.CoreCompileInputs.cache
+C:\GITHUB\goVoyloBackend\GoVoylo.Domain\obj\Debug\net10.0\GoVoylo.Domain.sourcelink.json
+C:\GITHUB\goVoyloBackend\GoVoylo.Domain\obj\Debug\net10.0\GoVoylo.Domain.dll
+C:\GITHUB\goVoyloBackend\GoVoylo.Domain\obj\Debug\net10.0\refint\GoVoylo.Domain.dll
+C:\GITHUB\goVoyloBackend\GoVoylo.Domain\obj\Debug\net10.0\GoVoylo.Domain.pdb
+C:\GITHUB\goVoyloBackend\GoVoylo.Domain\obj\Debug\net10.0\ref\GoVoylo.Domain.dll
