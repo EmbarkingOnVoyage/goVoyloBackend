@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Api\\GoVoylo.Api.csproj": {}
+    "D:\\goVoyloBackend\\GoVoylo.Api\\GoVoylo.Api.csproj": {}
   },
   "projects": {
-    "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Api\\GoVoylo.Api.csproj": {
+    "D:\\goVoyloBackend\\GoVoylo.Api\\GoVoylo.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Api\\GoVoylo.Api.csproj",
+        "projectUniqueName": "D:\\goVoyloBackend\\GoVoylo.Api\\GoVoylo.Api.csproj",
         "projectName": "GoVoylo.Api",
-        "projectPath": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Api\\GoVoylo.Api.csproj",
-        "packagesPath": "C:\\Users\\ShwetamberChourey\\.nuget\\packages\\",
-        "outputPath": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Api\\obj\\",
+        "projectPath": "D:\\goVoyloBackend\\GoVoylo.Api\\GoVoylo.Api.csproj",
+        "packagesPath": "C:\\Users\\EVO\\.nuget\\packages\\",
+        "outputPath": "D:\\goVoyloBackend\\GoVoylo.Api\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\ShwetamberChourey\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\EVO\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -26,18 +26,19 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\dotnet\\library-packs": {},
-          "https://api.nuget.org/v3/index.json": {}
+          "https://api.nuget.org/v3/index.json": {},
+          "https://nuget.pkg.github.com/MahrEDV/index.json": {}
         },
         "frameworks": {
           "net10.0": {
+            "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {
-              "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Application\\GoVoylo.Application.csproj": {
-                "projectPath": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Application\\GoVoylo.Application.csproj"
+              "D:\\goVoyloBackend\\GoVoylo.Application\\GoVoylo.Application.csproj": {
+                "projectPath": "D:\\goVoyloBackend\\GoVoylo.Application\\GoVoylo.Application.csproj"
               },
-              "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Infrastructure\\GoVoylo.Infrastructure.csproj": {
-                "projectPath": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Infrastructure\\GoVoylo.Infrastructure.csproj"
+              "D:\\goVoyloBackend\\GoVoylo.Infrastructure\\GoVoylo.Infrastructure.csproj": {
+                "projectPath": "D:\\goVoyloBackend\\GoVoylo.Infrastructure\\GoVoylo.Infrastructure.csproj"
               }
             }
           }
@@ -56,6 +57,7 @@
       },
       "frameworks": {
         "net10.0": {
+          "framework": "net10.0",
           "targetAlias": "net10.0",
           "dependencies": {
             "Microsoft.AspNetCore.OpenApi": {
@@ -82,7 +84,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.200/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.202/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.AspNetCore": "(,10.0.32767]",
             "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",
@@ -500,20 +502,20 @@
         }
       }
     },
-    "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Application\\GoVoylo.Application.csproj": {
+    "D:\\goVoyloBackend\\GoVoylo.Application\\GoVoylo.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Application\\GoVoylo.Application.csproj",
+        "projectUniqueName": "D:\\goVoyloBackend\\GoVoylo.Application\\GoVoylo.Application.csproj",
         "projectName": "GoVoylo.Application",
-        "projectPath": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Application\\GoVoylo.Application.csproj",
-        "packagesPath": "C:\\Users\\ShwetamberChourey\\.nuget\\packages\\",
-        "outputPath": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Application\\obj\\",
+        "projectPath": "D:\\goVoyloBackend\\GoVoylo.Application\\GoVoylo.Application.csproj",
+        "packagesPath": "C:\\Users\\EVO\\.nuget\\packages\\",
+        "outputPath": "D:\\goVoyloBackend\\GoVoylo.Application\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\ShwetamberChourey\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\EVO\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -522,15 +524,16 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\dotnet\\library-packs": {},
-          "https://api.nuget.org/v3/index.json": {}
+          "https://api.nuget.org/v3/index.json": {},
+          "https://nuget.pkg.github.com/MahrEDV/index.json": {}
         },
         "frameworks": {
           "net10.0": {
+            "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {
-              "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Domain\\GoVoylo.Domain.csproj": {
-                "projectPath": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Domain\\GoVoylo.Domain.csproj"
+              "D:\\goVoyloBackend\\GoVoylo.Domain\\GoVoylo.Domain.csproj": {
+                "projectPath": "D:\\goVoyloBackend\\GoVoylo.Domain\\GoVoylo.Domain.csproj"
               }
             }
           }
@@ -549,6 +552,7 @@
       },
       "frameworks": {
         "net10.0": {
+          "framework": "net10.0",
           "targetAlias": "net10.0",
           "dependencies": {
             "FluentValidation": {
@@ -580,7 +584,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.200/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.202/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
@@ -858,20 +862,20 @@
         }
       }
     },
-    "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Domain\\GoVoylo.Domain.csproj": {
+    "D:\\goVoyloBackend\\GoVoylo.Domain\\GoVoylo.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Domain\\GoVoylo.Domain.csproj",
+        "projectUniqueName": "D:\\goVoyloBackend\\GoVoylo.Domain\\GoVoylo.Domain.csproj",
         "projectName": "GoVoylo.Domain",
-        "projectPath": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Domain\\GoVoylo.Domain.csproj",
-        "packagesPath": "C:\\Users\\ShwetamberChourey\\.nuget\\packages\\",
-        "outputPath": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Domain\\obj\\",
+        "projectPath": "D:\\goVoyloBackend\\GoVoylo.Domain\\GoVoylo.Domain.csproj",
+        "packagesPath": "C:\\Users\\EVO\\.nuget\\packages\\",
+        "outputPath": "D:\\goVoyloBackend\\GoVoylo.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\ShwetamberChourey\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\EVO\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -880,11 +884,12 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\dotnet\\library-packs": {},
-          "https://api.nuget.org/v3/index.json": {}
+          "https://api.nuget.org/v3/index.json": {},
+          "https://nuget.pkg.github.com/MahrEDV/index.json": {}
         },
         "frameworks": {
           "net10.0": {
+            "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {}
           }
@@ -903,6 +908,7 @@
       },
       "frameworks": {
         "net10.0": {
+          "framework": "net10.0",
           "targetAlias": "net10.0",
           "imports": [
             "net461",
@@ -920,7 +926,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.200/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.202/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
@@ -1198,20 +1204,20 @@
         }
       }
     },
-    "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Infrastructure\\GoVoylo.Infrastructure.csproj": {
+    "D:\\goVoyloBackend\\GoVoylo.Infrastructure\\GoVoylo.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Infrastructure\\GoVoylo.Infrastructure.csproj",
+        "projectUniqueName": "D:\\goVoyloBackend\\GoVoylo.Infrastructure\\GoVoylo.Infrastructure.csproj",
         "projectName": "GoVoylo.Infrastructure",
-        "projectPath": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Infrastructure\\GoVoylo.Infrastructure.csproj",
-        "packagesPath": "C:\\Users\\ShwetamberChourey\\.nuget\\packages\\",
-        "outputPath": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Infrastructure\\obj\\",
+        "projectPath": "D:\\goVoyloBackend\\GoVoylo.Infrastructure\\GoVoylo.Infrastructure.csproj",
+        "packagesPath": "C:\\Users\\EVO\\.nuget\\packages\\",
+        "outputPath": "D:\\goVoyloBackend\\GoVoylo.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\ShwetamberChourey\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\EVO\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -1220,15 +1226,16 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\dotnet\\library-packs": {},
-          "https://api.nuget.org/v3/index.json": {}
+          "https://api.nuget.org/v3/index.json": {},
+          "https://nuget.pkg.github.com/MahrEDV/index.json": {}
         },
         "frameworks": {
           "net10.0": {
+            "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {
-              "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Domain\\GoVoylo.Domain.csproj": {
-                "projectPath": "C:\\GITHUB\\goVoyloBackend\\GoVoylo.Domain\\GoVoylo.Domain.csproj"
+              "D:\\goVoyloBackend\\GoVoylo.Domain\\GoVoylo.Domain.csproj": {
+                "projectPath": "D:\\goVoyloBackend\\GoVoylo.Domain\\GoVoylo.Domain.csproj"
               }
             }
           }
@@ -1247,6 +1254,7 @@
       },
       "frameworks": {
         "net10.0": {
+          "framework": "net10.0",
           "targetAlias": "net10.0",
           "dependencies": {
             "Microsoft.EntityFrameworkCore.InMemory": {
@@ -1278,7 +1286,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.200/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.202/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",

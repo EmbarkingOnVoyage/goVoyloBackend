@@ -9,6 +9,7 @@ public class ApplicationDbContext : DbContext
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
     public DbSet<BookingPayment> BookingPayments => Set<BookingPayment>();
+    public DbSet<FlightBooking> FlightBookings => Set<FlightBooking>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
