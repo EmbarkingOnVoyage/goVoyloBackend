@@ -15,7 +15,7 @@ public class ProcessPaymentCommandHandlerTests
     private readonly ProcessPaymentCommandHandler _handler;
 
     public ProcessPaymentCommandHandlerTests()
-    {
+    { 
         // 1. Create fake implementations of our domain interfaces using NSubstitute
         _paymentRepositoryMock = Substitute.For<IPaymentRepository>();
         _activityLogRepositoryMock = Substitute.For<IActivityLogRepository>();
