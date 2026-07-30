@@ -1,6 +1,8 @@
-using System.Threading.RateLimiting;
+using GoVoylo.Domain.Interfaces;
 using GoVoylo.Infrastructure;
+using GoVoylo.Infrastructure.Persistence.Repositories;
 using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 namespace GoVoylo.Api;
 
 public class Program
@@ -17,6 +19,8 @@ public class Program
         // --- 2. CLEAN ARCHITECTURE SERVICE WIRE UP ---
         // Registers your repository interfaces and your In-Memory database
         builder.Services.AddInfrastructureServices();
+        builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
+        builder.Services.AddScoped<IBookFlightRepository, BookFlightRepository>();
 
         // Registers MediatR and scans your Application project for Handlers
         builder.Services.AddMediatR(cfg =>

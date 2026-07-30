@@ -19,6 +19,7 @@ public static class DependencyInjection
         // 2. Register Repository interfaces and concrete classes (Scoped lifestyle)
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IActivityLogRepository, ActivityLogRepository>();
+        services.AddScoped<IBookFlightRepository, BookFlightRepository>();
 
         return services;
     }
