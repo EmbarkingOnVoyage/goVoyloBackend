@@ -23,7 +23,7 @@ public class ProcessPaymentCommandHandler : IRequestHandler<ProcessPaymentComman
         var transaction = PaymentTransaction.Create(
             request.Amount,
             request.Currency,
-            request.SourceClient
+            request.SourceClient 
         );
         // 1. Enforce Domain Business Rules
         var payment = new BookingPayment(request.BookingReference, request.Amount, request.Currency);
@@ -41,7 +41,7 @@ public class ProcessPaymentCommandHandler : IRequestHandler<ProcessPaymentComman
             sourcePlatform: request.SourceClient
         );
         await _activityLogRepository.LogActivityAsync(log);
-
+       
         // 4. Map the domain entity state to your new DTO contract
         return new PaymentResponseDto(
             payment.Id,
@@ -49,7 +49,7 @@ public class ProcessPaymentCommandHandler : IRequestHandler<ProcessPaymentComman
             payment.TotalAmount,
             payment.Currency,
             payment.PaymentStatus,
-            payment.CreatedAt
+            payment.CreatedAt 
         );
     }
 }
