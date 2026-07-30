@@ -64,3 +64,11 @@ appsettings.Local.json
 # Operating System files
 .DS_Store
 Thumbs.db
+
+# Nested build folders
+**/[Oo]bj/
+**/[Bb]in/
+
+# Specific NuGet target/spec files if generated outside obj
+*.nuget.dgspec.json
+*.project.assets.json
