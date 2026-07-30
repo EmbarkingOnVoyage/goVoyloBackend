@@ -1,0 +1,66 @@
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.user64
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Re]leases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Ob]j/
+Log/
+logs/
+
+# Visual Studio 2015/2017/2019/2022 cache stage or files
+.vs/
+*StaticWebAssets.xml
+_wpf/
+.vs-docker/
+
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Rider / IntelliJ / WebStorm
+.idea/
+*.sln.iml
+
+# OmniSharp
+.omnisharp/
+
+# Tooling
+_ReSharper*/
+*.[Cc]odot
+*.RazorAssemblyInfo.cache
+
+# Package references (NPM, NuGet, etc.)
+node_modules/
+/packages/
+*.nuget.props
+*.nuget.targets
+
+# Publish output
+*publish/
+
+# Local configuration files
+appsettings.Development.json
+appsettings.Local.json
+*.user.config
+
+# Operating System files
+.DS_Store
+Thumbs.db
