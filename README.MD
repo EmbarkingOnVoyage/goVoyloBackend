@@ -4,7 +4,6 @@ Welcome to the **GoVoylo Backend** team! This project is built using **Clean Arc
 1. **PostgreSQL**: Handles critical transaction data (Bookings, Payments) requiring strict relational consistency.
 2. **MongoDB**: Handles high-volume analytical data (User Activity Tracking Logs, Telemetry).
 
----
 
 ## 🛠️ Part 1: Local Machine Database Setup
 
@@ -37,9 +36,7 @@ dotnet ef database update --project GoVoylo.Infrastructure --startup-project GoV
 ```
 * **Verification:** Look for the word **`Done.`** at the bottom of the console stream. Your relational tables are now officially built!
 
----
-
-## 🏃‍♂️ Part 2: Running the Project & Verifying Data
+## Part 2: Running the Project & Verifying Data
 
 ### 1. Launch the Live API
 Run the Web API layer locally using the .NET CLI:
@@ -55,24 +52,21 @@ dotnet test
 ```
 * **Note on Safety:** Our integration tests use **Database Transactions**. When a test runs, it inserts rows into your real local database to test queries, but automatically **Rolls Back (deletes)** the rows immediately after verifying. Your local database tables will always remain completely pristine and clutter-free!
 
----
-
 ## 🏗️ Part 3: Code Guidelines for Freshers
 
 To keep our architecture clean and maintainable, you must adhere to our structural design layout rules.
 
 ### 1. The Core Rule of Dependencies (The "Castle Wall")
-```text
+
   [ GoVoylo.Api ] ──► [ GoVoylo.Application ] ──► [ GoVoylo.Domain ]
          │                        ▲
          ▼                        │
   [ GoVoylo.Infrastructure ] ─────┘
-```
+
 * **The Domain Layer** is the core inner shield. It must remain **100% pure C#**. You are strictly **forbidden** from installing database packages (like Entity Framework or MongoDB.Driver) or adding database attributes inside the Domain project.
 * **The Application Layer** contains your feature business use cases. It can **never** reference the Infrastructure layer. It talks to databases strictly through abstract interfaces (`IPaymentRepository`).
 * **The Infrastructure Layer** contains concrete structural mechanisms. This is the **only** layer where database connections, DbContext files, and drivers are permitted.
 
----
 
 ### 2. How to Add a New Feature (Step-by-Step Workflow)
 
@@ -115,8 +109,6 @@ public async Task<IActionResult> Create(CreateFeatureCommand command)
 }
 ```
 
----
-
 ## 🔍 Part 4: Accessing Database Visualizers
 
 If you want to view the stored data files on your machine through a graphical dashboard user interface:
@@ -134,7 +126,4 @@ Connect via this direct unified connection string address string box:
 mongodb://govoylo_mongo_admin:secure_mongo_password_2026@localhost:27017/
 ```
 Expand the directories to find **`govoylo_analytics_db`** ➡️ **`UserActivityLogs`** to verify your flat analytical JSON data documents stream smoothly!
-'@
 
-Set-Content -Path "README.md" -Value $markdownContent -Encoding UTF8
-Write-Host "README.md file successfully generated inside your project root!" -ForegroundColor Green
