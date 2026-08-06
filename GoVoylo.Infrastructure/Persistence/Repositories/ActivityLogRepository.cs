@@ -1,5 +1,5 @@
-// GoVoylo.Infrastructure/Persistence/Repositories/ActivityLogRepository.cs
-using System.Diagnostics;
+using MongoDB.Driver;
+using Microsoft.Extensions.Configuration;
 using GoVoylo.Domain.Entities;
 using GoVoylo.Domain.Interfaces;
 
@@ -7,12 +7,30 @@ namespace GoVoylo.Infrastructure.Persistence.Repositories;
 
 public class ActivityLogRepository : IActivityLogRepository
 {
-    public Task LogActivityAsync(UserActivityLog log)
+    // STEP 1: Declare the pipeline field.
+    // IMongoCollection<T> is a built-in interface from the MongoDB.Driver NuGet package.
+    // Think of this exactly like an EF Core 'DbSet<UserActivityLog>', but for NoSQL documents.
+    private readonly IMongoCollection<UserActivityLog> _activityLogs;
+
+    public ActivityLogRepository(IConfiguration configuration)
     {
-        // For now, we simulate logging to MongoDB console out for local development.
-        // In a production environment, this is where MongoCollection.InsertOneAsync() lives.
-        Debug.WriteLine($"[MongoDB Dump] Action: {log.ActionType} from {log.SourcePlatform}");
+        // STEP 2: Dial the Docker container server link.
+        var connectionString = configuration.GetConnectionString("MongoConnection");
+        var client = new MongoClient(connectionString);
         
-        return Task.CompletedTask;
+        // STEP 3: Grab the specific database scope.
+        var database = client.GetDatabase("govoylo_analytics_db");
+        
+        // STEP 4: Initialize our field here!
+        // We tell the database engine to open a pipeline to a collection named "UserActivityLogs".
+        // This is where '_activityLogs' officially comes into the picture.
+        _activityLogs = database.GetCollection<UserActivityLog>("UserActivityLogs");
+    }
+
+    public async Task LogActivityAsync(UserActivityLog activityLog, CancellationToken cancellationToken = default)
+    {
+        // STEP 5: Push the data down the active pipeline.
+        // We use the initialized field to fire the insert command straight into Docker.
+        await _activityLogs.InsertOneAsync(activityLog, cancellationToken: cancellationToken);
     }
 }
