@@ -9,5 +9,6 @@ namespace GoVoylo.Domain.Interfaces
 
         Task<BookingPayment?> GetByReferenceAsync(string bookingReference);
         Task SaveAsync(BookingPayment payment);
+        Task<BookingPayment?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
     }
 }

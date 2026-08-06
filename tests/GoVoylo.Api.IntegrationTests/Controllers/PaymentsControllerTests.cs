@@ -6,17 +6,20 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using GoVoylo.Application.Features.Payments.Commands.ProcessPayment;
 using GoVoylo.Application.Features.Payments.Dtos;
 using Xunit;
+using GoVoylo.Infrastructure.Persistence.EntityFramework;
 
 namespace GoVoylo.Api.IntegrationTests.Controllers;
 
 public class PaymentsControllerTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly HttpClient _client;
+    private readonly WebApplicationFactory<Program> _factory;
 
-    // WebApplicationFactory spins up your real Program.cs inside computer memory
+    // WebApplicationFactory spins up real Program.cs inside computer memory
     public PaymentsControllerTests(WebApplicationFactory<Program> factory)
     {
         _client = factory.CreateClient();
+        _factory = factory;
     }
 
     [Fact]
@@ -46,4 +49,59 @@ public class PaymentsControllerTests : IClassFixture<WebApplicationFactory<Progr
         result.Status.Should().Be("Pending");
         result.TransactionId.Should().NotBeEmpty();
     }
+
+    [Fact]
+    public async Task Should_ProcessPayment_And_RetrieveViaQuery_Then_RollbackSuccessfully()
+    {
+        // Arrange
+        // 1. Extract real DbContext out of the running WebApplicationFactory container
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var command = new ProcessPaymentCommand(
+            BookingReference: "CQRS-HTTP-TEST-999",
+            Amount: 1850.00m,
+            Currency: "INR",
+            SourceClient: "IntegrationTestSuite",
+            PaymentMethodToken: "tok_visa_cqrs_valid"
+        );
+
+        // 2. Open an explicit transaction block on live PostgreSQL Docker container
+        using var transaction = await dbContext.Database.BeginTransactionAsync();
+
+        try
+        {
+            // --- 1. THE COMMAND (WRITE) PHASE ---
+            // Act: Shoot a real HTTP POST request down the endpoint wire
+            var postResponse = await _client.PostAsJsonAsync("api/payments", command);
+            postResponse.EnsureSuccessStatusCode();
+
+            // Deserialize the response object to grab the new primary tracking ID
+            var commandResult = await postResponse.Content.ReadFromJsonAsync<PaymentResponseDto>();
+            Assert.NotNull(commandResult);
+            Assert.NotEqual(Guid.Empty, commandResult.Id);
+
+            // --- 2. THE QUERY (READ) PHASE ---
+            // Act: Shoot a real HTTP GET request to pull the uncommitted row back out
+            // (Assuming GET endpoint is structured as: api/payments/{id})
+            var getResponse = await _client.GetAsync($"api/payments/{commandResult.Id}");
+            getResponse.EnsureSuccessStatusCode();
+
+            var queryResult = await getResponse.Content.ReadFromJsonAsync<PaymentDetailsDto>();
+
+            // --- 3. THE ASSERTION PHASE ---
+            // Verify structural data integrity between original input and final database output
+            Assert.NotNull(queryResult);
+            Assert.Equal("CQRS-HTTP-TEST-999", queryResult.BookingReference);
+            Assert.Equal(1850.00m, queryResult.TotalAmount);
+            Assert.Equal("INR", queryResult.Currency);
+        }
+        finally
+        {
+            // --- 4. THE CLEANUP ---
+            // Wipe the data from your Docker tables so your database remains pristine
+            await transaction.RollbackAsync();
+        }
+    }
+
 }
