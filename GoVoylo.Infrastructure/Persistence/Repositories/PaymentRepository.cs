@@ -39,4 +39,10 @@ public class PaymentRepository : IPaymentRepository
         await Task.Delay(100); // Simulated async operation
         return null; // For demonstration purposes, returning null
     }
+    public async Task<BookingPayment?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return await _context.BookingPayments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+    }
 }

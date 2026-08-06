@@ -18,7 +18,7 @@ public class Program
 
         // --- 2. CLEAN ARCHITECTURE SERVICE WIRE UP ---
         // Registers your repository interfaces and your In-Memory database
-        builder.Services.AddInfrastructureServices();
+        builder.Services.AddInfrastructureServices(builder.Configuration);
         builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
         builder.Services.AddScoped<IBookFlightRepository, BookFlightRepository>();
 

@@ -14,14 +14,6 @@ public class ApplicationDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        
-        // Define PostgreSQL database rules cleanly
-        modelBuilder.Entity<BookingPayment>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.BookingReference).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.TotalAmount).HasPrecision(18, 2);
-            entity.Property(e => e.Currency).IsRequired().HasMaxLength(3);
-        });
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
     }
 }
