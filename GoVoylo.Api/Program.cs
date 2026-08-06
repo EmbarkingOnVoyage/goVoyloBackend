@@ -1,8 +1,12 @@
+using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Interfaces;
 using GoVoylo.Infrastructure;
 using GoVoylo.Infrastructure.Persistence.Repositories;
+using GoVoylo.Infrastructure.Services;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using GoVoylo.Application.Interfaces;
+using GoVoylo.Infrastructure.Services;
 namespace GoVoylo.Api;
 
 public class Program
@@ -21,6 +25,9 @@ public class Program
         builder.Services.AddInfrastructureServices();
         builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
         builder.Services.AddScoped<IBookFlightRepository, BookFlightRepository>();
+        builder.Services.AddScoped<IOtpRepository, OtpRepository>();
+        builder.Services.AddScoped<IEmailService, EmailService>();
+        builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
 
         // Registers MediatR and scans your Application project for Handlers
         builder.Services.AddMediatR(cfg =>
