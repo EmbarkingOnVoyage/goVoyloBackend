@@ -33,15 +33,20 @@ public class ProcessPaymentCommandHandler : IRequestHandler<ProcessPaymentComman
         // 2. Persist tracking details (PostgreSQL target interface)
         await _paymentRepository.SaveAsync(payment);
 
-        // 3. Dump analytics data for dropout tracking (MongoDB target interface)
-        var log = new UserActivityLog(
-            userId: "SYSTEM_USER", 
+       // 3. PREPARE THE ANALYTICAL ACTIVITY LOG FOR MONGODB
+        // (Instantiate your UserActivityLog entity with your required constructor arguments)
+        var logPayloadJson = $"{{\"Amount\":{request.Amount},\"Client\":\"{request.SourceClient}\"}}";
+        
+        var activityLog = new UserActivityLog(
+            userId: Guid.NewGuid().ToString(), // Or grab current session user ID if available
             actionType: "PaymentInitiated",
-            payloadJson: $"{{ \"BookingReference\": \"{request.BookingReference}\" }}",
+            payloadJson: logPayloadJson,
             sourcePlatform: request.SourceClient
         );
-        await _activityLogRepository.LogActivityAsync(log);
-       
+
+        // 4. DUMP TO MONGODB (Asynchronous NoSQL flat document streaming)
+        await _activityLogRepository.LogActivityAsync(activityLog, cancellationToken);
+
         // 4. Map the domain entity state to your new DTO contract
         return new PaymentResponseDto(
             payment.Id,

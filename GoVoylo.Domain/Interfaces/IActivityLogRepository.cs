@@ -4,5 +4,5 @@ namespace GoVoylo.Domain.Interfaces;
 
 public interface IActivityLogRepository
 {
-    Task LogActivityAsync(UserActivityLog log);
+    Task LogActivityAsync(UserActivityLog log, CancellationToken cancellationToken = default);
 }
