@@ -20,10 +20,10 @@ public static class DependencyInjection
         {
             services.AddDbContext<ApplicationDbContext>(options =>
             {
-                options.UseNpgsql(connectionString ?? "Host=localhost;Database=MigrationDb", b => 
+                options.UseNpgsql(connectionString ?? "Host=localhost;Database=MigrationDb", b =>
                 {
                     b.MigrationsAssembly("GoVoylo.Infrastructure");
-                    
+
                     // THE PROFESSIONAL FIX: 
                     // This forces EF Core to use a secure execution strategy. It prepares the database channel 
                     // and handles the creation of the schema history table cleanly behind the scenes, 
@@ -37,9 +37,18 @@ public static class DependencyInjection
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseInMemoryDatabase("GoVoyloDb"));
         }
-
+        var mongoConnectionString = configuration?.GetConnectionString("MongoConnection");
+        if (!string.IsNullOrEmpty(mongoConnectionString))
+        {
+            services.AddScoped<IActivityLogRepository, ActivityLogRepository>();
+        }
+        else
+        {
+            // Fallback: If running Unit Tests without a connection string, 
+            // map to an In-Memory mock implementation so tests remain green.
+            services.AddScoped<IActivityLogRepository, InMemoryActivityLogRepository>();
+        }
         services.AddScoped<IPaymentRepository, PaymentRepository>();
-        services.AddScoped<IActivityLogRepository, ActivityLogRepository>();
         services.AddScoped<IBookFlightRepository, BookFlightRepository>();
 
         return services;
