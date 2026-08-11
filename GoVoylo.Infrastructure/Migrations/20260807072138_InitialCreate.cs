@@ -46,6 +46,22 @@ namespace GoVoylo.Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_FlightBookings", x => x.FlightBookingId);
                 });
+
+            migrationBuilder.CreateTable(
+                name: "OtpVerifications",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Email = table.Column<string>(type: "text", nullable: false),
+                    VerificationToken = table.Column<string>(type: "text", nullable: false),
+                    Otp = table.Column<string>(type: "text", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    isVerified = table.Column<bool>(type: "boolean", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OtpVerifications", x => x.Id);
+                });
         }
 
         /// <inheritdoc />
@@ -56,6 +72,9 @@ namespace GoVoylo.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "FlightBookings");
+
+            migrationBuilder.DropTable(
+                name: "OtpVerifications");
         }
     }
 }

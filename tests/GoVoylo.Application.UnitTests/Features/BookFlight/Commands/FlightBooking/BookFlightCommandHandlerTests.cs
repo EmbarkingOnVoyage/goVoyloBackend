@@ -90,16 +90,6 @@ namespace GoVoylo.Application.UnitTests.Features.BookFlight.Commands.BookFlightC
                 .ThrowAsync<Exception>()
                 .WithMessage("Database Error");
         }
-        public async Task Handle_ValidCommand_ShouldGetBookFlightSuccessfully()
-        {
-            // Arrange
-            
-
-            //Act
-
-
-            //Assert
-
-        }
+        
     }
 }

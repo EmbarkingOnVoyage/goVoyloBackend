@@ -72,3 +72,6 @@ Thumbs.db
 # Specific NuGet target/spec files if generated outside obj
 *.nuget.dgspec.json
 *.project.assets.json
+
+# Local secrets file
+.env
