@@ -4,10 +4,12 @@ using System.Text;
 
 namespace GoVoylo.Application.Features.Authentication.Dtos
 {
-    public record SendOtpResponseDto
+    public class LoginResponseDto
     {
-        public string VerificationToken { get; set; } = string.Empty;
+        public Guid Id { get; set; }
 
         public string Message { get; set; } = string.Empty;
+
+        public string AccessToken { get; set; } = string.Empty;
     }
 }

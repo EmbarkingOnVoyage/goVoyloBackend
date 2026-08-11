@@ -1,18 +1,25 @@
+using DotNetEnv;
+using FluentValidation;
+using GoVoylo.Application.Common.Behaviors;
+using GoVoylo.Application.Features.Authentication.Commands.Register;
+using GoVoylo.Application.Interfaces;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Interfaces;
 using GoVoylo.Infrastructure;
 using GoVoylo.Infrastructure.Persistence.Repositories;
 using GoVoylo.Infrastructure.Services;
+using GoVoylo.Infrastructure.Services;
+using MediatR;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
-using GoVoylo.Application.Interfaces;
-using GoVoylo.Infrastructure.Services;
 namespace GoVoylo.Api;
 
 public class Program
 {
     public static void Main(string[] args)
     {
+        Env.Load();
+
         var builder = WebApplication.CreateBuilder(args);
 
         // --- 1. EXISTING TEMPLATE SERVICES ---
@@ -26,12 +33,22 @@ public class Program
         builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
         builder.Services.AddScoped<IBookFlightRepository, BookFlightRepository>();
         builder.Services.AddScoped<IOtpRepository, OtpRepository>();
-        builder.Services.AddScoped<IEmailService, EmailService>();
+        builder.Services.AddScoped<IEmailService, EmailService>(); 
+        builder.Services.AddScoped<IUserRepository, UserRepository>();
+        builder.Services.AddScoped<IPasswordService, PasswordService>();
+        builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
         builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
 
         // Registers MediatR and scans your Application project for Handlers
         builder.Services.AddMediatR(cfg =>
             cfg.RegisterServicesFromAssembly(typeof(GoVoylo.Application.Features.Payments.Commands.ProcessPayment.ProcessPaymentCommand).Assembly));
+
+        builder.Services.AddValidatorsFromAssembly(
+    typeof(RegisterUserCommandValidator).Assembly);
+
+        builder.Services.AddTransient(
+            typeof(IPipelineBehavior<,>),
+            typeof(ValidationBehavior<,>));
 
         // --- 3. HEAVY TRAFFIC RATE LIMITING DEFENSE ---
         builder.Services.AddRateLimiter(options =>

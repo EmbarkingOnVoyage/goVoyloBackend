@@ -4,10 +4,9 @@ using System.Text;
 
 namespace GoVoylo.Application.Features.Authentication.Dtos
 {
-    public record VerifyOtpResponseDto
+    public record RegisterUserResponseDto
     {
-        public bool IsVerified { get; set; }
-
-        public string Message { get; set; } = string.Empty;
+        public Guid Id { get; set; }
+        public string Message { get; set; }= string .Empty;
     }
 }

@@ -1,7 +1,8 @@
 // GoVoylo.Infrastructure/Persistence/EntityFramework/ApplicationDbContext.cs
-using Microsoft.EntityFrameworkCore;
 using GoVoylo.Domain.Entities;
 using GoVoylo.Infrastructure.Services;
+using Microsoft.EntityFrameworkCore;
+using static System.Net.WebRequestMethods;
 
 namespace GoVoylo.Infrastructure.Persistence.EntityFramework;
 
@@ -12,7 +13,13 @@ public class ApplicationDbContext : DbContext
     public DbSet<BookingPayment> BookingPayments => Set<BookingPayment>();
     public DbSet<FlightBooking> FlightBookings => Set<FlightBooking>();
     public DbSet<OtpVerification> OtpVerifications => Set<OtpVerification>();
-
+    public DbSet<UserRegistration> UserRegistrations => Set<UserRegistration>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<AuthIdentity> AuthIdentities => Set<AuthIdentity>();
+    public DbSet<Otp> OtpChallenges => Set<Otp>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
