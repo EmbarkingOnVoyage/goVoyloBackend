@@ -9,5 +9,7 @@ namespace GoVoylo.Domain.Interfaces
     {
         Task<User?> GetByEmailAsync(string email);
         Task SaveAsync(User user);
+        Task<User?> GetByIdAsync(Guid id);
+        Task <User>UpdateAsync(User user);
     }
 }

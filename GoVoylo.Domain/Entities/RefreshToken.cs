@@ -22,5 +22,43 @@ namespace GoVoylo.Domain.Entities
 
         // Navigation property
         public User User { get; private set; } = null!;
+
+        // Required by EF Core
+        private RefreshToken()
+        {
+        }
+
+        public RefreshToken(
+            Guid userId,
+            string tokenHash,
+            DateTime expiresAt,
+            string? deviceInfo = null)
+        {
+            Id = Guid.NewGuid();
+
+            UserId = userId;
+            TokenHash = tokenHash;
+            DeviceInfo = deviceInfo;
+
+            ExpiresAt = expiresAt;
+            CreatedAt = DateTime.UtcNow;
+
+            RevokedAt = null;
+        }
+
+        public bool IsExpired()
+        {
+            return DateTime.UtcNow >= ExpiresAt;
+        }
+
+        public bool IsRevoked()
+        {
+            return RevokedAt.HasValue;
+        }
+
+        public void Revoke()
+        {
+            RevokedAt = DateTime.UtcNow;
+        }
     }
 }

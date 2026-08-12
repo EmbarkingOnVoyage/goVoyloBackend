@@ -1,5 +1,8 @@
 ﻿using GoVoylo.Application.Features.Authentication.Commands.Login;
+using GoVoylo.Application.Features.Authentication.Commands.Logout;
+using GoVoylo.Application.Features.Authentication.Commands.RefreshTokenRefreshJWTToken;
 using GoVoylo.Application.Features.Authentication.Commands.Register;
+using GoVoylo.Application.Features.Authentication.Commands.ResetPassword;
 using GoVoylo.Application.Features.Authentication.Commands.SendOtp;
 using GoVoylo.Application.Features.Authentication.Commands.VerifyOtp;
 using MediatR;
@@ -67,6 +70,34 @@ namespace GoVoylo.Api.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login(
           LoginCommand command)
+        {
+            var result = await _mediator.Send(command);
+
+            return Ok(result);
+        }
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken(
+    RefreshTokenCommand command)
+        {
+            var result =
+                await _mediator.Send(command);
+
+            return Ok(result);
+        }
+
+        [HttpPost("Reset-password")]
+        public async Task<IActionResult> ChangePassword(
+         ResetPasswordCommand command)
+        {
+            var result = await _mediator.Send(command);
+
+            return Ok(result);
+        }
+
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout(
+    LogoutCommand command)
         {
             var result = await _mediator.Send(command);
 
