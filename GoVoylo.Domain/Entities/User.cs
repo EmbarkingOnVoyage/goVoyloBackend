@@ -60,5 +60,11 @@ namespace GoVoylo.Domain.Entities
         private User()
         {
         }
+
+        public void ResetPassword(string passwordHash)
+        {
+            PasswordHash = passwordHash;
+            UpdatedAt = DateTime.UtcNow;
+        }
     }
 }
