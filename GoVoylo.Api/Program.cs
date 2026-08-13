@@ -33,7 +33,7 @@ public class Program
         builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
         builder.Services.AddScoped<IBookFlightRepository, BookFlightRepository>();
         builder.Services.AddScoped<IOtpRepository, OtpRepository>();
-        builder.Services.AddScoped<IEmailService, EmailService>(); 
+        builder.Services.AddScoped<IEmailService, EmailService>();
         builder.Services.AddScoped<IUserRepository, UserRepository>();
         builder.Services.AddScoped<IPasswordService, PasswordService>();
         builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
@@ -64,9 +64,18 @@ public class Program
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst
                     }));
         });
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowReactApp",
+                policy =>
+                {
+                    policy.WithOrigins("http://localhost:5173") 
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
+        });
 
         var app = builder.Build();
-
         // --- 4. HTTP PIPELINE MIDDLEWARE CONFIGURATION ---
         if (app.Environment.IsDevelopment())
         {
@@ -77,6 +86,7 @@ public class Program
         app.UseRateLimiter();
 
         app.UseHttpsRedirection();
+        app.UseCors("AllowReactApp");
         app.UseAuthorization();
 
         // Map your controllers so the API routing endpoints actually work
