@@ -68,6 +68,11 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasDefaultValue(false)
                 .IsRequired();
 
+            // Profile Image
+            builder.Property(x => x.ProfileImageUrl)
+                .HasColumnName("profile_image_url")
+                .HasMaxLength(500);
+
             // Status
             builder.Property(x => x.Status)
                 .HasColumnName("status")

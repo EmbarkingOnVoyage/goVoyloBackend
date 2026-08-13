@@ -1,4 +1,7 @@
 ﻿using GoVoylo.Application.Features.Authentication.Commands.Login;
+using GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp;
+using GoVoylo.Application.Features.Authentication.Commands.Logout;
+using GoVoylo.Application.Features.Authentication.Commands.RefreshToken;
 using GoVoylo.Application.Features.Authentication.Commands.Register;
 using GoVoylo.Application.Features.Authentication.Commands.SendOtp;
 using GoVoylo.Application.Features.Authentication.Commands.VerifyOtp;
@@ -49,19 +52,9 @@ namespace GoVoylo.Api.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> User(RegisterUserCommand command)
         {
-            try
-            {
-                var result = await _mediator.Send(command);
+            var result = await _mediator.Send(command);
 
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new
-                {
-                    message = ex.Message
-                });
-            }
+            return Ok(result);
         }
 
         [HttpPost("login")]
@@ -72,5 +65,28 @@ namespace GoVoylo.Api.Controllers
 
             return Ok(result);
         }
+
+        [HttpPost("login-otp")]
+        public async Task<IActionResult> LoginWithOtp(LoginWithOtpCommand command)
+        {
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request)
+        {
+            var result = await _mediator.Send(new RefreshTokenCommand(request.RefreshToken));
+            return Ok(result);
+        }
+
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request)
+        {
+            await _mediator.Send(new LogoutCommand(request.RefreshToken));
+            return Ok(new { message = "Logged out successfully." });
+        }
     }
+
+    public record RefreshTokenRequest(string RefreshToken);
 }

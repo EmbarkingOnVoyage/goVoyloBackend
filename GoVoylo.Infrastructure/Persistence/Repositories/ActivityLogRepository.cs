@@ -33,4 +33,14 @@ public class ActivityLogRepository : IActivityLogRepository
         // We use the initialized field to fire the insert command straight into Docker.
         await _activityLogs.InsertOneAsync(activityLog, cancellationToken: cancellationToken);
     }
+
+    public async Task<IReadOnlyList<UserActivityLog>> GetByUserIdAsync(
+        string userId, int limit, CancellationToken cancellationToken = default)
+    {
+        return await _activityLogs
+            .Find(x => x.UserId == userId)
+            .SortByDescending(x => x.CreatedAt)
+            .Limit(limit)
+            .ToListAsync(cancellationToken);
+    }
 }

@@ -24,6 +24,8 @@ namespace GoVoylo.Domain.Entities
 
         public bool IsPhoneVerified { get; private set; }
 
+        public string? ProfileImageUrl { get; private set; }
+
         public string Status { get; private set; } = "active";
 
         public DateTime CreatedAt { get; private set; }
@@ -59,6 +61,38 @@ namespace GoVoylo.Domain.Entities
         // Required by EF Core
         private User()
         {
+        }
+
+        public void UpdateProfile(string firstName, string lastName, string? phone)
+        {
+            FirstName = firstName;
+            LastName = lastName;
+            Phone = phone;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void ChangePasswordHash(string newPasswordHash)
+        {
+            PasswordHash = newPasswordHash;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void SetProfileImageUrl(string url)
+        {
+            ProfileImageUrl = url;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void ClearProfileImageUrl()
+        {
+            ProfileImageUrl = null;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void MarkDeleted()
+        {
+            Status = "deleted";
+            UpdatedAt = DateTime.UtcNow;
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using GoVoylo.Application.Features.Authentication.Dtos;
+﻿using GoVoylo.Application.Common.Exceptions;
+using GoVoylo.Application.Features.Authentication.Dtos;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Entities;
 using GoVoylo.Domain.Interfaces;
@@ -30,7 +31,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Register
 
             if (existingUser != null)
             {
-                throw new Exception("Email already registered.");
+                throw new ConflictException("email_already_registered", "Email already registered.");
             }
 
             // Hash password

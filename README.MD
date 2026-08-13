@@ -36,6 +36,14 @@ dotnet ef database update --project GoVoylo.Infrastructure --startup-project GoV
 ```
 * **Verification:** Look for the word **`Done.`** at the bottom of the console stream. Your relational tables are now officially built!
 
+### Step 4: Create Your Local Config Files
+Secrets and per-developer connection strings are **not** committed to the repo. Copy the two example files in `GoVoylo.Api/`:
+```bash
+cp GoVoylo.Api/appsettings.Development.json.example GoVoylo.Api/appsettings.Development.json
+cp GoVoylo.Api/.env.example GoVoylo.Api/.env
+```
+Then open `GoVoylo.Api/.env` and set `JWT_SECRET` to a long random string (the values in `appsettings.Development.json.example` already match `docker-compose.yml` and can be used as-is for local dev).
+
 ## Part 2: Running the Project & Verifying Data
 
 ### 1. Launch the Live API
