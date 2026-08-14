@@ -18,7 +18,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.VerifyOtp
         {
             _otpRepository = otpRepository;
         }
-
+        
         public async Task<VerifyOtpResponseDto> Handle(
         VerifyOtpCommand request,
         CancellationToken cancellationToken)
