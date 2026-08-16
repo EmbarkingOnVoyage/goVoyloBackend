@@ -11,9 +11,9 @@ namespace GoVoylo.Infrastructure.Logging
             _queue = queue;
         }
 
-        public void Log(Guid? userId, string eventType)
+        public void Log(Guid? userId, string eventType, Guid? actorUserId = null)
         {
-            _queue.Enqueue(userId, eventType);
+            _queue.Enqueue(userId, eventType, actorUserId);
         }
     }
 }

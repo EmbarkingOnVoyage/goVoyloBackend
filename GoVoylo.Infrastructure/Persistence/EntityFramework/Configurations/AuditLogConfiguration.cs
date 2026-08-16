@@ -19,6 +19,9 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
             builder.Property(x => x.UserId)
                 .HasColumnName("user_id");
 
+            builder.Property(x => x.ActorUserId)
+                .HasColumnName("actor_user_id");
+
             builder.Property(x => x.EventType)
                 .HasColumnName("event_type")
                 .HasMaxLength(30)

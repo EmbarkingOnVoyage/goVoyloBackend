@@ -94,5 +94,17 @@ namespace GoVoylo.Domain.Entities
             Status = "deleted";
             UpdatedAt = DateTime.UtcNow;
         }
+
+        public void Suspend()
+        {
+            Status = "suspended";
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void Activate()
+        {
+            Status = "active";
+            UpdatedAt = DateTime.UtcNow;
+        }
     }
 }

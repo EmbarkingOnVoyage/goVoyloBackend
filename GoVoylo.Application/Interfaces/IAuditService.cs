@@ -4,6 +4,6 @@ namespace GoVoylo.Application.Interfaces
     {
         // Non-blocking — enqueues the event; the actual DB write happens on a
         // background worker so the caller's request never waits on it.
-        void Log(Guid? userId, string eventType);
+        void Log(Guid? userId, string eventType, Guid? actorUserId = null);
     }
 }

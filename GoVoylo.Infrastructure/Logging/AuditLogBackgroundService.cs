@@ -30,7 +30,7 @@ namespace GoVoylo.Infrastructure.Logging
                 {
                     using var scope = _scopeFactory.CreateScope();
                     var repository = scope.ServiceProvider.GetRequiredService<IAuditLogRepository>();
-                    await repository.AddAsync(new AuditLog(entry.UserId, entry.EventType));
+                    await repository.AddAsync(new AuditLog(entry.UserId, entry.EventType, entry.ActorUserId));
                 }
                 catch (Exception ex)
                 {
