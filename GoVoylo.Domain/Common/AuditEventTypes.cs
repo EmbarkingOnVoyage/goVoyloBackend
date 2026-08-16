@@ -8,5 +8,6 @@ namespace GoVoylo.Domain.Common
         public const string Logout = "logout";
         public const string PasswordChanged = "password_changed";
         public const string CustomerStatusChanged = "customer_status_changed";
+        public const string ProfileUpdated = "profile_updated";
     }
 }

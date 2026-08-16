@@ -5,6 +5,7 @@ using GoVoylo.Application.Features.Admin.Roles.Commands.RevokeRole;
 using GoVoylo.Application.Features.Admin.Roles.Commands.UpdateRole;
 using GoVoylo.Application.Features.Admin.Roles.Queries.GetRoles;
 using GoVoylo.Application.Features.Admin.Users.Commands.UpdateCustomerStatus;
+using GoVoylo.Application.Features.Admin.Users.Queries.GetCustomerAuditHistory;
 using GoVoylo.Application.Features.Admin.Users.Queries.SearchUsers;
 using GoVoylo.Application.Interfaces;
 using MediatR;
@@ -94,6 +95,17 @@ namespace GoVoylo.Api.Controllers
             var command = new UpdateCustomerStatusCommand(_currentUser.UserId, userId, request.Status);
             await _mediator.Send(command);
             return Ok(new { message = "Account status updated successfully." });
+        }
+
+        [HttpGet("users/{userId}/audit")]
+        [Authorize(Roles = "support_agent,superadmin")]
+        public async Task<IActionResult> GetCustomerAuditHistory(
+            Guid userId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var result = await _mediator.Send(new GetCustomerAuditHistoryQuery(userId, page, pageSize));
+            return Ok(result);
         }
     }
 
