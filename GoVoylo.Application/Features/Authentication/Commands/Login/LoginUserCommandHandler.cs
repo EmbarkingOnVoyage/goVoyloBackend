@@ -18,19 +18,22 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Login
         private readonly IPasswordService _passwordService;
         private readonly IRefreshTokenService _refreshTokenService;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
+        private readonly IUserRoleRepository _userRoleRepository;
 
         public LoginCommandHandler(
             IUserRepository userRepository,
             IJwtTokenService jwtTokenService,
             IPasswordService passwordService,
             IRefreshTokenService refreshTokenService,
-            IRefreshTokenRepository refreshTokenRepository)
+            IRefreshTokenRepository refreshTokenRepository,
+            IUserRoleRepository userRoleRepository)
         {
             _userRepository = userRepository;
             _jwtTokenService = jwtTokenService;
             _passwordService = passwordService;
             _refreshTokenService = refreshTokenService;
             _refreshTokenRepository = refreshTokenRepository;
+            _userRoleRepository = userRoleRepository;
         }
 
         public async Task<LoginResponseDto> Handle(
@@ -63,8 +66,8 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Login
             }
 
             // 5. Generate JWT
-            var token =
-                _jwtTokenService.GenerateToken(user);
+            var roles = await _userRoleRepository.GetRoleNamesForUserAsync(user.Id);
+            var token = _jwtTokenService.GenerateToken(user, roles);
 
             // 6. Issue a refresh token — only its hash is persisted
             var rawRefreshToken = _refreshTokenService.GenerateRawToken();

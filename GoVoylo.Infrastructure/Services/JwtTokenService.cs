@@ -22,7 +22,7 @@ namespace GoVoylo.Infrastructure.Services
             _configuration = configuration;
         }
 
-        public string GenerateToken(User user)
+        public string GenerateToken(User user, IEnumerable<string> roles)
         {
             // Get JWT secret from .env
             var secretKey =
@@ -54,6 +54,8 @@ namespace GoVoylo.Infrastructure.Services
                     ClaimTypes.Name,
                     $"{user.FirstName} {user.LastName}")
             };
+
+            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
             var securityKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(secretKey!));

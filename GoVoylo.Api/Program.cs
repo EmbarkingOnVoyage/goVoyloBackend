@@ -98,6 +98,8 @@ public class Program
         builder.Services.AddScoped<ITravelerFrequentFlyerRepository, TravelerFrequentFlyerRepository>();
         builder.Services.AddScoped<ITravelerSpecialAssistanceRepository, TravelerSpecialAssistanceRepository>();
         builder.Services.AddScoped<ITravelerEmergencyContactRepository, TravelerEmergencyContactRepository>();
+        builder.Services.AddScoped<IRoleRepository, RoleRepository>();
+        builder.Services.AddScoped<IUserRoleRepository, UserRoleRepository>();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
         builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));

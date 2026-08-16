@@ -12,13 +12,19 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Register
     {
         private readonly IUserRepository _userRepository;
         private readonly IPasswordService _passwordService;
+        private readonly IRoleRepository _roleRepository;
+        private readonly IUserRoleRepository _userRoleRepository;
 
         public RegisterCommandHandler(
             IUserRepository userRepository,
-            IPasswordService passwordService)
+            IPasswordService passwordService,
+            IRoleRepository roleRepository,
+            IUserRoleRepository userRoleRepository)
         {
             _userRepository = userRepository;
             _passwordService = passwordService;
+            _roleRepository = roleRepository;
+            _userRoleRepository = userRoleRepository;
         }
 
         public async Task<RegisterUserResponseDto> Handle(
@@ -48,6 +54,14 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Register
 
             // Save user
             await _userRepository.SaveAsync(user);
+
+            // Every registered user starts as a plain customer
+            var customerRole = await _roleRepository.GetByNameAsync("customer");
+
+            if (customerRole != null)
+            {
+                await _userRoleRepository.AssignAsync(new UserRole(user.Id, customerRole.Id));
+            }
 
             return new RegisterUserResponseDto
             {

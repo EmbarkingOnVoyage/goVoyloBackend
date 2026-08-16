@@ -14,17 +14,20 @@ namespace GoVoylo.Application.Features.Authentication.Commands.RefreshToken
         private readonly IRefreshTokenService _refreshTokenService;
         private readonly IUserRepository _userRepository;
         private readonly IJwtTokenService _jwtTokenService;
+        private readonly IUserRoleRepository _userRoleRepository;
 
         public RefreshTokenCommandHandler(
             IRefreshTokenRepository refreshTokenRepository,
             IRefreshTokenService refreshTokenService,
             IUserRepository userRepository,
-            IJwtTokenService jwtTokenService)
+            IJwtTokenService jwtTokenService,
+            IUserRoleRepository userRoleRepository)
         {
             _refreshTokenRepository = refreshTokenRepository;
             _refreshTokenService = refreshTokenService;
             _userRepository = userRepository;
             _jwtTokenService = jwtTokenService;
+            _userRoleRepository = userRoleRepository;
         }
 
         public async Task<LoginResponseDto> Handle(
@@ -52,7 +55,10 @@ namespace GoVoylo.Application.Features.Authentication.Commands.RefreshToken
             existingToken.Revoke();
             await _refreshTokenRepository.UpdateAsync(existingToken);
 
-            var newAccessToken = _jwtTokenService.GenerateToken(user);
+            // Re-fetch roles fresh (not copied from the old token) so a role change
+            // takes effect on the very next refresh, not just on the next full login.
+            var roles = await _userRoleRepository.GetRoleNamesForUserAsync(user.Id);
+            var newAccessToken = _jwtTokenService.GenerateToken(user, roles);
             var newRawRefreshToken = _refreshTokenService.GenerateRawToken();
             var newRefreshToken = new RefreshTokenEntity(
                 user.Id,

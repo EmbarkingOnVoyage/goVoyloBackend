@@ -14,19 +14,22 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
         private readonly IJwtTokenService _jwtTokenService;
         private readonly IRefreshTokenService _refreshTokenService;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
+        private readonly IUserRoleRepository _userRoleRepository;
 
         public LoginWithOtpCommandHandler(
             IOtpRepository otpRepository,
             IUserRepository userRepository,
             IJwtTokenService jwtTokenService,
             IRefreshTokenService refreshTokenService,
-            IRefreshTokenRepository refreshTokenRepository)
+            IRefreshTokenRepository refreshTokenRepository,
+            IUserRoleRepository userRoleRepository)
         {
             _otpRepository = otpRepository;
             _userRepository = userRepository;
             _jwtTokenService = jwtTokenService;
             _refreshTokenService = refreshTokenService;
             _refreshTokenRepository = refreshTokenRepository;
+            _userRoleRepository = userRoleRepository;
         }
 
         public async Task<LoginResponseDto> Handle(LoginWithOtpCommand request, CancellationToken cancellationToken)
@@ -66,7 +69,8 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
             }
 
             // 3. Issue access + refresh tokens, same as password login
-            var accessToken = _jwtTokenService.GenerateToken(user);
+            var roles = await _userRoleRepository.GetRoleNamesForUserAsync(user.Id);
+            var accessToken = _jwtTokenService.GenerateToken(user, roles);
 
             var rawRefreshToken = _refreshTokenService.GenerateRawToken();
             var refreshToken = new RefreshTokenEntity(
