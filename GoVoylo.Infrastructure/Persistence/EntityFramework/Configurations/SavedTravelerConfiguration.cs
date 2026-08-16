@@ -77,6 +77,13 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasFilter("NOT is_deleted")
                 .HasDatabaseName("ix_saved_travelers_user");
 
+            // Backstop against duplicate submissions racing past the app-level check
+            // in AddTravelerCommandHandler (case-insensitive there; exact-match here).
+            builder.HasIndex(x => new { x.UserId, x.FirstName, x.LastName, x.DateOfBirth })
+                .IsUnique()
+                .HasFilter("NOT is_deleted")
+                .HasDatabaseName("ux_saved_travelers_identity");
+
             builder.HasOne<User>()
                 .WithMany()
                 .HasForeignKey(x => x.UserId)

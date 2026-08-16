@@ -10,10 +10,14 @@ namespace GoVoylo.Application.Features.Customer.Queries.GetCustomerDashboard
         : IRequestHandler<GetCustomerDashboardQuery, CustomerDashboardDto>
     {
         private readonly IUserRepository _userRepository;
+        private readonly ISavedTravelerRepository _travelerRepository;
 
-        public GetCustomerDashboardQueryHandler(IUserRepository userRepository)
+        public GetCustomerDashboardQueryHandler(
+            IUserRepository userRepository,
+            ISavedTravelerRepository travelerRepository)
         {
             _userRepository = userRepository;
+            _travelerRepository = travelerRepository;
         }
 
         public async Task<CustomerDashboardDto> Handle(
@@ -27,9 +31,10 @@ namespace GoVoylo.Application.Features.Customer.Queries.GetCustomerDashboard
                 throw new NotFoundException("Customer profile not found.");
             }
 
-            // SavedTraveler and Booking domains don't exist in this codebase yet —
-            // wire these up once those repositories land.
-            return new CustomerDashboardDto(CustomerProfileMapper.ToDto(user), 0, 0);
+            var travelerCount = await _travelerRepository.CountByUserIdAsync(request.UserId);
+
+            // Booking domain doesn't exist in this codebase yet — wire this up once it lands.
+            return new CustomerDashboardDto(CustomerProfileMapper.ToDto(user), travelerCount, 0);
         }
     }
 }

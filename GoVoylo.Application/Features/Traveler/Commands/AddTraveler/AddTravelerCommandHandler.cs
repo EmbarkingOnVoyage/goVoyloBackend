@@ -29,6 +29,16 @@ namespace GoVoylo.Application.Features.Traveler.Commands.AddTraveler
                     $"You can save up to {MaxTravelersPerCustomer} travelers.");
             }
 
+            var isDuplicate = await _travelerRepository.ExistsByIdentityAsync(
+                request.UserId, request.FirstName, request.LastName, request.DateOfBirth);
+
+            if (isDuplicate)
+            {
+                throw new ConflictException(
+                    "traveler_already_exists",
+                    "A traveler with this name and date of birth is already saved.");
+            }
+
             var traveler = new SavedTraveler(
                 request.UserId,
                 request.TravelerType.ToLowerInvariant(),

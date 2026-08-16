@@ -34,6 +34,17 @@ namespace GoVoylo.Infrastructure.Persistence.Repositories
             return _context.SavedTravelers.CountAsync(x => x.UserId == userId && !x.IsDeleted);
         }
 
+        public Task<bool> ExistsByIdentityAsync(
+            Guid userId, string firstName, string lastName, DateTime dateOfBirth)
+        {
+            return _context.SavedTravelers.AnyAsync(x =>
+                x.UserId == userId
+                && !x.IsDeleted
+                && x.DateOfBirth == dateOfBirth
+                && x.FirstName.ToLower() == firstName.ToLower()
+                && x.LastName.ToLower() == lastName.ToLower());
+        }
+
         public async Task AddAsync(SavedTraveler traveler)
         {
             await _context.SavedTravelers.AddAsync(traveler);
