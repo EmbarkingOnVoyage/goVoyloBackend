@@ -16,6 +16,7 @@ namespace GoVoylo.Application.UnitTests.Features.Authentication.Commands.Registe
         private readonly IPasswordService _passwordService;
         private readonly IRoleRepository _roleRepository;
         private readonly IUserRoleRepository _userRoleRepository;
+        private readonly IAuditService _auditService;
         private readonly RegisterCommandHandler _handler;
 
         public RegisterUserCommandHandlerTests()
@@ -24,6 +25,7 @@ namespace GoVoylo.Application.UnitTests.Features.Authentication.Commands.Registe
             _passwordService = Substitute.For<IPasswordService>();
             _roleRepository = Substitute.For<IRoleRepository>();
             _userRoleRepository = Substitute.For<IUserRoleRepository>();
+            _auditService = Substitute.For<IAuditService>();
 
             _roleRepository
                 .GetByNameAsync("customer")
@@ -33,7 +35,8 @@ namespace GoVoylo.Application.UnitTests.Features.Authentication.Commands.Registe
                 _userRepository,
                 _passwordService,
                 _roleRepository,
-                _userRoleRepository);
+                _userRoleRepository,
+                _auditService);
         }
 
         [Fact]

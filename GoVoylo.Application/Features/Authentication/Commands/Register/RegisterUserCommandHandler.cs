@@ -1,6 +1,7 @@
 ﻿using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Features.Authentication.Dtos;
 using GoVoylo.Application.Interfaces;
+using GoVoylo.Domain.Common;
 using GoVoylo.Domain.Entities;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
@@ -14,17 +15,20 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Register
         private readonly IPasswordService _passwordService;
         private readonly IRoleRepository _roleRepository;
         private readonly IUserRoleRepository _userRoleRepository;
+        private readonly IAuditService _auditService;
 
         public RegisterCommandHandler(
             IUserRepository userRepository,
             IPasswordService passwordService,
             IRoleRepository roleRepository,
-            IUserRoleRepository userRoleRepository)
+            IUserRoleRepository userRoleRepository,
+            IAuditService auditService)
         {
             _userRepository = userRepository;
             _passwordService = passwordService;
             _roleRepository = roleRepository;
             _userRoleRepository = userRoleRepository;
+            _auditService = auditService;
         }
 
         public async Task<RegisterUserResponseDto> Handle(
@@ -62,6 +66,8 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Register
             {
                 await _userRoleRepository.AssignAsync(new UserRole(user.Id, customerRole.Id));
             }
+
+            _auditService.Log(user.Id, AuditEventTypes.Registration);
 
             return new RegisterUserResponseDto
             {

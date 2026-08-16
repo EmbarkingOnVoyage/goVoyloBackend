@@ -30,6 +30,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<TravelerFrequentFlyer> TravelerFrequentFlyers => Set<TravelerFrequentFlyer>();
     public DbSet<TravelerSpecialAssistance> TravelerSpecialAssistances => Set<TravelerSpecialAssistance>();
     public DbSet<TravelerEmergencyContact> TravelerEmergencyContacts => Set<TravelerEmergencyContact>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

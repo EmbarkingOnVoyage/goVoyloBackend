@@ -7,6 +7,7 @@ using GoVoylo.Application.Features.Authentication.Commands.Register;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Interfaces;
 using GoVoylo.Infrastructure;
+using GoVoylo.Infrastructure.Logging;
 using GoVoylo.Infrastructure.Persistence.Repositories;
 using GoVoylo.Infrastructure.Services;
 using MediatR;
@@ -100,6 +101,10 @@ public class Program
         builder.Services.AddScoped<ITravelerEmergencyContactRepository, TravelerEmergencyContactRepository>();
         builder.Services.AddScoped<IRoleRepository, RoleRepository>();
         builder.Services.AddScoped<IUserRoleRepository, UserRoleRepository>();
+        builder.Services.AddSingleton<AuditLogQueue>();
+        builder.Services.AddScoped<IAuditService, AuditService>();
+        builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+        builder.Services.AddHostedService<AuditLogBackgroundService>();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
         builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));

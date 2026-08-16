@@ -1,6 +1,7 @@
 ﻿using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Features.Authentication.Dtos;
 using GoVoylo.Application.Interfaces;
+using GoVoylo.Domain.Common;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
 using System;
@@ -19,6 +20,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Login
         private readonly IRefreshTokenService _refreshTokenService;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
         private readonly IUserRoleRepository _userRoleRepository;
+        private readonly IAuditService _auditService;
 
         public LoginCommandHandler(
             IUserRepository userRepository,
@@ -26,7 +28,8 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Login
             IPasswordService passwordService,
             IRefreshTokenService refreshTokenService,
             IRefreshTokenRepository refreshTokenRepository,
-            IUserRoleRepository userRoleRepository)
+            IUserRoleRepository userRoleRepository,
+            IAuditService auditService)
         {
             _userRepository = userRepository;
             _jwtTokenService = jwtTokenService;
@@ -34,6 +37,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Login
             _refreshTokenService = refreshTokenService;
             _refreshTokenRepository = refreshTokenRepository;
             _userRoleRepository = userRoleRepository;
+            _auditService = auditService;
         }
 
         public async Task<LoginResponseDto> Handle(
@@ -47,12 +51,14 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Login
             // 2. User doesn't exist
             if (user == null)
             {
+                _auditService.Log(null, AuditEventTypes.LoginFailed);
                 throw new UnauthorizedAppException("invalid_credentials", "Invalid email or password.");
             }
 
             // 3. Check account status
             if (user.Status != "active")
             {
+                _auditService.Log(user.Id, AuditEventTypes.LoginFailed);
                 throw new ForbiddenException("account_inactive", "User account is not active.");
             }
 
@@ -62,6 +68,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Login
                     request.Password,
                     user.PasswordHash))
             {
+                _auditService.Log(user.Id, AuditEventTypes.LoginFailed);
                 throw new UnauthorizedAppException("invalid_credentials", "Invalid email or password.");
             }
 
@@ -78,6 +85,8 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Login
                 _refreshTokenService.GetExpiryDate());
 
             await _refreshTokenRepository.SaveAsync(refreshToken);
+
+            _auditService.Log(user.Id, AuditEventTypes.LoginSuccess);
 
             // 7. Return response
             return new LoginResponseDto

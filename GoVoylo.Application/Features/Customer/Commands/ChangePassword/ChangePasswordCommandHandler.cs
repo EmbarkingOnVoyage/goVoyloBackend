@@ -1,5 +1,6 @@
 using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Interfaces;
+using GoVoylo.Domain.Common;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
 
@@ -10,13 +11,16 @@ namespace GoVoylo.Application.Features.Customer.Commands.ChangePassword
     {
         private readonly IUserRepository _userRepository;
         private readonly IPasswordService _passwordService;
+        private readonly IAuditService _auditService;
 
         public ChangePasswordCommandHandler(
             IUserRepository userRepository,
-            IPasswordService passwordService)
+            IPasswordService passwordService,
+            IAuditService auditService)
         {
             _userRepository = userRepository;
             _passwordService = passwordService;
+            _auditService = auditService;
         }
 
         public async Task<Unit> Handle(
@@ -39,6 +43,8 @@ namespace GoVoylo.Application.Features.Customer.Commands.ChangePassword
             var newPasswordHash = _passwordService.HashPassword(request.NewPassword);
             user.ChangePasswordHash(newPasswordHash);
             await _userRepository.UpdateAsync(user);
+
+            _auditService.Log(user.Id, AuditEventTypes.PasswordChanged);
 
             return Unit.Value;
         }

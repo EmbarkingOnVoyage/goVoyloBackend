@@ -1,4 +1,5 @@
 using GoVoylo.Application.Interfaces;
+using GoVoylo.Domain.Common;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
 
@@ -8,13 +9,16 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Logout
     {
         private readonly IRefreshTokenRepository _refreshTokenRepository;
         private readonly IRefreshTokenService _refreshTokenService;
+        private readonly IAuditService _auditService;
 
         public LogoutCommandHandler(
             IRefreshTokenRepository refreshTokenRepository,
-            IRefreshTokenService refreshTokenService)
+            IRefreshTokenService refreshTokenService,
+            IAuditService auditService)
         {
             _refreshTokenRepository = refreshTokenRepository;
             _refreshTokenService = refreshTokenService;
+            _auditService = auditService;
         }
 
         public async Task<Unit> Handle(LogoutCommand request, CancellationToken cancellationToken)
@@ -27,6 +31,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Logout
             {
                 token.Revoke();
                 await _refreshTokenRepository.UpdateAsync(token);
+                _auditService.Log(token.UserId, AuditEventTypes.Logout);
             }
 
             return Unit.Value;

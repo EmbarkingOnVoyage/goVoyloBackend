@@ -1,6 +1,7 @@
 using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Features.Authentication.Dtos;
 using GoVoylo.Application.Interfaces;
+using GoVoylo.Domain.Common;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
 using RefreshTokenEntity = GoVoylo.Domain.Entities.RefreshToken;
@@ -15,6 +16,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
         private readonly IRefreshTokenService _refreshTokenService;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
         private readonly IUserRoleRepository _userRoleRepository;
+        private readonly IAuditService _auditService;
 
         public LoginWithOtpCommandHandler(
             IOtpRepository otpRepository,
@@ -22,7 +24,8 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
             IJwtTokenService jwtTokenService,
             IRefreshTokenService refreshTokenService,
             IRefreshTokenRepository refreshTokenRepository,
-            IUserRoleRepository userRoleRepository)
+            IUserRoleRepository userRoleRepository,
+            IAuditService auditService)
         {
             _otpRepository = otpRepository;
             _userRepository = userRepository;
@@ -30,6 +33,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
             _refreshTokenService = refreshTokenService;
             _refreshTokenRepository = refreshTokenRepository;
             _userRoleRepository = userRoleRepository;
+            _auditService = auditService;
         }
 
         public async Task<LoginResponseDto> Handle(LoginWithOtpCommand request, CancellationToken cancellationToken)
@@ -39,16 +43,19 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
 
             if (otpRecord == null || !string.Equals(otpRecord.Email, request.Email, StringComparison.OrdinalIgnoreCase))
             {
+                _auditService.Log(null, AuditEventTypes.LoginFailed);
                 throw new UnauthorizedAppException("invalid_otp", "Invalid verification token.");
             }
 
             if (DateTime.UtcNow > otpRecord.CreatedAt.AddMinutes(5))
             {
+                _auditService.Log(null, AuditEventTypes.LoginFailed);
                 throw new UnauthorizedAppException("otp_expired", "OTP has expired.");
             }
 
             if (otpRecord.Otp != request.Otp)
             {
+                _auditService.Log(null, AuditEventTypes.LoginFailed);
                 throw new UnauthorizedAppException("invalid_otp", "Invalid OTP.");
             }
 
@@ -60,11 +67,13 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
 
             if (user == null)
             {
+                _auditService.Log(null, AuditEventTypes.LoginFailed);
                 throw new NotFoundException("No account found for this email.");
             }
 
             if (user.Status != "active")
             {
+                _auditService.Log(user.Id, AuditEventTypes.LoginFailed);
                 throw new ForbiddenException("account_inactive", "User account is not active.");
             }
 
@@ -80,6 +89,8 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
                 _refreshTokenService.GetExpiryDate());
 
             await _refreshTokenRepository.SaveAsync(refreshToken);
+
+            _auditService.Log(user.Id, AuditEventTypes.LoginSuccess);
 
             return new LoginResponseDto
             {
