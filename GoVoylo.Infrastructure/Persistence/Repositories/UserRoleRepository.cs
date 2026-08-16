@@ -22,6 +22,21 @@ namespace GoVoylo.Infrastructure.Persistence.Repositories
                 .ToListAsync();
         }
 
+        public async Task<IReadOnlyDictionary<Guid, IReadOnlyList<string>>> GetRoleNamesForUsersAsync(
+            IEnumerable<Guid> userIds)
+        {
+            var rows = await _context.UserRoles
+                .Where(x => userIds.Contains(x.UserId))
+                .Join(_context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, r.Name })
+                .ToListAsync();
+
+            return rows
+                .GroupBy(x => x.UserId)
+                .ToDictionary(
+                    g => g.Key,
+                    IReadOnlyList<string> (g) => g.Select(x => x.Name).ToList());
+        }
+
         public Task<bool> HasRoleAsync(Guid userId, Guid roleId)
         {
             return _context.UserRoles.AnyAsync(x => x.UserId == userId && x.RoleId == roleId);

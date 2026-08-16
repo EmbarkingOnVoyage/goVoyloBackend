@@ -40,5 +40,36 @@ namespace GoVoylo.Infrastructure.Persistence.Repositories
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
         }
+
+        public async Task<(IReadOnlyList<User> Users, int TotalCount)> SearchAsync(
+            string? search, string? status, int page, int pageSize)
+        {
+            var query = _context.Users.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.ToLower();
+                query = query.Where(x =>
+                    x.FirstName.ToLower().Contains(term)
+                    || x.LastName.ToLower().Contains(term)
+                    || (x.Email != null && x.Email.ToLower().Contains(term))
+                    || (x.Phone != null && x.Phone.Contains(term)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                query = query.Where(x => x.Status == status);
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var users = await query
+                .OrderByDescending(x => x.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (users, totalCount);
+        }
     }
 }

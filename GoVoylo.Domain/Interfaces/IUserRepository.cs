@@ -11,5 +11,7 @@ namespace GoVoylo.Domain.Interfaces
         Task<User?> GetByIdAsync(Guid id);
         Task SaveAsync(User user);
         Task UpdateAsync(User user);
+        Task<(IReadOnlyList<User> Users, int TotalCount)> SearchAsync(
+            string? search, string? status, int page, int pageSize);
     }
 }

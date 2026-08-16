@@ -4,6 +4,7 @@ using GoVoylo.Application.Features.Admin.Roles.Commands.GrantRole;
 using GoVoylo.Application.Features.Admin.Roles.Commands.RevokeRole;
 using GoVoylo.Application.Features.Admin.Roles.Commands.UpdateRole;
 using GoVoylo.Application.Features.Admin.Roles.Queries.GetRoles;
+using GoVoylo.Application.Features.Admin.Users.Queries.SearchUsers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace GoVoylo.Api.Controllers
 {
     [ApiController]
-    [Authorize(Roles = "superadmin")]
+    [Authorize]
     [Route("api/admin")]
     public class AdminController : ControllerBase
     {
@@ -22,7 +23,20 @@ namespace GoVoylo.Api.Controllers
             _mediator = mediator;
         }
 
+        [HttpGet("users")]
+        [Authorize(Roles = "support_agent,superadmin")]
+        public async Task<IActionResult> SearchUsers(
+            [FromQuery] string? search,
+            [FromQuery] string? status,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var result = await _mediator.Send(new SearchUsersQuery(search, status, page, pageSize));
+            return Ok(result);
+        }
+
         [HttpGet("roles")]
+        [Authorize(Roles = "superadmin")]
         public async Task<IActionResult> GetRoles()
         {
             var result = await _mediator.Send(new GetRolesQuery());
@@ -30,6 +44,7 @@ namespace GoVoylo.Api.Controllers
         }
 
         [HttpPost("roles")]
+        [Authorize(Roles = "superadmin")]
         public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
         {
             var result = await _mediator.Send(new CreateRoleCommand(request.Name));
@@ -37,6 +52,7 @@ namespace GoVoylo.Api.Controllers
         }
 
         [HttpPut("roles/{id}")]
+        [Authorize(Roles = "superadmin")]
         public async Task<IActionResult> UpdateRole(Guid id, [FromBody] UpdateRoleRequest request)
         {
             var result = await _mediator.Send(new UpdateRoleCommand(id, request.Name));
@@ -44,6 +60,7 @@ namespace GoVoylo.Api.Controllers
         }
 
         [HttpDelete("roles/{id}")]
+        [Authorize(Roles = "superadmin")]
         public async Task<IActionResult> DeleteRole(Guid id)
         {
             await _mediator.Send(new DeleteRoleCommand(id));
@@ -51,6 +68,7 @@ namespace GoVoylo.Api.Controllers
         }
 
         [HttpPost("users/{userId}/roles")]
+        [Authorize(Roles = "superadmin")]
         public async Task<IActionResult> GrantRole(Guid userId, [FromBody] RoleAssignmentRequest request)
         {
             await _mediator.Send(new GrantRoleCommand(userId, request.RoleId));
@@ -58,6 +76,7 @@ namespace GoVoylo.Api.Controllers
         }
 
         [HttpDelete("users/{userId}/roles/{roleId}")]
+        [Authorize(Roles = "superadmin")]
         public async Task<IActionResult> RevokeRole(Guid userId, Guid roleId)
         {
             await _mediator.Send(new RevokeRoleCommand(userId, roleId));
