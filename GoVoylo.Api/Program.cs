@@ -8,10 +8,13 @@ using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Interfaces;
 using GoVoylo.Infrastructure;
 using GoVoylo.Infrastructure.Logging;
+using GoVoylo.Infrastructure.Monitoring;
+using GoVoylo.Infrastructure.Persistence.EntityFramework;
 using GoVoylo.Infrastructure.Persistence.Repositories;
 using GoVoylo.Infrastructure.Services;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -109,6 +112,10 @@ public class Program
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
         builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
 
+        builder.Services.AddHealthChecks()
+            .AddDbContextCheck<ApplicationDbContext>("database")
+            .AddCheck<EmailServiceHealthCheck>("email");
+
         // Registers MediatR and scans your Application project for Handlers
         builder.Services.AddMediatR(cfg =>
             cfg.RegisterServicesFromAssembly(typeof(GoVoylo.Application.Features.Payments.Commands.ProcessPayment.ProcessPaymentCommand).Assembly));
@@ -156,6 +163,21 @@ public class Program
         app.UseHttpsRedirection();
         app.UseAuthentication();
         app.UseAuthorization();
+
+        // Not [Authorize]-gated — load balancer/orchestrator probes don't carry a JWT.
+        // Restricted to internal/private IPs instead (see InternalNetworkGuard).
+        app.MapHealthChecks("/health", new HealthCheckOptions
+        {
+            ResponseWriter = HealthCheckResponseWriter.WriteJsonAsync
+        }).AddEndpointFilter(async (context, next) =>
+        {
+            if (!InternalNetworkGuard.IsInternal(context.HttpContext.Connection.RemoteIpAddress))
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            return await next(context);
+        });
 
         // Map your controllers so the API routing endpoints actually work
         app.MapControllers();
