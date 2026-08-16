@@ -6,6 +6,9 @@ namespace GoVoylo.Domain.Interfaces
     {
         Task<IReadOnlyList<string>> GetRoleNamesForUserAsync(Guid userId);
         Task<bool> HasRoleAsync(Guid userId, Guid roleId);
+        Task<int> CountByRoleIdAsync(Guid roleId);
         Task AssignAsync(UserRole userRole);
+        Task<UserRole?> GetAsync(Guid userId, Guid roleId);
+        Task RemoveAsync(UserRole userRole);
     }
 }

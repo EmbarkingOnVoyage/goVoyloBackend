@@ -27,9 +27,26 @@ namespace GoVoylo.Infrastructure.Persistence.Repositories
             return _context.UserRoles.AnyAsync(x => x.UserId == userId && x.RoleId == roleId);
         }
 
+        public Task<int> CountByRoleIdAsync(Guid roleId)
+        {
+            return _context.UserRoles.CountAsync(x => x.RoleId == roleId);
+        }
+
         public async Task AssignAsync(UserRole userRole)
         {
             await _context.UserRoles.AddAsync(userRole);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<UserRole?> GetAsync(Guid userId, Guid roleId)
+        {
+            return await _context.UserRoles
+                .FirstOrDefaultAsync(x => x.UserId == userId && x.RoleId == roleId);
+        }
+
+        public async Task RemoveAsync(UserRole userRole)
+        {
+            _context.UserRoles.Remove(userRole);
             await _context.SaveChangesAsync();
         }
     }

@@ -20,5 +20,10 @@ namespace GoVoylo.Domain.Entities
         private Role()
         {
         }
+
+        public void Rename(string name)
+        {
+            Name = name;
+        }
     }
 }
