@@ -37,8 +37,8 @@ public class Program
         builder.Services.AddScoped<IUserRepository, UserRepository>();
         builder.Services.AddScoped<IPasswordService, PasswordService>();
         builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
-        builder.Services.AddScoped<IRefreshTokenRepository,RefreshTokenRepository>();
-        builder.Services.AddScoped<IRefreshTokenService,RefreshTokenService>();
+        builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
         builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
 
         // Registers MediatR and scans your Application project for Handlers
@@ -71,7 +71,7 @@ public class Program
             options.AddPolicy("AllowReactApp",
                 policy =>
                 {
-                    policy.WithOrigins("http://localhost:5173") 
+                    policy.WithOrigins("http://localhost:5173")
                         .AllowAnyHeader()
                         .AllowAnyMethod();
                 });
@@ -82,6 +82,11 @@ public class Program
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("/openapi/v1.json", "GoVoylo API v1");
+                options.RoutePrefix = "swagger"; // Access it via http://localhost:xxxx/swagger
+            });
         }
 
         // Enable the heavy traffic protection middleware
