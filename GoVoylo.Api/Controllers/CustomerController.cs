@@ -13,6 +13,7 @@ using GoVoylo.Application.Features.Customer.Commands.UploadProfileImage;
 using GoVoylo.Application.Features.Customer.Queries.GetCustomerActivity;
 using GoVoylo.Application.Features.Customer.Queries.GetCustomerAddresses;
 using GoVoylo.Application.Features.Customer.Queries.GetCustomerDashboard;
+using GoVoylo.Application.Features.Customer.Queries.GetCustomerFullProfile;
 using GoVoylo.Application.Features.Customer.Queries.GetCustomerProfile;
 using GoVoylo.Application.Features.Customer.Queries.GetGstDetails;
 using GoVoylo.Application.Features.Customer.Queries.GetNotificationPreferences;
@@ -42,6 +43,13 @@ namespace GoVoylo.Api.Controllers
         public async Task<IActionResult> GetProfile()
         {
             var result = await _mediator.Send(new GetCustomerProfileQuery(_currentUser.UserId));
+            return Ok(result);
+        }
+
+        [HttpGet("full-profile")]
+        public async Task<IActionResult> GetFullProfile()
+        {
+            var result = await _mediator.Send(new GetCustomerFullProfileQuery(_currentUser.UserId));
             return Ok(result);
         }
 
