@@ -7,6 +7,8 @@ using GoVoylo.Application.Features.Authentication.Commands.Register;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Interfaces;
 using GoVoylo.Infrastructure;
+using GoVoylo.Infrastructure.Caching;
+using GoVoylo.Infrastructure.ExternalServices.Tripjack;
 using GoVoylo.Infrastructure.Logging;
 using GoVoylo.Infrastructure.Monitoring;
 using GoVoylo.Infrastructure.Persistence.EntityFramework;
@@ -111,6 +113,19 @@ public class Program
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
         builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
+
+        builder.Services.AddMemoryCache();
+        builder.Services.AddSingleton<IFlightSearchSessionStore, InMemoryFlightSearchSessionStore>();
+        builder.Services.Configure<TripjackOptions>(builder.Configuration.GetSection("TripjackSettings"));
+        builder.Services.AddHttpClient<IFlightSupplierClient, TripjackClient>((sp, client) =>
+        {
+            var tripjackOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<TripjackOptions>>().Value;
+            if (!string.IsNullOrWhiteSpace(tripjackOptions.BaseUrl))
+            {
+                client.BaseAddress = new Uri(tripjackOptions.BaseUrl);
+            }
+            client.Timeout = TimeSpan.FromSeconds(20);
+        });
 
         builder.Services.AddHealthChecks()
             .AddDbContextCheck<ApplicationDbContext>("database")
