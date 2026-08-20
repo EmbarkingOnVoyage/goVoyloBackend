@@ -1,6 +1,7 @@
 using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Features.Customer.Dtos;
 using GoVoylo.Application.Features.Customer.Mappers;
+using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
 
@@ -14,19 +15,22 @@ namespace GoVoylo.Application.Features.Customer.Queries.GetCustomerFullProfile
         private readonly ICustomerGstDetailRepository _gstRepository;
         private readonly IUserPreferenceRepository _preferenceRepository;
         private readonly INotificationPreferenceRepository _notificationPreferenceRepository;
+        private readonly IEncryptionService _encryptionService;
 
         public GetCustomerFullProfileQueryHandler(
             IUserRepository userRepository,
             ICustomerAddressRepository addressRepository,
             ICustomerGstDetailRepository gstRepository,
             IUserPreferenceRepository preferenceRepository,
-            INotificationPreferenceRepository notificationPreferenceRepository)
+            INotificationPreferenceRepository notificationPreferenceRepository,
+            IEncryptionService encryptionService)
         {
             _userRepository = userRepository;
             _addressRepository = addressRepository;
             _gstRepository = gstRepository;
             _preferenceRepository = preferenceRepository;
             _notificationPreferenceRepository = notificationPreferenceRepository;
+            _encryptionService = encryptionService;
         }
 
         public async Task<CustomerFullProfileDto> Handle(
@@ -70,7 +74,7 @@ namespace GoVoylo.Application.Features.Customer.Queries.GetCustomerFullProfile
                     notificationPreference.PushEnabled);
 
             return new CustomerFullProfileDto(
-                CustomerProfileMapper.ToDto(user),
+                CustomerProfileMapper.ToDto(user, _encryptionService),
                 addresses,
                 gstDto,
                 preferencesDto,

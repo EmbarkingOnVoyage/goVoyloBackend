@@ -6,6 +6,7 @@ using GoVoylo.Application.Features.Customer.Commands.DeleteCustomerAddress;
 using GoVoylo.Application.Features.Customer.Commands.DeleteProfileImage;
 using GoVoylo.Application.Features.Customer.Commands.UpdateCustomerAddress;
 using GoVoylo.Application.Features.Customer.Commands.UpdateCustomerProfile;
+using GoVoylo.Application.Features.Customer.Commands.UpdateExtendedProfile;
 using GoVoylo.Application.Features.Customer.Commands.UpdateGstDetails;
 using GoVoylo.Application.Features.Customer.Commands.UpdateNotificationPreferences;
 using GoVoylo.Application.Features.Customer.Commands.UpdatePreferences;
@@ -58,6 +59,28 @@ namespace GoVoylo.Api.Controllers
         {
             var command = new UpdateCustomerProfileCommand(
                 _currentUser.UserId, request.FirstName, request.LastName, request.Phone);
+
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+
+        [HttpPut("profile/details")]
+        public async Task<IActionResult> UpdateExtendedProfile([FromBody] UpdateExtendedProfileRequest request)
+        {
+            var command = new UpdateExtendedProfileCommand(
+                _currentUser.UserId,
+                request.Gender,
+                request.DateOfBirth,
+                request.Nationality,
+                request.MaritalStatus,
+                request.Anniversary,
+                request.CityOfResidence,
+                request.State,
+                request.PassportNumber,
+                request.PassportExpiryDate,
+                request.PassportIssuingCountry,
+                request.PanCardNumber,
+                request.AutoAddTravelInsurance);
 
             var result = await _mediator.Send(command);
             return Ok(result);
@@ -229,6 +252,20 @@ namespace GoVoylo.Api.Controllers
     }
 
     public record UpdateProfileRequest(string FirstName, string LastName, string? Phone);
+
+    public record UpdateExtendedProfileRequest(
+        string? Gender,
+        DateTime? DateOfBirth,
+        string? Nationality,
+        string? MaritalStatus,
+        DateTime? Anniversary,
+        string? CityOfResidence,
+        string? State,
+        string? PassportNumber,
+        DateTime? PassportExpiryDate,
+        string? PassportIssuingCountry,
+        string? PanCardNumber,
+        bool AutoAddTravelInsurance);
     public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
     public record UpdatePreferencesRequest(string Language, string Currency);
 

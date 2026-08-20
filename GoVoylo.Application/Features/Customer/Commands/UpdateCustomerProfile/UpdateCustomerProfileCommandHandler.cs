@@ -13,13 +13,16 @@ namespace GoVoylo.Application.Features.Customer.Commands.UpdateCustomerProfile
     {
         private readonly IUserRepository _userRepository;
         private readonly IAuditService _auditService;
+        private readonly IEncryptionService _encryptionService;
 
         public UpdateCustomerProfileCommandHandler(
             IUserRepository userRepository,
-            IAuditService auditService)
+            IAuditService auditService,
+            IEncryptionService encryptionService)
         {
             _userRepository = userRepository;
             _auditService = auditService;
+            _encryptionService = encryptionService;
         }
 
         public async Task<CustomerProfileDto> Handle(
@@ -38,7 +41,7 @@ namespace GoVoylo.Application.Features.Customer.Commands.UpdateCustomerProfile
 
             _auditService.Log(user.Id, AuditEventTypes.ProfileUpdated);
 
-            return CustomerProfileMapper.ToDto(user);
+            return CustomerProfileMapper.ToDto(user, _encryptionService);
         }
     }
 }

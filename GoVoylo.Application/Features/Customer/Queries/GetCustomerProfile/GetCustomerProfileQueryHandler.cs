@@ -1,6 +1,7 @@
 using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Features.Customer.Dtos;
 using GoVoylo.Application.Features.Customer.Mappers;
+using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
 
@@ -10,10 +11,13 @@ namespace GoVoylo.Application.Features.Customer.Queries.GetCustomerProfile
         : IRequestHandler<GetCustomerProfileQuery, CustomerProfileDto>
     {
         private readonly IUserRepository _userRepository;
+        private readonly IEncryptionService _encryptionService;
 
-        public GetCustomerProfileQueryHandler(IUserRepository userRepository)
+        public GetCustomerProfileQueryHandler(
+            IUserRepository userRepository, IEncryptionService encryptionService)
         {
             _userRepository = userRepository;
+            _encryptionService = encryptionService;
         }
 
         public async Task<CustomerProfileDto> Handle(
@@ -27,7 +31,7 @@ namespace GoVoylo.Application.Features.Customer.Queries.GetCustomerProfile
                 throw new NotFoundException("Customer profile not found.");
             }
 
-            return CustomerProfileMapper.ToDto(user);
+            return CustomerProfileMapper.ToDto(user, _encryptionService);
         }
     }
 }

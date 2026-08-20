@@ -32,6 +32,30 @@ namespace GoVoylo.Domain.Entities
 
         public DateTime UpdatedAt { get; private set; }
 
+        public string? Gender { get; private set; }
+
+        public DateTime? DateOfBirth { get; private set; }
+
+        public string? Nationality { get; private set; }
+
+        public string? MaritalStatus { get; private set; }
+
+        public DateTime? Anniversary { get; private set; }
+
+        public string? CityOfResidence { get; private set; }
+
+        public string? State { get; private set; }
+
+        public byte[]? PassportNumberEncrypted { get; private set; }
+
+        public DateTime? PassportExpiryDate { get; private set; }
+
+        public string? PassportIssuingCountry { get; private set; }
+
+        public byte[]? PanCardNumberEncrypted { get; private set; }
+
+        public bool AutoAddTravelInsurance { get; private set; }
+
 
         public User(
         string email,
@@ -104,6 +128,35 @@ namespace GoVoylo.Domain.Entities
         public void Activate()
         {
             Status = "active";
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void UpdateExtendedProfile(
+            string? gender,
+            DateTime? dateOfBirth,
+            string? nationality,
+            string? maritalStatus,
+            DateTime? anniversary,
+            string? cityOfResidence,
+            string? state,
+            byte[]? passportNumberEncrypted,
+            DateTime? passportExpiryDate,
+            string? passportIssuingCountry,
+            byte[]? panCardNumberEncrypted,
+            bool autoAddTravelInsurance)
+        {
+            Gender = gender;
+            DateOfBirth = dateOfBirth;
+            Nationality = nationality;
+            MaritalStatus = maritalStatus;
+            Anniversary = anniversary;
+            CityOfResidence = cityOfResidence;
+            State = state;
+            PassportNumberEncrypted = passportNumberEncrypted;
+            PassportExpiryDate = passportExpiryDate;
+            PassportIssuingCountry = passportIssuingCountry;
+            PanCardNumberEncrypted = panCardNumberEncrypted;
+            AutoAddTravelInsurance = autoAddTravelInsurance;
             UpdatedAt = DateTime.UtcNow;
         }
     }

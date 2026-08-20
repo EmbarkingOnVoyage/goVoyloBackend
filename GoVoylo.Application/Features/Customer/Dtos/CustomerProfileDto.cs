@@ -11,5 +11,17 @@ namespace GoVoylo.Application.Features.Customer.Dtos
         string? ProfileImageUrl,
         string Status,
         int ProfileCompletionPercentage,
-        DateTime CreatedAt);
+        DateTime CreatedAt,
+        string? Gender,
+        DateTime? DateOfBirth,
+        string? Nationality,
+        string? MaritalStatus,
+        DateTime? Anniversary,
+        string? CityOfResidence,
+        string? State,
+        string? MaskedPassportNumber,
+        DateTime? PassportExpiryDate,
+        string? PassportIssuingCountry,
+        string? MaskedPanCardNumber,
+        bool AutoAddTravelInsurance);
 }
