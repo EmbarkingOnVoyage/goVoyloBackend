@@ -11,5 +11,8 @@ namespace GoVoylo.Application.Features.Traveler.Commands.UpdateTraveler
         string LastName,
         DateTime DateOfBirth,
         string? Gender,
-        string? Nationality) : IRequest<TravelerDto>;
+        string? Nationality,
+        string? City,
+        string? State,
+        bool AutoAddTravelInsurance) : IRequest<TravelerDto>;
 }

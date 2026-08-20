@@ -69,6 +69,9 @@ namespace GoVoylo.Application.Features.Traveler.Queries.GetTravelerById
                 traveler.Nationality,
                 traveler.MealPreference,
                 traveler.SeatPreference,
+                traveler.City,
+                traveler.State,
+                traveler.AutoAddTravelInsurance,
                 specialAssistance.Select(x => x.SsrCode).ToList(),
                 passportDto,
                 visas.Select(v => new VisaDto(

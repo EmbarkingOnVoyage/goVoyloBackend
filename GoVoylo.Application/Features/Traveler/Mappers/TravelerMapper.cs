@@ -14,7 +14,10 @@ namespace GoVoylo.Application.Features.Traveler.Mappers
                 traveler.LastName,
                 traveler.DateOfBirth,
                 traveler.Gender,
-                traveler.Nationality);
+                traveler.Nationality,
+                traveler.City,
+                traveler.State,
+                traveler.AutoAddTravelInsurance);
         }
     }
 }

@@ -13,6 +13,9 @@ namespace GoVoylo.Domain.Entities
         public string? Nationality { get; private set; }
         public string? MealPreference { get; private set; }
         public string? SeatPreference { get; private set; } // window | aisle | middle
+        public string? City { get; private set; }
+        public string? State { get; private set; }
+        public bool AutoAddTravelInsurance { get; private set; }
         public bool IsDeleted { get; private set; }
         public DateTime UpdatedAt { get; private set; }
 
@@ -23,7 +26,10 @@ namespace GoVoylo.Domain.Entities
             string lastName,
             DateTime dateOfBirth,
             string? gender,
-            string? nationality)
+            string? nationality,
+            string? city = null,
+            string? state = null,
+            bool autoAddTravelInsurance = false)
         {
             UserId = userId;
             TravelerType = travelerType;
@@ -32,6 +38,9 @@ namespace GoVoylo.Domain.Entities
             DateOfBirth = dateOfBirth;
             Gender = gender;
             Nationality = nationality;
+            City = city;
+            State = state;
+            AutoAddTravelInsurance = autoAddTravelInsurance;
             UpdatedAt = DateTime.UtcNow;
         }
 
@@ -46,7 +55,10 @@ namespace GoVoylo.Domain.Entities
             string lastName,
             DateTime dateOfBirth,
             string? gender,
-            string? nationality)
+            string? nationality,
+            string? city,
+            string? state,
+            bool autoAddTravelInsurance)
         {
             TravelerType = travelerType;
             FirstName = firstName;
@@ -54,6 +66,9 @@ namespace GoVoylo.Domain.Entities
             DateOfBirth = dateOfBirth;
             Gender = gender;
             Nationality = nationality;
+            City = city;
+            State = state;
+            AutoAddTravelInsurance = autoAddTravelInsurance;
             UpdatedAt = DateTime.UtcNow;
         }
 

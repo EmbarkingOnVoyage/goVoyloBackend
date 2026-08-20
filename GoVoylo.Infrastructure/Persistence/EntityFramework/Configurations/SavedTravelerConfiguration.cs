@@ -56,6 +56,19 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasColumnName("seat_preference")
                 .HasMaxLength(10);
 
+            builder.Property(x => x.City)
+                .HasColumnName("city")
+                .HasMaxLength(100);
+
+            builder.Property(x => x.State)
+                .HasColumnName("state")
+                .HasMaxLength(100);
+
+            builder.Property(x => x.AutoAddTravelInsurance)
+                .HasColumnName("auto_add_travel_insurance")
+                .HasDefaultValue(false)
+                .IsRequired();
+
             builder.Property(x => x.IsDeleted)
                 .HasColumnName("is_deleted")
                 .HasDefaultValue(false)

@@ -46,7 +46,10 @@ namespace GoVoylo.Application.Features.Traveler.Commands.AddTraveler
                 request.LastName,
                 request.DateOfBirth,
                 request.Gender,
-                request.Nationality);
+                request.Nationality,
+                request.City,
+                request.State,
+                request.AutoAddTravelInsurance);
 
             await _travelerRepository.AddAsync(traveler);
 

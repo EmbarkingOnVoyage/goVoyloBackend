@@ -7,5 +7,8 @@ namespace GoVoylo.Application.Features.Traveler.Dtos
         string LastName,
         DateTime DateOfBirth,
         string? Gender,
-        string? Nationality);
+        string? Nationality,
+        string? City,
+        string? State,
+        bool AutoAddTravelInsurance);
 }
