@@ -9,6 +9,7 @@ using GoVoylo.Domain.Interfaces;
 using GoVoylo.Infrastructure;
 using GoVoylo.Infrastructure.Caching;
 using GoVoylo.Infrastructure.ExternalServices.Tripjack;
+using GoVoylo.Infrastructure.Jobs;
 using GoVoylo.Infrastructure.Logging;
 using GoVoylo.Infrastructure.Monitoring;
 using GoVoylo.Infrastructure.Persistence.EntityFramework;
@@ -111,6 +112,9 @@ public class Program
         builder.Services.AddScoped<IAuditService, AuditService>();
         builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         builder.Services.AddHostedService<AuditLogBackgroundService>();
+        builder.Services.Configure<PassportExpiryAlertOptions>(
+            builder.Configuration.GetSection("PassportExpiryAlert"));
+        builder.Services.AddHostedService<PassportExpiryAlertBackgroundService>();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
         builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));

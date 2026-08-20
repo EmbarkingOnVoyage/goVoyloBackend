@@ -133,6 +133,10 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasColumnName("passport_issuing_country")
                 .HasMaxLength(50);
 
+            builder.Property(x => x.PassportExpiryAlertSentAt)
+                .HasColumnName("passport_expiry_alert_sent_at")
+                .HasColumnType("timestamptz");
+
             builder.Property(x => x.PanCardNumberEncrypted)
                 .HasColumnName("pan_card_number_encrypted");
 

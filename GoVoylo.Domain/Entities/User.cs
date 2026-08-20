@@ -52,6 +52,8 @@ namespace GoVoylo.Domain.Entities
 
         public string? PassportIssuingCountry { get; private set; }
 
+        public DateTime? PassportExpiryAlertSentAt { get; private set; }
+
         public byte[]? PanCardNumberEncrypted { get; private set; }
 
         public bool AutoAddTravelInsurance { get; private set; }
@@ -145,6 +147,13 @@ namespace GoVoylo.Domain.Entities
             byte[]? panCardNumberEncrypted,
             bool autoAddTravelInsurance)
         {
+            if (passportExpiryDate != PassportExpiryDate)
+            {
+                // A changed expiry date (e.g. renewal) means any prior alert no
+                // longer applies to the current date — allow re-alerting on it.
+                PassportExpiryAlertSentAt = null;
+            }
+
             Gender = gender;
             DateOfBirth = dateOfBirth;
             Nationality = nationality;
@@ -158,6 +167,11 @@ namespace GoVoylo.Domain.Entities
             PanCardNumberEncrypted = panCardNumberEncrypted;
             AutoAddTravelInsurance = autoAddTravelInsurance;
             UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void MarkPassportExpiryAlertSent()
+        {
+            PassportExpiryAlertSentAt = DateTime.UtcNow;
         }
     }
 }

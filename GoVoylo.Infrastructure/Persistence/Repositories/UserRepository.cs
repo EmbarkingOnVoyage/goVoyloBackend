@@ -71,5 +71,17 @@ namespace GoVoylo.Infrastructure.Persistence.Repositories
 
             return (users, totalCount);
         }
+
+        public async Task<IReadOnlyList<User>> GetWithExpiringPassportUnnotifiedAsync(DateTime windowEnd)
+        {
+            var today = DateTime.UtcNow.Date;
+
+            return await _context.Users
+                .Where(x => x.PassportNumberEncrypted != null
+                    && x.PassportExpiryAlertSentAt == null
+                    && x.PassportExpiryDate > today
+                    && x.PassportExpiryDate <= windowEnd)
+                .ToListAsync();
+        }
     }
 }

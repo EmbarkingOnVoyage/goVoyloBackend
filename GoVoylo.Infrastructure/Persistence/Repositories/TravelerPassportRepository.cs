@@ -20,6 +20,17 @@ namespace GoVoylo.Infrastructure.Persistence.Repositories
                 .FirstOrDefaultAsync(x => x.SavedTravelerId == savedTravelerId);
         }
 
+        public async Task<IReadOnlyList<TravelerPassport>> GetExpiringUnnotifiedAsync(DateTime windowEnd)
+        {
+            var today = DateTime.UtcNow.Date;
+
+            return await _context.TravelerPassports
+                .Where(x => x.LastExpiryAlertSentAt == null
+                    && x.ExpiryDate > today
+                    && x.ExpiryDate <= windowEnd)
+                .ToListAsync();
+        }
+
         public async Task AddAsync(TravelerPassport passport)
         {
             await _context.TravelerPassports.AddAsync(passport);

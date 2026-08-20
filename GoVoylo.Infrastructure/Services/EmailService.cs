@@ -45,5 +45,41 @@ namespace GoVoylo.Infrastructure.Services
 
             await client.DisconnectAsync(true);
         }
+
+        public async Task SendPassportExpiryAlertAsync(
+            string email, string recipientName, string maskedPassportNumber, DateTime expiryDate)
+        {
+            var message = new MimeMessage();
+
+            message.From.Add(new MailboxAddress("GoVoylo", _smtpSettings.SenderEmail));
+
+            message.To.Add(MailboxAddress.Parse(email));
+
+            message.Subject = "Your passport is expiring soon";
+
+            message.Body = new TextPart("plain")
+            {
+                Text =
+                    $"Hi {recipientName},\n\n" +
+                    $"Your passport ({maskedPassportNumber}) expires on {expiryDate:dd MMM yyyy}. " +
+                    "Please renew it soon to avoid any disruption to your upcoming travel plans.\n\n" +
+                    "— GoVoylo"
+            };
+
+            using var client = new SmtpClient();
+
+            await client.ConnectAsync(
+                _smtpSettings.Host,
+                _smtpSettings.Port,
+                SecureSocketOptions.StartTls);
+
+            await client.AuthenticateAsync(
+                _smtpSettings.Username,
+                _smtpSettings.Password);
+
+            await client.SendAsync(message);
+
+            await client.DisconnectAsync(true);
+        }
     }
 }
