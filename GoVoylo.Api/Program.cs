@@ -18,6 +18,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Text;
@@ -176,6 +177,19 @@ public class Program
         app.UseRateLimiter();
 
         app.UseHttpsRedirection();
+
+        var profileImagesRootPath = builder.Configuration["Storage:ProfileImages:RootPath"]
+            ?? Path.Combine(AppContext.BaseDirectory, "uploads", "profile-images");
+        var profileImagesPublicBasePath = builder.Configuration["Storage:ProfileImages:PublicBasePath"]
+            ?? "/uploads/profile-images";
+        Directory.CreateDirectory(profileImagesRootPath);
+
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(profileImagesRootPath),
+            RequestPath = profileImagesPublicBasePath
+        });
+
         app.UseAuthentication();
         app.UseAuthorization();
 

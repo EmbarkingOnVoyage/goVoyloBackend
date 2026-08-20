@@ -28,7 +28,12 @@ namespace GoVoylo.Infrastructure.Services
             string contentType,
             CancellationToken cancellationToken = default)
         {
-            var extension = Path.GetExtension(fileName);
+            // Extension is derived from the validated content type, never from the
+            // client-supplied file name — otherwise a request with an allowed
+            // Content-Type but an attacker-chosen file name (e.g. "x.svg", "x.html")
+            // would be stored with that extension, and a browser navigating straight
+            // to the file's public URL would render it as that type instead of an image.
+            var extension = GetExtensionForContentType(contentType);
             var storedFileName = $"{userId}{extension}";
             var fullPath = Path.Combine(_rootPath, storedFileName);
 
@@ -52,5 +57,13 @@ namespace GoVoylo.Infrastructure.Services
 
             return Task.CompletedTask;
         }
+
+        private static string GetExtensionForContentType(string contentType) =>
+            contentType.ToLowerInvariant() switch
+            {
+                "image/jpeg" => ".jpg",
+                "image/png" => ".png",
+                _ => throw new ArgumentException($"Unsupported content type: {contentType}", nameof(contentType))
+            };
     }
 }
