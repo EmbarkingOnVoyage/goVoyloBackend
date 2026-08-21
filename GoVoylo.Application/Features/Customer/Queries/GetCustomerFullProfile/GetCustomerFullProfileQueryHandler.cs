@@ -44,26 +44,23 @@ namespace GoVoylo.Application.Features.Customer.Queries.GetCustomerFullProfile
                 throw new NotFoundException("Customer profile not found.");
             }
 
-            var addressesTask = _addressRepository.GetByUserIdAsync(request.UserId);
-            var gstTask = _gstRepository.GetByUserIdAsync(request.UserId);
-            var preferenceTask = _preferenceRepository.GetByUserIdAsync(request.UserId);
-            var notificationPreferenceTask = _notificationPreferenceRepository.GetByUserIdAsync(request.UserId);
+            // Sequential, not Task.WhenAll — these repositories share one scoped
+            // DbContext, and EF Core only allows one operation in flight on a
+            // context at a time; running them concurrently throws.
+            var addresses = (await _addressRepository.GetByUserIdAsync(request.UserId))
+                .Select(CustomerAddressMapper.ToDto).ToList();
 
-            await Task.WhenAll(addressesTask, gstTask, preferenceTask, notificationPreferenceTask);
-
-            var addresses = addressesTask.Result.Select(CustomerAddressMapper.ToDto).ToList();
-
-            var gst = gstTask.Result;
+            var gst = await _gstRepository.GetByUserIdAsync(request.UserId);
             var gstDto = gst == null
                 ? null
                 : new GstDetailsDto(gst.Id, gst.Gstin, gst.LegalName, gst.TradeName, gst.IsVerified);
 
-            var preference = preferenceTask.Result;
+            var preference = await _preferenceRepository.GetByUserIdAsync(request.UserId);
             var preferencesDto = preference == null
                 ? new PreferencesDto("en", "INR")
                 : new PreferencesDto(preference.Language, preference.Currency);
 
-            var notificationPreference = notificationPreferenceTask.Result;
+            var notificationPreference = await _notificationPreferenceRepository.GetByUserIdAsync(request.UserId);
             var notificationPreferencesDto = notificationPreference == null
                 ? new NotificationPreferencesDto(true, true, true, false, true)
                 : new NotificationPreferencesDto(
