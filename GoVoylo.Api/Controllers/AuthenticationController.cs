@@ -3,6 +3,7 @@ using GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp;
 using GoVoylo.Application.Features.Authentication.Commands.Logout;
 using GoVoylo.Application.Features.Authentication.Commands.RefreshToken;
 using GoVoylo.Application.Features.Authentication.Commands.Register;
+using GoVoylo.Application.Features.Authentication.Commands.ResetPassword;
 using GoVoylo.Application.Features.Authentication.Commands.SendOtp;
 using GoVoylo.Application.Features.Authentication.Commands.VerifyOtp;
 using MediatR;

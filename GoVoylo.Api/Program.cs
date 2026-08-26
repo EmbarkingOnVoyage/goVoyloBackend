@@ -161,9 +161,18 @@ public class Program
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst
                     }));
         });
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowReactApp",
+                policy =>
+                {
+                    policy.WithOrigins("http://localhost:5173")
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
+        });
 
         var app = builder.Build();
-
         // --- 4. HTTP PIPELINE MIDDLEWARE CONFIGURATION ---
         app.UseExceptionHandler();
 

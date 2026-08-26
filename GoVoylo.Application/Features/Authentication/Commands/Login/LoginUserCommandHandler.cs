@@ -72,6 +72,24 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Login
                 throw new UnauthorizedAppException("invalid_credentials", "Invalid email or password.");
             }
 
+            var accessToken =
+                  _jwtTokenService.GenerateToken(user);
+
+            var refreshToken =
+                _refreshTokenService.GenerateRefreshToken();
+
+            var refreshTokenHash =
+                _refreshTokenService.HashToken(refreshToken);
+
+            var refreshTokenEntity =
+                new RefreshToken(
+                    user.Id,
+                    refreshTokenHash,
+                    DateTime.UtcNow.AddDays(7));
+
+            await _refreshTokenRepository
+                .SaveAsync(refreshTokenEntity);
+
             // 5. Generate JWT
             var roles = await _userRoleRepository.GetRoleNamesForUserAsync(user.Id);
             var token = _jwtTokenService.GenerateToken(user, roles);

@@ -4,6 +4,9 @@ using GoVoylo.Domain.Interfaces;
 using GoVoylo.Infrastructure.Persistence.EntityFramework;
 using GoVoylo.Infrastructure.Persistence.Repositories;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Http;
+using GoVoylo.Application.Interfaces; 
+using GoVoylo.Infrastructure.Services.B2b.TripJack;
 
 namespace GoVoylo.Infrastructure;
 
@@ -12,6 +15,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration?.GetConnectionString("DefaultConnection");
+        
 
         bool isMigrationRunning = AppDomain.CurrentDomain.GetAssemblies()
             .Any(a => a.FullName != null && a.FullName.Contains("Microsoft.EntityFrameworkCore.Design"));
@@ -50,7 +54,26 @@ public static class DependencyInjection
         }
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IBookFlightRepository, BookFlightRepository>();
+        bool useMock = configuration?.GetValue<bool>("B2bSettings:TripJack:UseMock") ?? true;
 
+        if (useMock)
+        {
+            // If UseMock is true, we register a mock service that returns a static JSON response.
+            services.AddTransient<ITripJackTestService, TripJackMockService>();
+        }
+        else
+        {
+            // If UseMock is false, we register the real HTTP client service for TripJack.
+            services.AddHttpClient<ITripJackTestService, TripJackTestService>(client =>
+            {
+                var baseUrl = configuration["B2bSettings:TripJack:BaseUrl"] ?? "https://apitest.tripjack.com/";
+                var apiKey = configuration["B2bSettings:TripJack:ApiKey"] ?? "717512708b4ba99-786c-46c9-a801-37891e3a8bab";
+
+                client.BaseAddress = new Uri(baseUrl);
+                client.DefaultRequestHeaders.Add("apikey", apiKey);
+                client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            });
+        }
         return services;
     }
 }
