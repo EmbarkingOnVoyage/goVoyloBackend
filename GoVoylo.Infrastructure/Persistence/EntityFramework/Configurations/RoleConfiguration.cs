@@ -30,6 +30,12 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
             builder.HasIndex(x => x.Name)
                 .IsUnique()
                 .HasDatabaseName("ux_roles_name");
+
+            // Fixed IDs so seeded data stays stable across environments/migrations
+            builder.HasData(
+                new { Id = Guid.Parse("4bbebc58-b75d-434d-bb5a-29c6bf7c8fe7"), Name = "customer" },
+                new { Id = Guid.Parse("a04f3f16-299b-4087-a858-d12ca890794b"), Name = "support_agent" },
+                new { Id = Guid.Parse("9ebf67c2-40b6-4481-b580-895303558a69"), Name = "superadmin" });
         }
     }
 }

@@ -68,6 +68,11 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasDefaultValue(false)
                 .IsRequired();
 
+            // Profile Image
+            builder.Property(x => x.ProfileImageUrl)
+                .HasColumnName("profile_image_url")
+                .HasMaxLength(500);
+
             // Status
             builder.Property(x => x.Status)
                 .HasColumnName("status")
@@ -87,6 +92,57 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasColumnName("updated_at")
                 .HasColumnType("timestamptz")
                 .HasDefaultValueSql("now()")
+                .IsRequired();
+
+            builder.Property(x => x.Gender)
+                .HasColumnName("gender")
+                .HasMaxLength(20);
+
+            builder.Property(x => x.DateOfBirth)
+                .HasColumnName("date_of_birth")
+                .HasColumnType("date");
+
+            builder.Property(x => x.Nationality)
+                .HasColumnName("nationality")
+                .HasMaxLength(50);
+
+            builder.Property(x => x.MaritalStatus)
+                .HasColumnName("marital_status")
+                .HasMaxLength(20);
+
+            builder.Property(x => x.Anniversary)
+                .HasColumnName("anniversary")
+                .HasColumnType("date");
+
+            builder.Property(x => x.CityOfResidence)
+                .HasColumnName("city_of_residence")
+                .HasMaxLength(100);
+
+            builder.Property(x => x.State)
+                .HasColumnName("state")
+                .HasMaxLength(100);
+
+            builder.Property(x => x.PassportNumberEncrypted)
+                .HasColumnName("passport_number_encrypted");
+
+            builder.Property(x => x.PassportExpiryDate)
+                .HasColumnName("passport_expiry_date")
+                .HasColumnType("date");
+
+            builder.Property(x => x.PassportIssuingCountry)
+                .HasColumnName("passport_issuing_country")
+                .HasMaxLength(50);
+
+            builder.Property(x => x.PassportExpiryAlertSentAt)
+                .HasColumnName("passport_expiry_alert_sent_at")
+                .HasColumnType("timestamptz");
+
+            builder.Property(x => x.PanCardNumberEncrypted)
+                .HasColumnName("pan_card_number_encrypted");
+
+            builder.Property(x => x.AutoAddTravelInsurance)
+                .HasColumnName("auto_add_travel_insurance")
+                .HasDefaultValue(false)
                 .IsRequired();
 
             //// Email OR Phone must be present

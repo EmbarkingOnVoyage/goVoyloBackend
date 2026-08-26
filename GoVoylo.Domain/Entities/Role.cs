@@ -9,5 +9,21 @@ namespace GoVoylo.Domain.Entities
         public Guid Id { get; private set; }
 
         public string Name { get; private set; } = null!;
+
+        public Role(string name)
+        {
+            Id = Guid.NewGuid();
+            Name = name;
+        }
+
+        // Required by EF Core
+        private Role()
+        {
+        }
+
+        public void Rename(string name)
+        {
+            Name = name;
+        }
     }
 }

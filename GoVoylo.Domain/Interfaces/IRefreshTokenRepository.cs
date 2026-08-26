@@ -1,19 +1,12 @@
-﻿using GoVoylo.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using GoVoylo.Domain.Entities;
 
 namespace GoVoylo.Domain.Interfaces
 {
     public interface IRefreshTokenRepository
     {
-        Task SaveAsync(
-            RefreshToken refreshToken);
-
-        Task<RefreshToken?> GetByTokenHashAsync(
-            string tokenHash);
-
-        Task UpdateAsync(
-            RefreshToken refreshToken);
+        Task<RefreshToken?> GetByTokenHashAsync(string tokenHash);
+        Task SaveAsync(RefreshToken refreshToken);
+        Task UpdateAsync(RefreshToken refreshToken);
+        Task RevokeAllForUserAsync(Guid userId);
     }
 }

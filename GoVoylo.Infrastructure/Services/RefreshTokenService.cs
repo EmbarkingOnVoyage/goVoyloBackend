@@ -1,26 +1,39 @@
-﻿using GoVoylo.Application.Interfaces;
 using System.Security.Cryptography;
-using System.Text;
+using GoVoylo.Application.Interfaces;
+using Microsoft.Extensions.Configuration;
 
 namespace GoVoylo.Infrastructure.Services
 {
     public class RefreshTokenService : IRefreshTokenService
     {
-        public string GenerateRefreshToken()
-        {
-            var randomBytes =
-                RandomNumberGenerator.GetBytes(64);
+        private readonly IConfiguration _configuration;
 
-            return Convert.ToBase64String(randomBytes);
+        public RefreshTokenService(IConfiguration configuration)
+        {
+            _configuration = configuration;
         }
 
-        public string HashToken(string token)
+        public DateTime GetExpiryDate()
         {
-            var bytes =
-                SHA256.HashData(
-                    Encoding.UTF8.GetBytes(token));
+            var days = _configuration.GetValue<int?>("Jwt:RefreshTokenExpiryDays") ?? 30;
+            return DateTime.UtcNow.AddDays(days);
+        }
 
-            return Convert.ToHexString(bytes);
+        public string GenerateRawToken()
+        {
+            // High-entropy opaque token — not user-chosen, so a fast hash (below) is
+            // appropriate here, unlike passwords which need slow hashing (BCrypt).
+            var bytes = RandomNumberGenerator.GetBytes(64);
+            return Convert.ToBase64String(bytes)
+                .Replace("+", "-")
+                .Replace("/", "_")
+                .Replace("=", "");
+        }
+
+        public string Hash(string rawToken)
+        {
+            var hashBytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(rawToken));
+            return Convert.ToHexString(hashBytes);
         }
     }
 }

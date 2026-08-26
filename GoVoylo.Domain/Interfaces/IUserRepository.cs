@@ -8,8 +8,11 @@ namespace GoVoylo.Domain.Interfaces
     public interface IUserRepository
     {
         Task<User?> GetByEmailAsync(string email);
-        Task SaveAsync(User user);
         Task<User?> GetByIdAsync(Guid id);
-        Task <User>UpdateAsync(User user);
+        Task SaveAsync(User user);
+        Task UpdateAsync(User user);
+        Task<(IReadOnlyList<User> Users, int TotalCount)> SearchAsync(
+            string? search, string? status, int page, int pageSize);
+        Task<IReadOnlyList<User>> GetWithExpiringPassportUnnotifiedAsync(DateTime windowEnd);
     }
 }

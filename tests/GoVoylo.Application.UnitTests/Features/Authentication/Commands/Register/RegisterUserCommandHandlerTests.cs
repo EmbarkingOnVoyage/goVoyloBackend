@@ -14,16 +14,29 @@ namespace GoVoylo.Application.UnitTests.Features.Authentication.Commands.Registe
     {
         private readonly IUserRepository _userRepository;
         private readonly IPasswordService _passwordService;
+        private readonly IRoleRepository _roleRepository;
+        private readonly IUserRoleRepository _userRoleRepository;
+        private readonly IAuditService _auditService;
         private readonly RegisterCommandHandler _handler;
 
         public RegisterUserCommandHandlerTests()
         {
             _userRepository = Substitute.For<IUserRepository>();
             _passwordService = Substitute.For<IPasswordService>();
+            _roleRepository = Substitute.For<IRoleRepository>();
+            _userRoleRepository = Substitute.For<IUserRoleRepository>();
+            _auditService = Substitute.For<IAuditService>();
+
+            _roleRepository
+                .GetByNameAsync("customer")
+                .Returns(new Role("customer"));
 
             _handler = new RegisterCommandHandler(
                 _userRepository,
-                _passwordService);
+                _passwordService,
+                _roleRepository,
+                _userRoleRepository,
+                _auditService);
         }
 
         [Fact]
@@ -59,7 +72,7 @@ namespace GoVoylo.Application.UnitTests.Features.Authentication.Commands.Registe
             // Assert
             await act.Should()
                 .ThrowAsync<Exception>()
-                .WithMessage("Email already exists");
+                .WithMessage("Email already registered.");
 
             await _userRepository
                 .DidNotReceive()

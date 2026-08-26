@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace GoVoylo.Application.Interfaces
 {
     public interface IRefreshTokenService
     {
-        string GenerateRefreshToken();
-
-        string HashToken(string token);
+        // Returns the raw token to hand to the client — only the hash is ever persisted.
+        string GenerateRawToken();
+        string Hash(string rawToken);
+        DateTime GetExpiryDate();
     }
 }

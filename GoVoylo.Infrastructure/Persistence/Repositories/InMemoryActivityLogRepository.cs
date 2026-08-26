@@ -17,4 +17,16 @@ public class InMemoryActivityLogRepository : IActivityLogRepository
         _logs.Add(activityLog);
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyList<UserActivityLog>> GetByUserIdAsync(
+        string userId, int limit, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<UserActivityLog> result = _logs
+            .Where(x => x.UserId == userId)
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(limit)
+            .ToList();
+
+        return Task.FromResult(result);
+    }
 }

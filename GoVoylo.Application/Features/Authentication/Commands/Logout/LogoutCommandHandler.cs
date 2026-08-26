@@ -1,68 +1,40 @@
-﻿using GoVoylo.Application.Features.Authentication.Dtos;
 using GoVoylo.Application.Interfaces;
+using GoVoylo.Domain.Common;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace GoVoylo.Application.Features.Authentication.Commands.Logout
 {
-    public class LogoutCommandHandler
-    : IRequestHandler<LogoutCommand, LogoutResponseDto>
+    public class LogoutCommandHandler : IRequestHandler<LogoutCommand, Unit>
     {
         private readonly IRefreshTokenRepository _refreshTokenRepository;
         private readonly IRefreshTokenService _refreshTokenService;
+        private readonly IAuditService _auditService;
 
         public LogoutCommandHandler(
             IRefreshTokenRepository refreshTokenRepository,
-            IRefreshTokenService refreshTokenService)
+            IRefreshTokenService refreshTokenService,
+            IAuditService auditService)
         {
             _refreshTokenRepository = refreshTokenRepository;
             _refreshTokenService = refreshTokenService;
+            _auditService = auditService;
         }
 
-        public async Task<LogoutResponseDto> Handle(
-            LogoutCommand request,
-            CancellationToken cancellationToken)
+        public async Task<Unit> Handle(LogoutCommand request, CancellationToken cancellationToken)
         {
-            // Hash refresh token received from client
-            var tokenHash =
-                _refreshTokenService.HashToken(
-                    request.RefreshToken);
+            var tokenHash = _refreshTokenService.Hash(request.RefreshToken);
+            var token = await _refreshTokenRepository.GetByTokenHashAsync(tokenHash);
 
-            // Find token in database
-            var storedToken =
-                await _refreshTokenRepository
-                    .GetByTokenHashAsync(tokenHash);
-
-            // Token doesn't exist
-            if (storedToken == null)
+            // Logout is idempotent — an already-invalid token is not an error.
+            if (token != null && token.IsActive)
             {
-                throw new Exception(
-                    "Invalid refresh token.");
+                token.Revoke();
+                await _refreshTokenRepository.UpdateAsync(token);
+                _auditService.Log(token.UserId, AuditEventTypes.Logout);
             }
 
-            // Already revoked
-            if (storedToken.IsRevoked())
-            {
-                return new LogoutResponseDto
-                {
-                    Message = "User already logged out."
-                };
-            }
-
-            // Revoke token
-            storedToken.Revoke();
-
-            // Update database
-            await _refreshTokenRepository
-                .UpdateAsync(storedToken);
-
-            return new LogoutResponseDto
-            {
-                Message = "Logout successful."
-            };
+            return Unit.Value;
         }
     }
 }
