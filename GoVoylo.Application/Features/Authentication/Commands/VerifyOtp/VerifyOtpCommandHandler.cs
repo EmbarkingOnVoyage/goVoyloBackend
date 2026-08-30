@@ -38,6 +38,16 @@ namespace GoVoylo.Application.Features.Authentication.Commands.VerifyOtp
                 };
             }
 
+            //Already used
+            if (otpRecord.isVerified)
+            {
+                return new VerifyOtpResponseDto
+                {
+                    IsVerified = false,
+                    Message = "This OTP has already been used."
+                };
+            }
+
             //Check expiry
             if (DateTime.UtcNow >
              otpRecord.CreatedAt.AddMinutes(5))

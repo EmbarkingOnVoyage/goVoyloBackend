@@ -47,6 +47,12 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
                 throw new UnauthorizedAppException("invalid_otp", "Invalid verification token.");
             }
 
+            if (otpRecord.isVerified)
+            {
+                _auditService.Log(null, AuditEventTypes.LoginFailed);
+                throw new UnauthorizedAppException("otp_already_used", "This OTP has already been used.");
+            }
+
             if (DateTime.UtcNow > otpRecord.CreatedAt.AddMinutes(5))
             {
                 _auditService.Log(null, AuditEventTypes.LoginFailed);
