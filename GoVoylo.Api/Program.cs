@@ -28,7 +28,7 @@ namespace GoVoylo.Api;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         Env.Load();
 
@@ -108,6 +108,10 @@ public class Program
         builder.Services.AddScoped<ITravelerEmergencyContactRepository, TravelerEmergencyContactRepository>();
         builder.Services.AddScoped<IRoleRepository, RoleRepository>();
         builder.Services.AddScoped<IUserRoleRepository, UserRoleRepository>();
+        builder.Services.AddScoped<IAirportRepository, AirportRepository>();
+        builder.Services.AddScoped<IRecentAirportSearchRepository, RecentAirportSearchRepository>();
+        builder.Services.AddSingleton<IAirportCacheService, AirportCacheService>();
+        builder.Services.AddScoped<AirportImportService>();
         builder.Services.AddSingleton<AuditLogQueue>();
         builder.Services.AddScoped<IAuditService, AuditService>();
         builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
@@ -164,6 +168,12 @@ public class Program
 
         var app = builder.Build();
 
+        using (var startupScope = app.Services.CreateScope())
+        {
+            var airportImportService = startupScope.ServiceProvider.GetRequiredService<AirportImportService>();
+            await airportImportService.ImportIfEmptyAsync();
+        }
+
         // --- 4. HTTP PIPELINE MIDDLEWARE CONFIGURATION ---
         app.UseExceptionHandler();
 
@@ -215,7 +225,7 @@ public class Program
         // Map your controllers so the API routing endpoints actually work
         app.MapControllers();
 
-        app.Run();
+        await app.RunAsync();
     }
 
 }

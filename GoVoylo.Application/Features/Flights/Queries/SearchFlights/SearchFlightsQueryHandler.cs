@@ -1,3 +1,4 @@
+using GoVoylo.Application.Features.Airports.Commands.SaveRecentAirportSearch;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
 using MediatR;
@@ -8,18 +9,36 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
     {
         private readonly IFlightSupplierClient _supplierClient;
         private readonly IFlightSearchSessionStore _sessionStore;
+        private readonly ISender _mediator;
 
         public SearchFlightsQueryHandler(
             IFlightSupplierClient supplierClient,
-            IFlightSearchSessionStore sessionStore)
+            IFlightSearchSessionStore sessionStore,
+            ISender mediator)
         {
             _supplierClient = supplierClient;
             _sessionStore = sessionStore;
+            _mediator = mediator;
         }
 
         public async Task<FlightSearchResponseDto> Handle(
             SearchFlightsQuery request, CancellationToken cancellationToken)
         {
+            // Recorded before the supplier call so "recent search" reflects what the
+            // customer searched for, independent of whether the supplier call succeeds.
+            if (request.UserId.HasValue)
+            {
+                var searchedAirports = request.Request.Segments
+                    .SelectMany(s => new[] { s.Origin, s.Destination })
+                    .Distinct();
+
+                foreach (var iataCode in searchedAirports)
+                {
+                    await _mediator.Send(
+                        new SaveRecentAirportSearchCommand(request.UserId.Value, iataCode), cancellationToken);
+                }
+            }
+
             var result = await _supplierClient.SearchAsync(request.Request, cancellationToken);
 
             var offers = new List<FlightOfferDto>();

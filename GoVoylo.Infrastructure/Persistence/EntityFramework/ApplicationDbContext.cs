@@ -31,6 +31,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<TravelerSpecialAssistance> TravelerSpecialAssistances => Set<TravelerSpecialAssistance>();
     public DbSet<TravelerEmergencyContact> TravelerEmergencyContacts => Set<TravelerEmergencyContact>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<Airport> Airports => Set<Airport>();
+    public DbSet<RecentAirportSearch> RecentAirportSearches => Set<RecentAirportSearch>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

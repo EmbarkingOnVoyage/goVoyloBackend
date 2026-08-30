@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Features.Flights.Queries.RepriceFlightOffer;
 using GoVoylo.Application.Features.Flights.Queries.SearchFlights;
@@ -20,7 +21,16 @@ namespace GoVoylo.Api.Controllers
         [HttpPost("search")]
         public async Task<IActionResult> Search([FromBody] FlightSearchRequestDto request)
         {
-            var result = await _mediator.Send(new SearchFlightsQuery(request));
+            // Search itself needs no auth, but a caller who did attach a valid token
+            // gets their searched airports tracked for recent-search recall.
+            Guid? userId = null;
+            if (User.Identity?.IsAuthenticated == true
+                && Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var parsedUserId))
+            {
+                userId = parsedUserId;
+            }
+
+            var result = await _mediator.Send(new SearchFlightsQuery(request, userId));
             return Ok(result);
         }
 
