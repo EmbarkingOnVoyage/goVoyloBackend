@@ -46,8 +46,10 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 FilteredAirline = new List<FilteredAirlineWire> { new() { AirlineCode = string.Empty } }
             };
 
+            //var wireResponse = await PostAsync<AirSearchRequestWire, AirSearchResponseWire>(
+            //    "Air_Search", wireRequest, cancellationToken);
             var wireResponse = await PostAsync<AirSearchRequestWire, AirSearchResponseWire>(
-                "Air_Search", wireRequest, cancellationToken);
+    "fms/v1/air-search-all", wireRequest, cancellationToken);
 
             var flights = wireResponse.TripDetails
                 .SelectMany(t => t.Flights)

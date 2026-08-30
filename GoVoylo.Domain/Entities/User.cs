@@ -173,5 +173,9 @@ namespace GoVoylo.Domain.Entities
         {
             PassportExpiryAlertSentAt = DateTime.UtcNow;
         }
+        public void ResetPassword(string newPasswordHash)
+        {
+            PasswordHash = newPasswordHash;
+        }
     }
 }

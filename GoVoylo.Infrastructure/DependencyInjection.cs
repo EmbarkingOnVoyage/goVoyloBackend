@@ -1,12 +1,14 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
+using GoVoylo.Application.Interfaces; 
 using GoVoylo.Domain.Interfaces;
+using GoVoylo.Infrastructure.ExternalServices.Tripjack;
 using GoVoylo.Infrastructure.Persistence.EntityFramework;
 using GoVoylo.Infrastructure.Persistence.Repositories;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Http;
-using GoVoylo.Application.Interfaces; 
 using GoVoylo.Infrastructure.Services.B2b.TripJack;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http;
+using Microsoft.Extensions.Options;
 
 namespace GoVoylo.Infrastructure;
 
@@ -74,6 +76,19 @@ public static class DependencyInjection
                 client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
             });
         }
+
+        services.Configure<TripjackOptions>(
+            configuration.GetSection("Tripjack"));
+
+        services.AddHttpClient<TripjackClient>((serviceProvider, client) =>
+        {
+            var options = serviceProvider
+                .GetRequiredService<IOptions<TripjackOptions>>()
+                .Value;
+
+            client.BaseAddress = new Uri(options.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(60);
+        });
         return services;
     }
 }

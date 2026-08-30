@@ -1,3 +1,5 @@
+using GoVoylo.Domain.Entities;
+
 namespace GoVoylo.Application.Interfaces
 {
     public interface IRefreshTokenService
@@ -6,5 +8,6 @@ namespace GoVoylo.Application.Interfaces
         string GenerateRawToken();
         string Hash(string rawToken);
         DateTime GetExpiryDate();
+        //RefreshToken GenerateRefreshToken();
     }
 }
