@@ -138,7 +138,8 @@ public class Program
 
         builder.Services.AddHealthChecks()
             .AddDbContextCheck<ApplicationDbContext>("database")
-            .AddCheck<EmailServiceHealthCheck>("email");
+            .AddCheck<EmailServiceHealthCheck>("email")
+            .AddCheck<TripjackHealthCheck>("tripjack");
 
         // Registers MediatR and scans your Application project for Handlers
         builder.Services.AddMediatR(cfg =>
@@ -223,6 +224,20 @@ public class Program
         // Restricted to internal/private IPs instead (see InternalNetworkGuard).
         app.MapHealthChecks("/health", new HealthCheckOptions
         {
+            ResponseWriter = HealthCheckResponseWriter.WriteJsonAsync
+        }).AddEndpointFilter(async (context, next) =>
+        {
+            if (!InternalNetworkGuard.IsInternal(context.HttpContext.Connection.RemoteIpAddress))
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            return await next(context);
+        });
+
+        app.MapHealthChecks("/health/tripjack", new HealthCheckOptions
+        {
+            Predicate = check => check.Name == "tripjack",
             ResponseWriter = HealthCheckResponseWriter.WriteJsonAsync
         }).AddEndpointFilter(async (context, next) =>
         {

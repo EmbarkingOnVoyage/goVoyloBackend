@@ -1,8 +1,11 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Net.Http.Json;
+using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Common;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
@@ -11,11 +14,13 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
     {
         private readonly HttpClient _httpClient;
         private readonly TripjackOptions _options;
+        private readonly ILogger<TripjackClient> _logger;
 
-        public TripjackClient(HttpClient httpClient, IOptions<TripjackOptions> options)
+        public TripjackClient(HttpClient httpClient, IOptions<TripjackOptions> options, ILogger<TripjackClient> logger)
         {
             _httpClient = httpClient;
             _options = options.Value;
+            _logger = logger;
         }
 
         public string SupplierCode => FlightSupplierCodes.Tripjack;
@@ -79,7 +84,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
             if (repriced == null)
             {
-                throw new InvalidOperationException("Tripjack Air_Reprice returned no repriced flight.");
+                throw new SupplierUnavailableException("Tripjack Air_Reprice returned no repriced flight.");
             }
 
             var mapped = MapFlight(repriced);
@@ -163,12 +168,38 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         private async Task<TResponse> PostAsync<TRequest, TResponse>(
             string method, TRequest body, CancellationToken cancellationToken)
         {
-            using var httpResponse = await _httpClient.PostAsJsonAsync(method, body, cancellationToken);
-            httpResponse.EnsureSuccessStatusCode();
+            var stopwatch = Stopwatch.StartNew();
 
-            var result = await httpResponse.Content.ReadFromJsonAsync<TResponse>(cancellationToken: cancellationToken);
+            try
+            {
+                using var httpResponse = await _httpClient.PostAsJsonAsync(method, body, cancellationToken);
+                stopwatch.Stop();
 
-            return result ?? throw new InvalidOperationException($"Tripjack {method} returned an empty response.");
+                _logger.LogInformation(
+                    "Tripjack {Method} responded {StatusCode} in {ElapsedMs}ms",
+                    method, (int)httpResponse.StatusCode, stopwatch.ElapsedMilliseconds);
+
+                if (!httpResponse.IsSuccessStatusCode)
+                {
+                    throw new SupplierUnavailableException(
+                        $"Tripjack {method} returned {(int)httpResponse.StatusCode} {httpResponse.StatusCode}.");
+                }
+
+                var result = await httpResponse.Content.ReadFromJsonAsync<TResponse>(cancellationToken: cancellationToken);
+
+                return result ?? throw new SupplierUnavailableException($"Tripjack {method} returned an empty response.");
+            }
+            catch (SupplierUnavailableException)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException)
+            {
+                stopwatch.Stop();
+                _logger.LogError(
+                    ex, "Tripjack {Method} failed after {ElapsedMs}ms", method, stopwatch.ElapsedMilliseconds);
+                throw new SupplierUnavailableException($"Could not reach Tripjack ({method}).");
+            }
         }
     }
 }
