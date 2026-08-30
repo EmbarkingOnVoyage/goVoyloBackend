@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using GoVoylo.Application.Features.Flights.Dtos;
+using GoVoylo.Application.Features.Flights.Queries.FilterFlightOffers;
+using GoVoylo.Application.Features.Flights.Queries.GetFilterSummary;
 using GoVoylo.Application.Features.Flights.Queries.RepriceFlightOffer;
 using GoVoylo.Application.Features.Flights.Queries.SearchFlights;
 using MediatR;
@@ -38,6 +40,20 @@ namespace GoVoylo.Api.Controllers
         public async Task<IActionResult> Reprice(Guid offerId)
         {
             var result = await _mediator.Send(new RepriceFlightOfferQuery(offerId));
+            return Ok(result);
+        }
+
+        [HttpPost("filter")]
+        public async Task<IActionResult> Filter([FromBody] FlightOfferFilterRequestDto request)
+        {
+            var result = await _mediator.Send(new FilterFlightOffersQuery(request));
+            return Ok(result);
+        }
+
+        [HttpGet("filter-summary")]
+        public async Task<IActionResult> GetFilterSummary([FromQuery] Guid searchId)
+        {
+            var result = await _mediator.Send(new GetFilterSummaryQuery(searchId));
             return Ok(result);
         }
     }

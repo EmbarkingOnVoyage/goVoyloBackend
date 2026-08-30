@@ -125,6 +125,7 @@ public class Program
 
         builder.Services.AddMemoryCache();
         builder.Services.AddSingleton<IFlightSearchSessionStore, InMemoryFlightSearchSessionStore>();
+        builder.Services.AddSingleton<IFlightSearchResultCache, InMemoryFlightSearchResultCache>();
         builder.Services.Configure<TripjackOptions>(builder.Configuration.GetSection("TripjackSettings"));
         builder.Services.AddHttpClient<IFlightSupplierClient, TripjackClient>((sp, client) =>
         {

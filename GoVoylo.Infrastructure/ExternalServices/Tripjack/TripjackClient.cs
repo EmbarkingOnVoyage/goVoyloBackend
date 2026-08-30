@@ -193,7 +193,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             {
                 throw;
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException or InvalidOperationException)
             {
                 stopwatch.Stop();
                 _logger.LogError(

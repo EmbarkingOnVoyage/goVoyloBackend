@@ -9,15 +9,18 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
     {
         private readonly IFlightSupplierClient _supplierClient;
         private readonly IFlightSearchSessionStore _sessionStore;
+        private readonly IFlightSearchResultCache _resultCache;
         private readonly ISender _mediator;
 
         public SearchFlightsQueryHandler(
             IFlightSupplierClient supplierClient,
             IFlightSearchSessionStore sessionStore,
+            IFlightSearchResultCache resultCache,
             ISender mediator)
         {
             _supplierClient = supplierClient;
             _sessionStore = sessionStore;
+            _resultCache = resultCache;
             _mediator = mediator;
         }
 
@@ -71,7 +74,10 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                     flight.SeatsAvailable));
             }
 
-            return new FlightSearchResponseDto(offers);
+            var searchId = Guid.NewGuid();
+            await _resultCache.SaveAsync(searchId, offers, cancellationToken);
+
+            return new FlightSearchResponseDto(searchId, offers);
         }
     }
 }
