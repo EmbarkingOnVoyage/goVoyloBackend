@@ -2,9 +2,12 @@ using System.Security.Claims;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Features.Flights.Queries.FilterFlightOffers;
 using GoVoylo.Application.Features.Flights.Queries.GetFilterSummary;
+using GoVoylo.Application.Features.Flights.Queries.GetPopularRoutes;
+using GoVoylo.Application.Features.Flights.Queries.GetSearchHistory;
 using GoVoylo.Application.Features.Flights.Queries.RepriceFlightOffer;
 using GoVoylo.Application.Features.Flights.Queries.SearchFlights;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GoVoylo.Api.Controllers
@@ -54,6 +57,22 @@ namespace GoVoylo.Api.Controllers
         public async Task<IActionResult> GetFilterSummary([FromQuery] Guid searchId)
         {
             var result = await _mediator.Send(new GetFilterSummaryQuery(searchId));
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpGet("search/history")]
+        public async Task<IActionResult> GetSearchHistory()
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var result = await _mediator.Send(new GetSearchHistoryQuery(userId));
+            return Ok(result);
+        }
+
+        [HttpGet("popular-routes")]
+        public async Task<IActionResult> GetPopularRoutes()
+        {
+            var result = await _mediator.Send(new GetPopularRoutesQuery());
             return Ok(result);
         }
     }

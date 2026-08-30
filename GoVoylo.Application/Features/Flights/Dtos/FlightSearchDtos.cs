@@ -62,4 +62,15 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         int MinDurationMinutes,
         int MaxDurationMinutes,
         int OfferCount);
+
+    public record SearchHistoryDto(
+        Guid SearchLogId,
+        string Origin,
+        string Destination,
+        DateTime TravelDate,
+        string TripType,
+        string CabinClass,
+        DateTime SearchedAt);
+
+    public record RouteDto(string Origin, string Destination, int SearchCount);
 }

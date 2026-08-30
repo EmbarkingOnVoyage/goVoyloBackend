@@ -33,6 +33,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Airport> Airports => Set<Airport>();
     public DbSet<RecentAirportSearch> RecentAirportSearches => Set<RecentAirportSearch>();
+    public DbSet<SearchLog> SearchLogs => Set<SearchLog>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
