@@ -165,6 +165,16 @@ public class Program
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst
                     }));
         });
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowReactApp",
+                policy =>
+                {
+                    policy.WithOrigins("http://localhost:5173")
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
+        });
 
         var app = builder.Build();
 
@@ -191,6 +201,8 @@ public class Program
         app.UseRateLimiter();
 
         app.UseHttpsRedirection();
+
+        app.UseCors("AllowReactApp");
 
         var profileImagesRootPath = builder.Configuration["Storage:ProfileImages:RootPath"]
             ?? Path.Combine(AppContext.BaseDirectory, "uploads", "profile-images");

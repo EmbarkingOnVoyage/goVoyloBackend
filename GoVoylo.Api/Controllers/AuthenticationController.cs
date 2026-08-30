@@ -3,6 +3,7 @@ using GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp;
 using GoVoylo.Application.Features.Authentication.Commands.Logout;
 using GoVoylo.Application.Features.Authentication.Commands.RefreshToken;
 using GoVoylo.Application.Features.Authentication.Commands.Register;
+using GoVoylo.Application.Features.Authentication.Commands.ResetPassword;
 using GoVoylo.Application.Features.Authentication.Commands.SendOtp;
 using GoVoylo.Application.Features.Authentication.Commands.VerifyOtp;
 using MediatR;
@@ -85,6 +86,14 @@ namespace GoVoylo.Api.Controllers
         {
             await _mediator.Send(new LogoutCommand(request.RefreshToken));
             return Ok(new { message = "Logged out successfully." });
+        }
+
+        // Forgot password: request the OTP via POST /api/auth/send-otp, then confirm here.
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordCommand command)
+        {
+            var result = await _mediator.Send(command);
+            return Ok(result);
         }
     }
 

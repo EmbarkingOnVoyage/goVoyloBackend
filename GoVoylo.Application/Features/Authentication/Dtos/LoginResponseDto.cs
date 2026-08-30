@@ -9,9 +9,7 @@ namespace GoVoylo.Application.Features.Authentication.Dtos
         public Guid Id { get; set; }
 
         public string Message { get; set; } = string.Empty;
-
-        public string AccessToken { get; set; } = string.Empty;
-
         public string RefreshToken { get; set; } = string.Empty;
+        public string AccessToken { get; set; } = string.Empty;
     }
 }
