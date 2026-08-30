@@ -11,5 +11,8 @@ namespace GoVoylo.Application.Interfaces
 
         Task<SupplierRepriceResultDto> RepriceAsync(
             SupplierRepriceRequestDto request, CancellationToken cancellationToken);
+
+        Task<SupplierFareRulesResultDto> GetFareRulesAsync(
+            string searchKey, string flightKey, string fareId, CancellationToken cancellationToken);
     }
 }

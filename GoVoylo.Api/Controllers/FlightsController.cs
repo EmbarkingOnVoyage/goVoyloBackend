@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Features.Flights.Queries.FilterFlightOffers;
+using GoVoylo.Application.Features.Flights.Queries.GetFareRules;
 using GoVoylo.Application.Features.Flights.Queries.GetFilterSummary;
 using GoVoylo.Application.Features.Flights.Queries.GetPopularRoutes;
+using GoVoylo.Application.Features.Flights.Queries.GetRescheduleRules;
 using GoVoylo.Application.Features.Flights.Queries.GetSearchHistory;
 using GoVoylo.Application.Features.Flights.Queries.RepriceFlightOffer;
 using GoVoylo.Application.Features.Flights.Queries.SearchFlights;
@@ -73,6 +75,20 @@ namespace GoVoylo.Api.Controllers
         public async Task<IActionResult> GetPopularRoutes()
         {
             var result = await _mediator.Send(new GetPopularRoutesQuery());
+            return Ok(result);
+        }
+
+        [HttpGet("offers/{offerId}/fare-rules")]
+        public async Task<IActionResult> GetFareRules(Guid offerId)
+        {
+            var result = await _mediator.Send(new GetFareRulesQuery(offerId));
+            return Ok(result);
+        }
+
+        [HttpGet("offers/{offerId}/reschedule-rules")]
+        public async Task<IActionResult> GetRescheduleRules(Guid offerId, [FromQuery] Guid searchId)
+        {
+            var result = await _mediator.Send(new GetRescheduleRulesQuery(searchId, offerId));
             return Ok(result);
         }
     }

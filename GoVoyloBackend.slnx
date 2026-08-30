@@ -2,6 +2,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/GoVoylo.Application.UnitTests/GoVoylo.Application.UnitTests.csproj" />
     <Project Path="tests/GoVoylo.Domain.UnitTests/GoVoylo.Domain.UnitTests.csproj" />
+    <Project Path="tests/GoVoylo.Infrastructure.UnitTests/GoVoylo.Infrastructure.UnitTests.csproj" />
   </Folder>
   <Project Path="GoVoylo.Api/GoVoylo.Api.csproj" />
   <Project Path="GoVoylo.Application/GoVoylo.Application.csproj" />

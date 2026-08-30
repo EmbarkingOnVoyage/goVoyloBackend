@@ -20,6 +20,32 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         public string ImeiNumber { get; set; } = string.Empty;
     }
 
+    // Every Tripjack response carries this envelope. Error_Code "0000" is the only
+    // documented success value — anything else (or a non-"SUCCESS" Error_Desc) is a
+    // business-level failure even though the HTTP status itself comes back 200.
+    public class ResponseHeaderWire
+    {
+        [JsonPropertyName("Error_Code")]
+        public string? ErrorCode { get; set; }
+
+        [JsonPropertyName("Error_Desc")]
+        public string? ErrorDesc { get; set; }
+
+        [JsonPropertyName("Error_InnerException")]
+        public string? ErrorInnerException { get; set; }
+
+        [JsonPropertyName("Request_Id")]
+        public string? RequestId { get; set; }
+
+        [JsonPropertyName("Status_Id")]
+        public string? StatusId { get; set; }
+    }
+
+    public interface ITripjackEnvelope
+    {
+        ResponseHeaderWire? ResponseHeader { get; }
+    }
+
     public class TripInfoWire
     {
         [JsonPropertyName("Origin")]
@@ -79,55 +105,165 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
     public class SegmentWire
     {
+        [JsonPropertyName("Segment_Id")]
+        public int SegmentId { get; set; }
+
         [JsonPropertyName("Origin")]
         public string Origin { get; set; } = string.Empty;
 
         [JsonPropertyName("Destination")]
         public string Destination { get; set; } = string.Empty;
 
-        [JsonPropertyName("AirlineCode")]
+        [JsonPropertyName("Airline_Code")]
         public string AirlineCode { get; set; } = string.Empty;
 
-        [JsonPropertyName("AirlineName")]
+        [JsonPropertyName("Airline_Name")]
         public string AirlineName { get; set; } = string.Empty;
 
-        [JsonPropertyName("FlightNumber")]
+        [JsonPropertyName("Flight_Number")]
         public string FlightNumber { get; set; } = string.Empty;
 
-        [JsonPropertyName("DepartureDateTime")]
+        [JsonPropertyName("Departure_DateTime")]
         public string DepartureDateTime { get; set; } = string.Empty;
 
-        [JsonPropertyName("ArrivalDateTime")]
+        [JsonPropertyName("Arrival_DateTime")]
         public string ArrivalDateTime { get; set; } = string.Empty;
 
         [JsonPropertyName("Duration")]
         public string Duration { get; set; } = string.Empty;
     }
 
+    public class AirportTaxWire
+    {
+        [JsonPropertyName("Tax_Code")]
+        public string? TaxCode { get; set; }
+
+        [JsonPropertyName("Tax_Desc")]
+        public string? TaxDesc { get; set; }
+
+        [JsonPropertyName("Tax_Amount")]
+        public decimal TaxAmount { get; set; }
+    }
+
+    public class FreeBaggageWire
+    {
+        [JsonPropertyName("Check_In_Baggage")]
+        public string? CheckInBaggage { get; set; }
+
+        [JsonPropertyName("Hand_Baggage")]
+        public string? HandBaggage { get; set; }
+    }
+
+    // Tripjack's own field is misspelled "Applicablility" — kept verbatim since
+    // [JsonPropertyName] must match the wire exactly.
+    public class RescheduleChargeWire
+    {
+        [JsonPropertyName("Applicablility")]
+        public int Applicability { get; set; }
+
+        [JsonPropertyName("PassengerType")]
+        public int PassengerType { get; set; }
+
+        [JsonPropertyName("Value")]
+        public string? Value { get; set; }
+
+        [JsonPropertyName("ValueType")]
+        public int ValueType { get; set; }
+
+        [JsonPropertyName("DurationFrom")]
+        public int DurationFrom { get; set; }
+
+        [JsonPropertyName("DurationTo")]
+        public int DurationTo { get; set; }
+
+        [JsonPropertyName("DurationTypeFrom")]
+        public int DurationTypeFrom { get; set; }
+
+        [JsonPropertyName("DurationTypeTo")]
+        public int DurationTypeTo { get; set; }
+
+        [JsonPropertyName("OnlineServiceFee")]
+        public decimal OnlineServiceFee { get; set; }
+
+        [JsonPropertyName("OfflineServiceFee")]
+        public decimal OfflineServiceFee { get; set; }
+
+        [JsonPropertyName("Remarks")]
+        public string? Remarks { get; set; }
+    }
+
+    public class FareClassWire
+    {
+        [JsonPropertyName("Segment_Id")]
+        public int SegmentId { get; set; }
+
+        [JsonPropertyName("Class_Code")]
+        public string? ClassCode { get; set; }
+
+        [JsonPropertyName("Class_Desc")]
+        public string? ClassDesc { get; set; }
+
+        [JsonPropertyName("FareBasis")]
+        public string? FareBasis { get; set; }
+    }
+
     public class FareDetailWire
     {
-        [JsonPropertyName("PAXType")]
-        public string? PaxType { get; set; }
+        [JsonPropertyName("PAX_Type")]
+        public int PaxType { get; set; }
 
-        [JsonPropertyName("TotalAmount")]
-        public decimal? TotalAmount { get; set; }
+        [JsonPropertyName("Basic_Amount")]
+        public decimal BasicAmount { get; set; }
 
-        [JsonPropertyName("CurrencyCode")]
+        [JsonPropertyName("AirportTax_Amount")]
+        public decimal AirportTaxAmount { get; set; }
+
+        [JsonPropertyName("AirportTaxes")]
+        public List<AirportTaxWire> AirportTaxes { get; set; } = new();
+
+        [JsonPropertyName("Service_Fee_Amount")]
+        public decimal ServiceFeeAmount { get; set; }
+
+        [JsonPropertyName("Trade_Markup_Amount")]
+        public decimal TradeMarkupAmount { get; set; }
+
+        [JsonPropertyName("Promo_Discount")]
+        public decimal PromoDiscount { get; set; }
+
+        [JsonPropertyName("GST")]
+        public decimal Gst { get; set; }
+
+        [JsonPropertyName("TDS")]
+        public decimal Tds { get; set; }
+
+        [JsonPropertyName("Total_Amount")]
+        public decimal TotalAmount { get; set; }
+
+        [JsonPropertyName("Currency_Code")]
         public string? CurrencyCode { get; set; }
+
+        [JsonPropertyName("Free_Baggage")]
+        public FreeBaggageWire? FreeBaggage { get; set; }
+
+        [JsonPropertyName("RescheduleCharges")]
+        public List<RescheduleChargeWire> RescheduleCharges { get; set; } = new();
+
+        [JsonPropertyName("FareClasses")]
+        public List<FareClassWire> FareClasses { get; set; } = new();
     }
 
     public class FareWire
     {
-        [JsonPropertyName("FareId")]
+        [JsonPropertyName("Fare_Id")]
         public string? FareId { get; set; }
 
-        [JsonPropertyName("FareKey")]
+        [JsonPropertyName("Fare_Key")]
         public string? FareKey { get; set; }
 
         [JsonPropertyName("Refundable")]
-        public string? Refundable { get; set; }
+        public bool Refundable { get; set; }
 
-        [JsonPropertyName("SeatsAvailable")]
+        [JsonPropertyName("Seats_Available")]
         public string? SeatsAvailable { get; set; }
 
         [JsonPropertyName("FareDetails")]
@@ -176,13 +312,16 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         public List<FlightWire> Flights { get; set; } = new();
     }
 
-    public class AirSearchResponseWire
+    public class AirSearchResponseWire : ITripjackEnvelope
     {
         [JsonPropertyName("Search_Key")]
         public string SearchKey { get; set; } = string.Empty;
 
         [JsonPropertyName("TripDetails")]
         public List<TripDetailWire> TripDetails { get; set; } = new();
+
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
     }
 
     public class AirRepriceRequestItemWire
@@ -212,14 +351,54 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         public bool SinglePricing { get; set; } = true;
     }
 
-    // NOTE: Tripjack's doc only describes the Reprice *request* schema in full; the
-    // response is only described as "returns the flight object, with Repriced as true".
-    // This mirrors the Air_Search flight shape as the best available inference — confirm
-    // against a real response once live credentials are available and adjust if the
-    // envelope key differs.
-    public class AirRepriceResponseWire
+    public class AirRepriceResponseItemWire
+    {
+        [JsonPropertyName("Flight")]
+        public FlightWire Flight { get; set; } = new();
+    }
+
+    public class AirRepriceResponseWire : ITripjackEnvelope
     {
         [JsonPropertyName("AirRepriceResponses")]
-        public List<FlightWire> AirRepriceResponses { get; set; } = new();
+        public List<AirRepriceResponseItemWire> AirRepriceResponses { get; set; } = new();
+
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+    }
+
+    public class AirFareRuleRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Search_Key")]
+        public string SearchKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("Flight_Key")]
+        public string FlightKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("Fare_Id")]
+        public string FareId { get; set; } = string.Empty;
+    }
+
+    public class FareRuleWire
+    {
+        [JsonPropertyName("Segment_Id")]
+        public string? SegmentId { get; set; }
+
+        [JsonPropertyName("FareRuleName")]
+        public string? FareRuleName { get; set; }
+
+        [JsonPropertyName("FareRuleDesc")]
+        public string? FareRuleDesc { get; set; }
+    }
+
+    public class AirFareRuleResponseWire : ITripjackEnvelope
+    {
+        [JsonPropertyName("FareRules")]
+        public List<FareRuleWire> FareRules { get; set; } = new();
+
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
     }
 }

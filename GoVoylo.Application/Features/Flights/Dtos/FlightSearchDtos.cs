@@ -19,6 +19,34 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         DateTime ArrivalDateTime,
         string Duration);
 
+    public record FareTaxDto(string TaxCode, string TaxDesc, decimal TaxAmount);
+
+    public record FareBreakdownDto(
+        decimal BasicAmount,
+        decimal AirportTaxAmount,
+        IReadOnlyList<FareTaxDto> Taxes,
+        decimal ServiceFeeAmount,
+        decimal TradeMarkupAmount,
+        decimal PromoDiscount,
+        decimal Gst,
+        decimal Tds,
+        decimal TotalAmount,
+        string CurrencyCode);
+
+    public record BaggageDto(string? CheckInBaggage, string? HandBaggage);
+
+    public record RescheduleChargeDto(
+        int PassengerType,
+        string? Value,
+        int ValueType,
+        int DurationFrom,
+        int DurationTo,
+        int DurationTypeFrom,
+        int DurationTypeTo,
+        decimal OnlineServiceFee,
+        decimal OfflineServiceFee,
+        string? Remarks);
+
     public record FlightOfferDto(
         Guid OfferId,
         string AirlineCode,
@@ -28,7 +56,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         IReadOnlyList<FlightOfferSegmentDto> Segments,
         decimal TotalAmount,
         string CurrencyCode,
-        int SeatsAvailable);
+        int SeatsAvailable,
+        FareBreakdownDto FareBreakdown,
+        BaggageDto Baggage,
+        IReadOnlyList<RescheduleChargeDto> RescheduleCharges);
 
     // SearchId anchors the result set so filter/sort/summary calls can operate on it
     // without re-calling the supplier — see IFlightSearchResultCache.
@@ -73,4 +104,8 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         DateTime SearchedAt);
 
     public record RouteDto(string Origin, string Destination, int SearchCount);
+
+    public record FareRuleDto(string SegmentId, string FareRuleName, string FareRuleDescriptionHtml);
+
+    public record FareRulesResponseDto(Guid OfferId, IReadOnlyList<FareRuleDto> Rules);
 }

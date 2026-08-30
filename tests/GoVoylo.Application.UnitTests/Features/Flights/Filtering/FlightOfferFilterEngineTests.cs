@@ -10,6 +10,11 @@ namespace GoVoylo.Application.UnitTests.Features.Flights.Filtering
             string origin, string destination, string airline, DateTime departure, DateTime arrival) =>
             new(origin, destination, airline, "101", departure, arrival, "02:00");
 
+        private static readonly FareBreakdownDto EmptyFareBreakdown =
+            new(0m, 0m, new List<FareTaxDto>(), 0m, 0m, 0m, 0m, 0m, 0m, "INR");
+
+        private static readonly BaggageDto EmptyBaggage = new(null, null);
+
         private static FlightOfferDto NonStopOffer(
             string airline, decimal amount, DateTime departure, DateTime arrival, bool refundable = true) =>
             new(
@@ -21,7 +26,10 @@ namespace GoVoylo.Application.UnitTests.Features.Flights.Filtering
                 new List<FlightOfferSegmentDto> { Segment("BOM", "DEL", airline, departure, arrival) },
                 amount,
                 "INR",
-                5);
+                5,
+                EmptyFareBreakdown,
+                EmptyBaggage,
+                new List<RescheduleChargeDto>());
 
         private static FlightOfferDto OneStopOffer(
             string airline, decimal amount, DateTime departure, DateTime arrival) =>
@@ -38,7 +46,10 @@ namespace GoVoylo.Application.UnitTests.Features.Flights.Filtering
                 },
                 amount,
                 "INR",
-                5);
+                5,
+                EmptyFareBreakdown,
+                EmptyBaggage,
+                new List<RescheduleChargeDto>());
 
         private static List<FlightOfferDto> SampleOffers() =>
             new()

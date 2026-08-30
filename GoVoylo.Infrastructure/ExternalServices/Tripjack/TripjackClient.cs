@@ -12,6 +12,8 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 {
     public class TripjackClient : IFlightSupplierClient
     {
+        private const string SuccessErrorCode = "0000";
+
         private readonly HttpClient _httpClient;
         private readonly TripjackOptions _options;
         private readonly ILogger<TripjackClient> _logger;
@@ -80,7 +82,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             var wireResponse = await PostAsync<AirRepriceRequestWire, AirRepriceResponseWire>(
                 "Air_Reprice", wireRequest, cancellationToken);
 
-            var repriced = wireResponse.AirRepriceResponses.FirstOrDefault();
+            var repriced = wireResponse.AirRepriceResponses.FirstOrDefault()?.Flight;
 
             if (repriced == null)
             {
@@ -98,6 +100,28 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 repriced.IsFareChange);
         }
 
+        public async Task<SupplierFareRulesResultDto> GetFareRulesAsync(
+            string searchKey, string flightKey, string fareId, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirFareRuleRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                SearchKey = searchKey,
+                FlightKey = flightKey,
+                FareId = fareId
+            };
+
+            var wireResponse = await PostAsync<AirFareRuleRequestWire, AirFareRuleResponseWire>(
+                "Air_FareRule", wireRequest, cancellationToken);
+
+            var rules = wireResponse.FareRules
+                .Select(r => new SupplierFareRuleDto(
+                    r.SegmentId ?? string.Empty, r.FareRuleName ?? string.Empty, r.FareRuleDesc ?? string.Empty))
+                .ToList();
+
+            return new SupplierFareRulesResultDto(rules);
+        }
+
         private AuthHeaderWire BuildAuthHeader() => new()
         {
             UserId = _options.UserId,
@@ -111,7 +135,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         {
             var primaryFare = flight.Fares.FirstOrDefault();
 
-            var adultFareDetail = primaryFare?.FareDetails.FirstOrDefault(f => f.PaxType == "0")
+            var adultFareDetail = primaryFare?.FareDetails.FirstOrDefault(f => f.PaxType == 0)
                 ?? primaryFare?.FareDetails.FirstOrDefault();
 
             return new SupplierFlightOptionDto(
@@ -119,12 +143,15 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 primaryFare?.FareId ?? string.Empty,
                 flight.AirlineCode ?? flight.Segments.FirstOrDefault()?.AirlineCode ?? string.Empty,
                 flight.Segments.FirstOrDefault()?.AirlineName ?? string.Empty,
-                ParseBool(primaryFare?.Refundable),
+                primaryFare?.Refundable ?? false,
                 flight.IsLcc,
                 flight.Segments.Select(MapSegment).ToList(),
                 adultFareDetail?.TotalAmount ?? 0m,
                 adultFareDetail?.CurrencyCode ?? "INR",
-                ParseInt(primaryFare?.SeatsAvailable));
+                ParseInt(primaryFare?.SeatsAvailable),
+                MapFareBreakdown(adultFareDetail),
+                MapBaggage(adultFareDetail),
+                MapRescheduleCharges(adultFareDetail));
         }
 
         private static SupplierFlightSegmentDto MapSegment(SegmentWire segment) => new(
@@ -135,6 +162,41 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             ParseDateTime(segment.DepartureDateTime),
             ParseDateTime(segment.ArrivalDateTime),
             segment.Duration);
+
+        private static SupplierFareBreakdownDto MapFareBreakdown(FareDetailWire? fareDetail) => new(
+            fareDetail?.BasicAmount ?? 0m,
+            fareDetail?.AirportTaxAmount ?? 0m,
+            fareDetail?.AirportTaxes
+                .Select(t => new SupplierFareTaxDto(t.TaxCode ?? string.Empty, t.TaxDesc ?? string.Empty, t.TaxAmount))
+                .ToList()
+                ?? new List<SupplierFareTaxDto>(),
+            fareDetail?.ServiceFeeAmount ?? 0m,
+            fareDetail?.TradeMarkupAmount ?? 0m,
+            fareDetail?.PromoDiscount ?? 0m,
+            fareDetail?.Gst ?? 0m,
+            fareDetail?.Tds ?? 0m,
+            fareDetail?.TotalAmount ?? 0m,
+            fareDetail?.CurrencyCode ?? "INR");
+
+        private static SupplierBaggageDto MapBaggage(FareDetailWire? fareDetail) => new(
+            fareDetail?.FreeBaggage?.CheckInBaggage,
+            fareDetail?.FreeBaggage?.HandBaggage);
+
+        private static IReadOnlyList<SupplierRescheduleChargeDto> MapRescheduleCharges(FareDetailWire? fareDetail) =>
+            fareDetail?.RescheduleCharges
+                .Select(r => new SupplierRescheduleChargeDto(
+                    r.PassengerType,
+                    r.Value,
+                    r.ValueType,
+                    r.DurationFrom,
+                    r.DurationTo,
+                    r.DurationTypeFrom,
+                    r.DurationTypeTo,
+                    r.OnlineServiceFee,
+                    r.OfflineServiceFee,
+                    r.Remarks))
+                .ToList()
+                ?? new List<SupplierRescheduleChargeDto>();
 
         private static int MapBookingType(string tripType) => tripType switch
         {
@@ -152,11 +214,6 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             _ => "0"
         };
 
-        private static bool ParseBool(string? value) =>
-            value is not null && (value.Equals("Y", StringComparison.OrdinalIgnoreCase)
-                || value.Equals("true", StringComparison.OrdinalIgnoreCase)
-                || value == "1");
-
         private static int ParseInt(string? value) =>
             int.TryParse(value, out var parsed) ? parsed : 0;
 
@@ -167,6 +224,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
         private async Task<TResponse> PostAsync<TRequest, TResponse>(
             string method, TRequest body, CancellationToken cancellationToken)
+            where TResponse : ITripjackEnvelope
         {
             var stopwatch = Stopwatch.StartNew();
 
@@ -187,7 +245,21 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
                 var result = await httpResponse.Content.ReadFromJsonAsync<TResponse>(cancellationToken: cancellationToken);
 
-                return result ?? throw new SupplierUnavailableException($"Tripjack {method} returned an empty response.");
+                if (result == null)
+                {
+                    throw new SupplierUnavailableException($"Tripjack {method} returned an empty response.");
+                }
+
+                // Tripjack signals business-level failures inside a 200 OK body via
+                // Response_Header.Error_Code rather than an HTTP error status.
+                var errorCode = result.ResponseHeader?.ErrorCode;
+                if (errorCode is not null && errorCode != SuccessErrorCode)
+                {
+                    throw new SupplierUnavailableException(
+                        $"Tripjack {method} returned {errorCode} {result.ResponseHeader?.ErrorDesc}.");
+                }
+
+                return result;
             }
             catch (SupplierUnavailableException)
             {
