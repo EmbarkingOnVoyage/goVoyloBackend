@@ -25,7 +25,21 @@ namespace GoVoylo.Domain.Entities
 
         public bool IsActive => RevokedAt == null && ExpiresAt > DateTime.UtcNow;
 
-        public RefreshToken(Guid userId, string tokenHash, string? deviceInfo, DateTime expiresAt)
+        //public RefreshToken(Guid userId, string tokenHash, string? deviceInfo, DateTime expiresAt)
+        //{
+        //    Id = Guid.NewGuid();
+        //    UserId = userId;
+        //    TokenHash = tokenHash;
+        //    DeviceInfo = deviceInfo;
+        //    ExpiresAt = expiresAt;
+        //    CreatedAt = DateTime.UtcNow;
+        //}
+
+        public RefreshToken(
+       Guid userId,
+       string tokenHash,
+       string? deviceInfo,
+       DateTime expiresAt)
         {
             Id = Guid.NewGuid();
             UserId = userId;

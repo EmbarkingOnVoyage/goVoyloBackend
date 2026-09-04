@@ -72,46 +72,49 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Login
                 throw new UnauthorizedAppException("invalid_credentials", "Invalid email or password.");
             }
 
-            var accessToken =
-                  _jwtTokenService.GenerateToken(user);
+            //var accessToken =
+            //      _jwtTokenService.GenerateToken(user);
 
-            var refreshToken =
-                _refreshTokenService.GenerateRefreshToken();
+            //var refreshToken =
+            //    _refreshTokenService.GenerateRefreshToken();
 
-            var refreshTokenHash =
-                _refreshTokenService.HashToken(refreshToken);
+            //var refreshTokenHash =
+            //    _refreshTokenService.HashToken(refreshToken);
 
-            var refreshTokenEntity =
-                new RefreshToken(
-                    user.Id,
-                    refreshTokenHash,
-                    DateTime.UtcNow.AddDays(7));
+            //var refreshTokenEntity =
+            //    new RefreshToken(
+            //        user.Id,
+            //        refreshTokenHash,
+            //        DateTime.UtcNow.AddDays(7));
 
-            await _refreshTokenRepository
-                .SaveAsync(refreshTokenEntity);
+            //await _refreshTokenRepository
+            //    .SaveAsync(refreshTokenEntity);
 
-            // 5. Generate JWT
+            // 5. Get user roles
             var roles = await _userRoleRepository.GetRoleNamesForUserAsync(user.Id);
-            var token = _jwtTokenService.GenerateToken(user, roles);
-
+            // 6. Generate JWT
+            var newAccessToken = _jwtTokenService.GenerateToken(user, roles);
             // 6. Issue a refresh token — only its hash is persisted
             var rawRefreshToken = _refreshTokenService.GenerateRawToken();
-            var refreshToken = new RefreshTokenEntity(
+
+            // 8. Store only hashed refresh token
+            var newRefreshToken = new RefreshTokenEntity(
                 user.Id,
                 _refreshTokenService.Hash(rawRefreshToken),
                 deviceInfo: null,
                 _refreshTokenService.GetExpiryDate());
 
-            await _refreshTokenRepository.SaveAsync(refreshToken);
+            await _refreshTokenRepository.SaveAsync(newRefreshToken);
 
+            // 9. Audit successful login
             _auditService.Log(user.Id, AuditEventTypes.LoginSuccess);
 
-            // 7. Return response
+            // 10. Return response
             return new LoginResponseDto
             {
                 Id = user.Id,
                 Message = "Login successful.",
-                AccessToken = token,
+                AccessToken = newAccessToken,
                 RefreshToken = rawRefreshToken
             };
         }
