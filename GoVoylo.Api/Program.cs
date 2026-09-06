@@ -189,7 +189,14 @@ public class Program
         // Enable the heavy traffic protection middleware
         app.UseRateLimiter();
 
-        app.UseHttpsRedirection();
+        // Port 5080 exists only so the Android emulator (which can't be given a
+        // trusted cert for the HTTPS dev endpoint the way a browser can) has a
+        // plain-HTTP way to reach this API during local development — redirecting
+        // it to HTTPS would defeat that entirely. Every other port keeps the
+        // normal HTTPS-only behavior.
+        app.UseWhen(
+            context => context.Connection.LocalPort != 5080,
+            appBuilder => appBuilder.UseHttpsRedirection());
 
         var profileImagesRootPath = builder.Configuration["Storage:ProfileImages:RootPath"]
             ?? Path.Combine(AppContext.BaseDirectory, "uploads", "profile-images");
