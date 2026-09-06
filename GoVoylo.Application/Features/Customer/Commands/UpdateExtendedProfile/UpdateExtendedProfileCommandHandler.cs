@@ -35,12 +35,21 @@ namespace GoVoylo.Application.Features.Customer.Commands.UpdateExtendedProfile
                 throw new NotFoundException("Customer profile not found.");
             }
 
-            var passportNumberEncrypted = string.IsNullOrWhiteSpace(request.PassportNumber)
-                ? null
-                : _encryptionService.Encrypt(request.PassportNumber);
+            // The client only ever receives a masked passport/PAN number (see
+            // CustomerProfileMapper), never the real value, so it has no way to
+            // "resend" an unchanged one. Treat an empty field as "not editing this"
+            // and preserve the existing encrypted value instead of wiping it —
+            // otherwise every profile save that doesn't touch these two fields
+            // would silently delete the customer's stored passport/PAN.
+            var passportChanged = !string.IsNullOrWhiteSpace(request.PassportNumber);
+            var passportNumberEncrypted = passportChanged
+                ? _encryptionService.Encrypt(request.PassportNumber)
+                : user.PassportNumberEncrypted;
+            var passportExpiryDate = passportChanged ? request.PassportExpiryDate : user.PassportExpiryDate;
+            var passportIssuingCountry = passportChanged ? request.PassportIssuingCountry : user.PassportIssuingCountry;
 
             var panCardNumberEncrypted = string.IsNullOrWhiteSpace(request.PanCardNumber)
-                ? null
+                ? user.PanCardNumberEncrypted
                 : _encryptionService.Encrypt(request.PanCardNumber);
 
             user.UpdateExtendedProfile(
@@ -52,8 +61,8 @@ namespace GoVoylo.Application.Features.Customer.Commands.UpdateExtendedProfile
                 request.CityOfResidence,
                 request.State,
                 passportNumberEncrypted,
-                passportNumberEncrypted == null ? null : request.PassportExpiryDate,
-                passportNumberEncrypted == null ? null : request.PassportIssuingCountry,
+                passportExpiryDate,
+                passportIssuingCountry,
                 panCardNumberEncrypted,
                 request.AutoAddTravelInsurance);
 

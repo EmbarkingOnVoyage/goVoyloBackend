@@ -203,6 +203,8 @@ public class Program
             RequestPath = profileImagesPublicBasePath
         });
 
+        app.UseCors("AllowReactApp");
+
         app.UseAuthentication();
         app.UseAuthorization();
 
