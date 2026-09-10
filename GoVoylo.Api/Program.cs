@@ -8,6 +8,7 @@ using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Interfaces;
 using GoVoylo.Infrastructure;
 using GoVoylo.Infrastructure.Caching;
+using GoVoylo.Infrastructure.ExternalServices.Flyshop;
 using GoVoylo.Infrastructure.ExternalServices.Tripjack;
 using GoVoylo.Infrastructure.Jobs;
 using GoVoylo.Infrastructure.Logging;
@@ -121,13 +122,19 @@ public class Program
 
         builder.Services.AddMemoryCache();
         builder.Services.AddSingleton<IFlightSearchSessionStore, InMemoryFlightSearchSessionStore>();
+
+        // Tripjack is switched off for now in favor of Flyshop — kept registered as
+        // options-only (not bound to IFlightSupplierClient) so it's a one-line swap to
+        // bring back.
         builder.Services.Configure<TripjackOptions>(builder.Configuration.GetSection("TripjackSettings"));
-        builder.Services.AddHttpClient<IFlightSupplierClient, TripjackClient>((sp, client) =>
+
+        builder.Services.Configure<FlyshopOptions>(builder.Configuration.GetSection("FlyshopSettings"));
+        builder.Services.AddHttpClient<IFlightSupplierClient, FlyshopClient>((sp, client) =>
         {
-            var tripjackOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<TripjackOptions>>().Value;
-            if (!string.IsNullOrWhiteSpace(tripjackOptions.BaseUrl))
+            var flyshopOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<FlyshopOptions>>().Value;
+            if (!string.IsNullOrWhiteSpace(flyshopOptions.BaseUrl))
             {
-                client.BaseAddress = new Uri(tripjackOptions.BaseUrl);
+                client.BaseAddress = new Uri(flyshopOptions.BaseUrl);
             }
             client.Timeout = TimeSpan.FromSeconds(20);
         });
