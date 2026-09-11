@@ -8,6 +8,8 @@ using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Interfaces;
 using GoVoylo.Infrastructure;
 using GoVoylo.Infrastructure.Caching;
+using GoVoylo.Infrastructure.ExternalServices.Flyshop;
+using GoVoylo.Infrastructure.ExternalServices.Holidays;
 using GoVoylo.Infrastructure.ExternalServices.Razorpay;
 using GoVoylo.Infrastructure.ExternalServices.Tripjack;
 using GoVoylo.Infrastructure.Jobs;
@@ -123,16 +125,24 @@ public class Program
 
         builder.Services.AddMemoryCache();
         builder.Services.AddSingleton<IFlightSearchSessionStore, InMemoryFlightSearchSessionStore>();
+
+        // Tripjack is switched off for now in favor of Flyshop — kept registered as
+        // options-only (not bound to IFlightSupplierClient) so it's a one-line swap to
+        // bring back.
         builder.Services.Configure<TripjackOptions>(builder.Configuration.GetSection("TripjackSettings"));
-        builder.Services.AddHttpClient<IFlightSupplierClient, TripjackClient>((sp, client) =>
+
+        builder.Services.Configure<FlyshopOptions>(builder.Configuration.GetSection("FlyshopSettings"));
+        builder.Services.AddHttpClient<IFlightSupplierClient, FlyshopClient>((sp, client) =>
         {
-            var tripjackOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<TripjackOptions>>().Value;
-            if (!string.IsNullOrWhiteSpace(tripjackOptions.BaseUrl))
+            var flyshopOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<FlyshopOptions>>().Value;
+            if (!string.IsNullOrWhiteSpace(flyshopOptions.BaseUrl))
             {
-                client.BaseAddress = new Uri(tripjackOptions.BaseUrl);
+                client.BaseAddress = new Uri(flyshopOptions.BaseUrl);
             }
             client.Timeout = TimeSpan.FromSeconds(20);
         });
+
+        builder.Services.AddHttpClient<IHolidayCalendarService, GoogleHolidayCalendarClient>();
 
         builder.Services.AddHealthChecks()
             .AddDbContextCheck<ApplicationDbContext>("database")
@@ -191,7 +201,14 @@ public class Program
         // Enable the heavy traffic protection middleware
         app.UseRateLimiter();
 
-        app.UseHttpsRedirection();
+        // Port 5080 exists only so the Android emulator (which can't be given a
+        // trusted cert for the HTTPS dev endpoint the way a browser can) has a
+        // plain-HTTP way to reach this API during local development — redirecting
+        // it to HTTPS would defeat that entirely. Every other port keeps the
+        // normal HTTPS-only behavior.
+        app.UseWhen(
+            context => context.Connection.LocalPort != 5080,
+            appBuilder => appBuilder.UseHttpsRedirection());
 
         var profileImagesRootPath = builder.Configuration["Storage:ProfileImages:RootPath"]
             ?? Path.Combine(AppContext.BaseDirectory, "uploads", "profile-images");
@@ -204,7 +221,12 @@ public class Program
             FileProvider = new PhysicalFileProvider(profileImagesRootPath),
             RequestPath = profileImagesPublicBasePath
         });
-        app.UseStaticFiles();
+
+        // Registered via AddCors above, but that only builds the policy — it
+        // still has to be wired into the pipeline here, or every preflight
+        // OPTIONS request 405s and the browser never sends the real request.
+        app.UseCors("AllowReactApp");
+
         app.UseAuthentication();
         app.UseAuthorization();
 

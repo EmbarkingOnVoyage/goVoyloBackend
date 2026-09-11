@@ -11,5 +11,8 @@ namespace GoVoylo.Application.Interfaces
 
         Task<SupplierRepriceResultDto> RepriceAsync(
             SupplierRepriceRequestDto request, CancellationToken cancellationToken);
+
+        Task<SupplierLowFareResultDto> GetLowFareCalendarAsync(
+            SupplierLowFareRequestDto request, CancellationToken cancellationToken);
     }
 }

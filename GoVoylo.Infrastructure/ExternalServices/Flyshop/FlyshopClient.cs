@@ -5,20 +5,20 @@ using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Common;
 using Microsoft.Extensions.Options;
 
-namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
+namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
 {
-    public class TripjackClient : IFlightSupplierClient
+    public class FlyshopClient : IFlightSupplierClient
     {
         private readonly HttpClient _httpClient;
-        private readonly TripjackOptions _options;
+        private readonly FlyshopOptions _options;
 
-        public TripjackClient(HttpClient httpClient, IOptions<TripjackOptions> options)
+        public FlyshopClient(HttpClient httpClient, IOptions<FlyshopOptions> options)
         {
             _httpClient = httpClient;
             _options = options.Value;
         }
 
-        public string SupplierCode => FlightSupplierCodes.Tripjack;
+        public string SupplierCode => FlightSupplierCodes.Flyshop;
 
         public async Task<SupplierFlightSearchResultDto> SearchAsync(
             FlightSearchRequestDto request, CancellationToken cancellationToken)
@@ -46,10 +46,10 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 FilteredAirline = new List<FilteredAirlineWire> { new() { AirlineCode = string.Empty } }
             };
 
-            //var wireResponse = await PostAsync<AirSearchRequestWire, AirSearchResponseWire>(
-            //    "Air_Search", wireRequest, cancellationToken);
             var wireResponse = await PostAsync<AirSearchRequestWire, AirSearchResponseWire>(
-    "fms/v1/air-search-all", wireRequest, cancellationToken);
+                "Air_Search", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_Search");
 
             var flights = wireResponse.TripDetails
                 .SelectMany(t => t.Flights)
@@ -70,6 +70,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 {
                     new() { FlightKey = request.FlightKey, FareId = request.FareId }
                 },
+                CustomerMobile = _options.CustomerMobile,
                 GstInput = false,
                 SinglePricing = true
             };
@@ -77,11 +78,13 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             var wireResponse = await PostAsync<AirRepriceRequestWire, AirRepriceResponseWire>(
                 "Air_Reprice", wireRequest, cancellationToken);
 
-            var repriced = wireResponse.AirRepriceResponses.FirstOrDefault();
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_Reprice");
+
+            var repriced = wireResponse.AirRepriceResponses.FirstOrDefault()?.Flight;
 
             if (repriced == null)
             {
-                throw new InvalidOperationException("Tripjack Air_Reprice returned no repriced flight.");
+                throw new InvalidOperationException("Flyshop Air_Reprice returned no repriced flight.");
             }
 
             var mapped = MapFlight(repriced);
@@ -95,13 +98,40 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 repriced.IsFareChange);
         }
 
-        public Task<SupplierLowFareResultDto> GetLowFareCalendarAsync(
+        public async Task<SupplierLowFareResultDto> GetLowFareCalendarAsync(
             SupplierLowFareRequestDto request, CancellationToken cancellationToken)
         {
-            // This integration never had a fare-calendar/low-fare capability — confirmed
-            // by exhaustive search of the Tripjack docs this client was built against.
-            throw new NotSupportedException("Tripjack does not support a low-fare calendar.");
+            var wireRequest = new AirLowFareRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                Origin = request.Origin,
+                Destination = request.Destination,
+                Month = request.Month.ToString("D2", CultureInfo.InvariantCulture),
+                Year = request.Year
+            };
+
+            var wireResponse = await PostAsync<AirLowFareRequestWire, AirLowFareResponseWire>(
+                "Air_LowFare", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_LowFare");
+
+            var days = wireResponse.LowFares
+                .Select(f => new SupplierLowFareDayDto(
+                    ParseDate(f.TravelDate),
+                    f.Amount,
+                    "INR",
+                    f.AirlineCode ?? string.Empty,
+                    f.AirlinesName ?? string.Empty))
+                .Where(d => d.TravelDate != default)
+                .ToList();
+
+            return new SupplierLowFareResultDto(days);
         }
+
+        private static DateTime ParseDate(string? value) =>
+            DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+                ? parsed
+                : default;
 
         private AuthHeaderWire BuildAuthHeader() => new()
         {
@@ -112,11 +142,27 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             ImeiNumber = _options.ImeiNumber
         };
 
+        private static void EnsureSuccess(ResponseHeaderWire? header, string method)
+        {
+            if (header == null)
+            {
+                return;
+            }
+
+            // "0000" is the collection's documented success code; anything else carries
+            // an Error_Desc worth surfacing instead of failing deserialization silently.
+            if (!string.IsNullOrEmpty(header.ErrorCode) && header.ErrorCode != "0000")
+            {
+                throw new InvalidOperationException(
+                    $"Flyshop {method} returned {header.ErrorCode}: {header.ErrorDesc}");
+            }
+        }
+
         private static SupplierFlightOptionDto MapFlight(FlightWire flight)
         {
             var primaryFare = flight.Fares.FirstOrDefault();
 
-            var adultFareDetail = primaryFare?.FareDetails.FirstOrDefault(f => f.PaxType == "0")
+            var adultFareDetail = primaryFare?.FareDetails.FirstOrDefault(f => f.PaxType == 0)
                 ?? primaryFare?.FareDetails.FirstOrDefault();
 
             return new SupplierFlightOptionDto(
@@ -124,7 +170,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 primaryFare?.FareId ?? string.Empty,
                 flight.AirlineCode ?? flight.Segments.FirstOrDefault()?.AirlineCode ?? string.Empty,
                 flight.Segments.FirstOrDefault()?.AirlineName ?? string.Empty,
-                ParseBool(primaryFare?.Refundable),
+                primaryFare?.Refundable ?? false,
                 flight.IsLcc,
                 flight.Segments.Select(MapSegment).ToList(),
                 adultFareDetail?.TotalAmount ?? 0m,
@@ -157,11 +203,6 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             _ => "0"
         };
 
-        private static bool ParseBool(string? value) =>
-            value is not null && (value.Equals("Y", StringComparison.OrdinalIgnoreCase)
-                || value.Equals("true", StringComparison.OrdinalIgnoreCase)
-                || value == "1");
-
         private static int ParseInt(string? value) =>
             int.TryParse(value, out var parsed) ? parsed : 0;
 
@@ -178,7 +219,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
             var result = await httpResponse.Content.ReadFromJsonAsync<TResponse>(cancellationToken: cancellationToken);
 
-            return result ?? throw new InvalidOperationException($"Tripjack {method} returned an empty response.");
+            return result ?? throw new InvalidOperationException($"Flyshop {method} returned an empty response.");
         }
     }
 }
