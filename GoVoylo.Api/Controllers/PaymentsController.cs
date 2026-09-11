@@ -21,20 +21,20 @@ public class PaymentsController : ControllerBase
         _mediator = mediator;
     }
 
-    [HttpPost]
-    [ProducesResponseType(typeof(PaymentResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status429TooManyRequests)] // Handle heavy rate limiting response
-    public async Task<IActionResult> ProcessPayment([FromBody] ProcessPaymentCommand command)
-    {
-        if (command == null)
-            return BadRequest("Invalid payment payload.");
+    //[HttpPost]
+    //[ProducesResponseType(typeof(PaymentResponseDto), StatusCodes.Status200OK)]
+    //[ProducesResponseType(StatusCodes.Status400BadRequest)]
+    //[ProducesResponseType(StatusCodes.Status429TooManyRequests)] // Handle heavy rate limiting response
+    //public async Task<IActionResult> ProcessPayment([FromBody] ProcessPaymentCommand command)
+    //{
+    //    if (command == null)
+    //        return BadRequest("Invalid payment payload.");
 
-        // MediatR intercepts the command and safely sends it to your ProcessPaymentCommandHandler
-        var result = await _mediator.Send(command);
+    //    // MediatR intercepts the command and safely sends it to your ProcessPaymentCommandHandler
+    //    var result = await _mediator.Send(command);
 
-        return Ok(result);
-    }
+    //    return Ok(result);
+    //}
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetPaymentById(Guid id)
@@ -43,6 +43,15 @@ public class PaymentsController : ControllerBase
         var result = await _mediator.Send(query);
 
         if (result == null) return NotFound();
+
+        return Ok(result);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ProcessPayment(
+    [FromBody] ProcessPaymentCommand command)
+    {
+        var result = await _mediator.Send(command);
 
         return Ok(result);
     }

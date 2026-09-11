@@ -8,6 +8,7 @@ using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Interfaces;
 using GoVoylo.Infrastructure;
 using GoVoylo.Infrastructure.Caching;
+using GoVoylo.Infrastructure.ExternalServices.Razorpay;
 using GoVoylo.Infrastructure.ExternalServices.Tripjack;
 using GoVoylo.Infrastructure.Jobs;
 using GoVoylo.Infrastructure.Logging;
@@ -118,6 +119,7 @@ public class Program
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
         builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
+        builder.Services.AddHttpClient<IRazorpayService, RazorpayService>();
 
         builder.Services.AddMemoryCache();
         builder.Services.AddSingleton<IFlightSearchSessionStore, InMemoryFlightSearchSessionStore>();
@@ -202,7 +204,7 @@ public class Program
             FileProvider = new PhysicalFileProvider(profileImagesRootPath),
             RequestPath = profileImagesPublicBasePath
         });
-
+        app.UseStaticFiles();
         app.UseAuthentication();
         app.UseAuthorization();
 

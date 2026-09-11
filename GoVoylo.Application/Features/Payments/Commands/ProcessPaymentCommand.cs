@@ -8,8 +8,9 @@ namespace GoVoylo.Application.Features.Payments.Commands.ProcessPayment
          string BookingReference,
          decimal Amount,
          string Currency,
-         string SourceClient,
-         string PaymentMethodToken
+         string SourceClient
+         //string PaymentMethodToken
 
-    ) : IRequest<PaymentResponseDto>;
+    ) : IRequest<CreatePaymentOrderResponseDto>;
 }
+//PaymentResponseDto

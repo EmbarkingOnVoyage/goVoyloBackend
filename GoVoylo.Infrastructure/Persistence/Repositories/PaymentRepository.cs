@@ -21,6 +21,16 @@ public class PaymentRepository : IPaymentRepository
             .FirstOrDefaultAsync(p => p.BookingReference == bookingReference);
     }
 
+    public async Task<BookingPayment?> GetByRazorpayOrderIdAsync(
+    string razorpayOrderId,
+    CancellationToken cancellationToken)
+    {
+        return await _context.BookingPayments
+            .FirstOrDefaultAsync(
+                p => p.PaymentProvider == razorpayOrderId,
+                cancellationToken);
+    }
+
     public async Task SaveAsync(BookingPayment payment)
     {
         await _context.BookingPayments.AddAsync(payment);

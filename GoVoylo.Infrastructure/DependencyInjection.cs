@@ -69,7 +69,7 @@ public static class DependencyInjection
             services.AddHttpClient<ITripJackTestService, TripJackTestService>(client =>
             {
                 var baseUrl = configuration["B2bSettings:TripJack:BaseUrl"] ?? "https://apitest.tripjack.com/";
-                var apiKey = configuration["B2bSettings:TripJack:ApiKey"] ?? "717512708b4ba99-786c-46c9-a801-37891e3a8bab";
+                var apiKey = configuration["B2bSettings:TripJack:ApiKey"] ?? "8133058b44f483-8f8b-47c3-b703-9687363c2515";
 
                 client.BaseAddress = new Uri(baseUrl);
                 client.DefaultRequestHeaders.Add("apikey", apiKey);
@@ -77,18 +77,57 @@ public static class DependencyInjection
             });
         }
 
+        //services.Configure<TripjackOptions>(
+        //    configuration.GetSection("TripjackSettings"));
+
+        //var tripjackBaseUrl = configuration["TripjackSettings:BaseUrl"];
+        //var tripjackApiKey = configuration["TripjackSettings:ApiKey"];
+
+        //services.AddHttpClient<IFlightSupplierClient,TripjackClient>((serviceProvider, client) =>
+        //{
+        //    var options = serviceProvider
+        //        .GetRequiredService<IOptions<TripjackOptions>>()
+        //        .Value;
+
+        //    client.BaseAddress = new Uri(options.BaseUrl);
+        //    client.Timeout = TimeSpan.FromSeconds(60);
+
+        //    client.DefaultRequestHeaders.Add(
+        //    "apikey",
+        //    options.ApiKey);
+
+        //    client.DefaultRequestHeaders.Add(
+        //        "Accept",
+        //        "application/json");
+        //});
+
         services.Configure<TripjackOptions>(
-            configuration.GetSection("Tripjack"));
+    configuration.GetSection("TripjackSettings"));
 
-        services.AddHttpClient<TripjackClient>((serviceProvider, client) =>
-        {
-            var options = serviceProvider
-                .GetRequiredService<IOptions<TripjackOptions>>()
-                .Value;
+        services.AddHttpClient<IFlightSupplierClient, TripjackClient>(
+            (serviceProvider, client) =>
+            {
+                var baseUrl = configuration["TripjackSettings:BaseUrl"];
+                var apiKey = configuration["TripjackSettings:ApiKey"];
 
-            client.BaseAddress = new Uri(options.BaseUrl);
-            client.Timeout = TimeSpan.FromSeconds(60);
-        });
+                if (string.IsNullOrWhiteSpace(baseUrl))
+                    throw new InvalidOperationException(
+                        "TripjackSettings:BaseUrl is missing.");
+
+                if (string.IsNullOrWhiteSpace(apiKey))
+                    throw new InvalidOperationException(
+                        "TripjackSettings:ApiKey is missing.");
+
+                client.BaseAddress = new Uri(baseUrl);
+
+                client.DefaultRequestHeaders.Add("apikey", apiKey);
+
+                client.DefaultRequestHeaders.Accept.Add(
+                    new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue(
+                        "application/json"));
+
+                client.Timeout = TimeSpan.FromSeconds(60);
+            });
         return services;
     }
 }

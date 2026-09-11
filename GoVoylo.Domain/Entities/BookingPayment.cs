@@ -8,6 +8,14 @@ public class BookingPayment : BaseEntity
     public string Currency { get; private set; }
     public string PaymentStatus { get; private set; } // e.g., Pending, Succeeded, Failed
 
+    public string? PaymentProvider { get; private set; }
+
+    public string? ProviderOrderId { get; private set; }
+    public string? ProviderPaymentId { get; private set; }
+
+    //public string? RazorpaySignature { get; private set; }
+
+    public DateTime? PaidAt { get; private set; }
     public BookingPayment(string bookingReference, decimal totalAmount, string currency)
     {
         if (string.IsNullOrWhiteSpace(bookingReference)) 
@@ -21,6 +29,32 @@ public class BookingPayment : BaseEntity
         PaymentStatus = "Pending";
     }
 
-    public void MarkAsSucceeded() => PaymentStatus = "Succeeded";
-    public void MarkAsFailed() => PaymentStatus = "Failed";
+    public void SetPaymentProvider(string OrderId)
+    {
+        PaymentProvider = OrderId;
+    }
+
+    public void SetProviderOrderId(string orderId)
+    {
+        ProviderOrderId = orderId;
+    }
+
+    public void MarkAsSucceeded(
+        string paymentId)
+    //string signature
+    {
+        ProviderPaymentId = paymentId;
+        //ProviderOrderId = paymentId;
+        //RazorpaySignature = signature;
+        PaymentStatus = "Succeeded";
+        PaidAt = DateTime.UtcNow;
+    }
+
+    public void MarkAsFailed()
+    {
+        PaymentStatus = "Failed";
+    }
+
+    //public void MarkAsSucceeded() => PaymentStatus = "Succeeded";
+    //public void MarkAsFailed() => PaymentStatus = "Failed";
 }
