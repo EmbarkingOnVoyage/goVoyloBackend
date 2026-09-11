@@ -98,6 +98,41 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 repriced.IsFareChange);
         }
 
+        public async Task<SupplierLowFareResultDto> GetLowFareCalendarAsync(
+            SupplierLowFareRequestDto request, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirLowFareRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                Origin = request.Origin,
+                Destination = request.Destination,
+                Month = request.Month.ToString("D2", CultureInfo.InvariantCulture),
+                Year = request.Year
+            };
+
+            var wireResponse = await PostAsync<AirLowFareRequestWire, AirLowFareResponseWire>(
+                "Air_LowFare", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_LowFare");
+
+            var days = wireResponse.LowFares
+                .Select(f => new SupplierLowFareDayDto(
+                    ParseDate(f.TravelDate),
+                    f.Amount,
+                    "INR",
+                    f.AirlineCode ?? string.Empty,
+                    f.AirlinesName ?? string.Empty))
+                .Where(d => d.TravelDate != default)
+                .ToList();
+
+            return new SupplierLowFareResultDto(days);
+        }
+
+        private static DateTime ParseDate(string? value) =>
+            DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+                ? parsed
+                : default;
+
         private AuthHeaderWire BuildAuthHeader() => new()
         {
             UserId = _options.UserId,

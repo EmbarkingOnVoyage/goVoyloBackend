@@ -36,4 +36,15 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         bool IsFareChange);
 
     public record FlightOfferSession(string SupplierCode, string SearchKey, string FlightKey, string FareId);
+
+    public record SupplierLowFareRequestDto(string Origin, string Destination, int Month, int Year);
+
+    public record SupplierLowFareDayDto(
+        DateTime TravelDate,
+        decimal Amount,
+        string CurrencyCode,
+        string AirlineCode,
+        string AirlineName);
+
+    public record SupplierLowFareResultDto(IReadOnlyList<SupplierLowFareDayDto> Days);
 }

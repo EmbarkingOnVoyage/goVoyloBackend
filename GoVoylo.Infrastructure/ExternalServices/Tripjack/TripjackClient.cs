@@ -95,6 +95,14 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 repriced.IsFareChange);
         }
 
+        public Task<SupplierLowFareResultDto> GetLowFareCalendarAsync(
+            SupplierLowFareRequestDto request, CancellationToken cancellationToken)
+        {
+            // This integration never had a fare-calendar/low-fare capability — confirmed
+            // by exhaustive search of the Tripjack docs this client was built against.
+            throw new NotSupportedException("Tripjack does not support a low-fare calendar.");
+        }
+
         private AuthHeaderWire BuildAuthHeader() => new()
         {
             UserId = _options.UserId,

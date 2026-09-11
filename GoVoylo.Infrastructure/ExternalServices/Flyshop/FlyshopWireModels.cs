@@ -367,6 +367,50 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
         public bool SinglePricing { get; set; } = true;
     }
 
+    public class AirLowFareRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Origin")]
+        public string Origin { get; set; } = string.Empty;
+
+        [JsonPropertyName("Destination")]
+        public string Destination { get; set; } = string.Empty;
+
+        // Documented as MM (zero-padded, e.g. "05" for May).
+        [JsonPropertyName("Month")]
+        public string Month { get; set; } = string.Empty;
+
+        // The doc's own example sends this as a JSON number (2022), not a string.
+        [JsonPropertyName("Year")]
+        public int Year { get; set; }
+    }
+
+    public class LowFareWire
+    {
+        [JsonPropertyName("AirlineCode")]
+        public string? AirlineCode { get; set; }
+
+        [JsonPropertyName("AirlinesName")]
+        public string? AirlinesName { get; set; }
+
+        [JsonPropertyName("Amount")]
+        public decimal Amount { get; set; }
+
+        [JsonPropertyName("TravelDate")]
+        public string? TravelDate { get; set; }
+    }
+
+    public class AirLowFareResponseWire
+    {
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+
+        [JsonPropertyName("LowFares")]
+        public List<LowFareWire> LowFares { get; set; } = new();
+    }
+
     public class AirRepriceResponseItemWire
     {
         [JsonPropertyName("Flight")]

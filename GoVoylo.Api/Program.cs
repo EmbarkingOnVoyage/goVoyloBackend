@@ -9,6 +9,7 @@ using GoVoylo.Domain.Interfaces;
 using GoVoylo.Infrastructure;
 using GoVoylo.Infrastructure.Caching;
 using GoVoylo.Infrastructure.ExternalServices.Flyshop;
+using GoVoylo.Infrastructure.ExternalServices.Holidays;
 using GoVoylo.Infrastructure.ExternalServices.Tripjack;
 using GoVoylo.Infrastructure.Jobs;
 using GoVoylo.Infrastructure.Logging;
@@ -139,6 +140,8 @@ public class Program
             client.Timeout = TimeSpan.FromSeconds(20);
         });
 
+        builder.Services.AddHttpClient<IHolidayCalendarService, GoogleHolidayCalendarClient>();
+
         builder.Services.AddHealthChecks()
             .AddDbContextCheck<ApplicationDbContext>("database")
             .AddCheck<EmailServiceHealthCheck>("email");
@@ -216,6 +219,11 @@ public class Program
             FileProvider = new PhysicalFileProvider(profileImagesRootPath),
             RequestPath = profileImagesPublicBasePath
         });
+
+        // Registered via AddCors above, but that only builds the policy — it
+        // still has to be wired into the pipeline here, or every preflight
+        // OPTIONS request 405s and the browser never sends the real request.
+        app.UseCors("AllowReactApp");
 
         app.UseAuthentication();
         app.UseAuthorization();

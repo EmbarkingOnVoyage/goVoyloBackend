@@ -37,4 +37,8 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         decimal TotalAmount,
         string CurrencyCode,
         bool PriceChanged);
+
+    public record FareCalendarDayDto(DateTime Date, decimal Amount, string CurrencyCode);
+
+    public record FareCalendarResponseDto(IReadOnlyList<FareCalendarDayDto> Days);
 }
