@@ -1,0 +1,41 @@
+name: Deploy Backend to UAT
+
+on:
+  push:
+    branches:
+      - uat
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: govo-api-u-app
+  DOTNET_VERSION: '10.0.x'
+  API_PROJECT_PATH: GoVoylo.Api/GoVoylo.Api.csproj
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore GoVoyloBackend.slnx
+
+      - name: Build
+        run: dotnet build GoVoyloBackend.slnx --configuration Release --no-restore
+
+      - name: Publish API project
+        run: dotnet publish ${{ env.API_PROJECT_PATH }} --configuration Release --no-build --output ./publish
+
+      - name: Deploy to Azure App Service (UAT)
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_UAT }}
+          package: ./publish
