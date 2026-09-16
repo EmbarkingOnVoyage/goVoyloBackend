@@ -1,0 +1,27 @@
+services:
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: govoylo_postgres
+    environment:
+      POSTGRES_DB: govoylo_dev_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secure_dev_password_2026
+    ports:
+      - "5433:5432"
+    volumes:
+      - govoylo_postgres_data:/var/lib/postgresql/data
+  mongodb:
+    image: mongo:7.0
+    container_name: govoylo_mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: govoylo_mongo_admin
+      MONGO_INITDB_ROOT_PASSWORD: secure_mongo_password_2026
+    ports:
+      - "27017:27017" # Default MongoDB communication port
+    volumes:
+      - govoylo_mongo_data:/data/db
+
+volumes:
+  govoylo_postgres_data:
+  govoylo_mongo_data:
+

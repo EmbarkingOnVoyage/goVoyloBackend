@@ -24,4 +24,8 @@
     <ProjectReference Include="..\..\GoVoylo.Application\GoVoylo.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Features\Authentication\Commands\Login\" />
+  </ItemGroup>
+
 </Project>

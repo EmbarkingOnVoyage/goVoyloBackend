@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using GoVoylo.Application.Features.Payments.Commands.ProcessPayment;
 using GoVoylo.Application.Features.Payments.Dtos;
+using GoVoylo.Application.Features.Payments.Queries;
 
 namespace GoVoylo.Api.Controllers;
 
@@ -14,7 +15,7 @@ public class PaymentsController : ControllerBase
 {
     private readonly ISender _mediator;
 
-    // We inject ISender (MediatR interface) keeping our controller fully decoupled from business logic
+    // inject ISender (MediatR interface) keeping our controller fully decoupled from business logic
     public PaymentsController(ISender mediator)
     {
         _mediator = mediator;
@@ -31,6 +32,17 @@ public class PaymentsController : ControllerBase
 
         // MediatR intercepts the command and safely sends it to your ProcessPaymentCommandHandler
         var result = await _mediator.Send(command);
+
+        return Ok(result);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetPaymentById(Guid id)
+    {
+        var query = new GetPaymentByIdQuery(id);
+        var result = await _mediator.Send(query);
+
+        if (result == null) return NotFound();
 
         return Ok(result);
     }
