@@ -111,19 +111,19 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
         [JsonPropertyName("Destination")]
         public string Destination { get; set; } = string.Empty;
 
-        [JsonPropertyName("AirlineCode")]
+        [JsonPropertyName("Airline_Code")]
         public string AirlineCode { get; set; } = string.Empty;
 
-        [JsonPropertyName("AirlineName")]
+        [JsonPropertyName("Airline_Name")]
         public string AirlineName { get; set; } = string.Empty;
 
-        [JsonPropertyName("FlightNumber")]
+        [JsonPropertyName("Flight_Number")]
         public string FlightNumber { get; set; } = string.Empty;
 
-        [JsonPropertyName("DepartureDateTime")]
+        [JsonPropertyName("Departure_DateTime")]
         public string DepartureDateTime { get; set; } = string.Empty;
 
-        [JsonPropertyName("ArrivalDateTime")]
+        [JsonPropertyName("Arrival_DateTime")]
         public string ArrivalDateTime { get; set; } = string.Empty;
 
         [JsonPropertyName("Duration")]
@@ -319,7 +319,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
     public class TripDetailWire
     {
         [JsonPropertyName("Trip_Id")]
-        public string? TripId { get; set; }
+        public int? TripId { get; set; }
 
         [JsonPropertyName("Flights")]
         public List<FlightWire> Flights { get; set; } = new();

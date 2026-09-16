@@ -9,6 +9,25 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
 {
     public class FlyshopClient : IFlightSupplierClient
     {
+        // 0 = domestic (all segments India-India), 1 = international — the
+        // conventional meaning of Travel_Type for suppliers like this one.
+        // NOTE: confirmed only that domestic (TravelType=0) searches like DEL-BOM
+        // work. BOM-DXB still returns "9999: travel type seems invalid" with every
+        // value tried (0, 1, 2) — so either this staging account isn't entitled to
+        // international content, or the real failing field is something else
+        // entirely and Flyshop's error text is misleading. Needs their confirmation
+        // before trusting this domestic/international split for international routes.
+        private static readonly HashSet<string> IndianAirportCodes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "DEL", "BOM", "NMI", "BLR", "HYD", "MAA", "CCU", "PNQ", "AMD", "JAI",
+            "GOI", "COK", "LKO", "IXC", "GAU", "PAT", "IXE", "BHO", "DXN", "HDO",
+            "NAG", "IDR", "VNS", "ATQ", "TRV", "VTZ", "IXR", "RPR", "BBI", "SXR",
+            "IXB", "IXJ", "STV", "UDR", "JDH", "JLR", "IXA", "IXZ", "IXM", "IXU",
+        };
+
+        private static bool IsDomesticItinerary(IReadOnlyList<FlightSearchSegmentDto> segments) =>
+            segments.All(s => IndianAirportCodes.Contains(s.Origin) && IndianAirportCodes.Contains(s.Destination));
+
         private readonly HttpClient _httpClient;
         private readonly FlyshopOptions _options;
 
@@ -26,7 +45,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             var wireRequest = new AirSearchRequestWire
             {
                 AuthHeader = BuildAuthHeader(),
-                TravelType = 0,
+                TravelType = IsDomesticItinerary(request.Segments) ? 0 : 1,
                 BookingType = MapBookingType(request.TripType),
                 TripInfo = request.Segments
                     .Select((s, index) => new TripInfoWire
@@ -115,7 +134,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
 
             EnsureSuccess(wireResponse.ResponseHeader, "Air_LowFare");
 
-            var days = wireResponse.LowFares
+            var days = (wireResponse.LowFares ?? new List<LowFareWire>())
                 .Select(f => new SupplierLowFareDayDto(
                     ParseDate(f.TravelDate),
                     f.Amount,
@@ -153,8 +172,11 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             // an Error_Desc worth surfacing instead of failing deserialization silently.
             if (!string.IsNullOrEmpty(header.ErrorCode) && header.ErrorCode != "0000")
             {
+                var detail = string.IsNullOrEmpty(header.ErrorInnerException)
+                    ? string.Empty
+                    : $" ({header.ErrorInnerException})";
                 throw new InvalidOperationException(
-                    $"Flyshop {method} returned {header.ErrorCode}: {header.ErrorDesc}");
+                    $"Flyshop {method} returned {header.ErrorCode}: {header.ErrorDesc}{detail}");
             }
         }
 
