@@ -84,6 +84,30 @@ namespace GoVoylo.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
         }
 
+        // Passwordless signup: created the moment a brand-new email finishes its
+        // first OTP verification, so email ownership is already proven and there's
+        // no password to hash. First/last name are placeholders until the customer
+        // fills in Personal Details.
+        public User(string email, string firstName, string lastName)
+        {
+            Id = Guid.NewGuid();
+
+            Email = email;
+            PasswordHash = null;
+            Phone = null;
+
+            FirstName = firstName;
+            LastName = lastName;
+
+            IsEmailVerified = true;
+            IsPhoneVerified = false;
+
+            Status = "active";
+
+            CreatedAt = DateTime.UtcNow;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         // Required by EF Core
         private User()
         {

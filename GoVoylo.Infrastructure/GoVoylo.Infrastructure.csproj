@@ -25,4 +25,12 @@
     <ProjectReference Include="..\GoVoylo.Domain\GoVoylo.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Real IATA airport master (OurAirports, public domain), replacing the
+         32-row starter set per AirportSeedData.cs's own comment: "swapping
+         this for a real CSV-driven import later is a drop-in replacement."
+         Embedded into the DLL so it works the same on every deploy target. -->
+    <EmbeddedResource Include="SeedData\airports.json" />
+  </ItemGroup>
+
 </Project>

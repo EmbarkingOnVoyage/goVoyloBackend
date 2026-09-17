@@ -2,6 +2,7 @@ using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Features.Authentication.Dtos;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Common;
+using GoVoylo.Domain.Entities;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
 using RefreshTokenEntity = GoVoylo.Domain.Entities.RefreshToken;
@@ -16,6 +17,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
         private readonly IRefreshTokenService _refreshTokenService;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
         private readonly IUserRoleRepository _userRoleRepository;
+        private readonly IRoleRepository _roleRepository;
         private readonly IAuditService _auditService;
 
         public LoginWithOtpCommandHandler(
@@ -25,6 +27,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
             IRefreshTokenService refreshTokenService,
             IRefreshTokenRepository refreshTokenRepository,
             IUserRoleRepository userRoleRepository,
+            IRoleRepository roleRepository,
             IAuditService auditService)
         {
             _otpRepository = otpRepository;
@@ -33,6 +36,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
             _refreshTokenService = refreshTokenService;
             _refreshTokenRepository = refreshTokenRepository;
             _userRoleRepository = userRoleRepository;
+            _roleRepository = roleRepository;
             _auditService = auditService;
         }
 
@@ -62,13 +66,24 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
             otpRecord.isVerified = true;
             await _otpRepository.UpdateAsync(otpRecord);
 
-            // 2. OTP is valid — now find the account to log into
+            // 2. OTP is valid — find the account to log into, or provision one.
+            // The OTP already proved this email is reachable by its owner, so a
+            // first-time email is treated as a signup rather than a dead end.
             var user = await _userRepository.GetByEmailAsync(request.Email);
 
             if (user == null)
             {
-                _auditService.Log(null, AuditEventTypes.LoginFailed);
-                throw new NotFoundException("No account found for this email.");
+                var placeholderFirstName = request.Email.Split('@')[0];
+                user = new User(request.Email, placeholderFirstName, string.Empty);
+                await _userRepository.SaveAsync(user);
+
+                var customerRole = await _roleRepository.GetByNameAsync("customer");
+                if (customerRole != null)
+                {
+                    await _userRoleRepository.AssignAsync(new UserRole(user.Id, customerRole.Id));
+                }
+
+                _auditService.Log(user.Id, AuditEventTypes.Registration);
             }
 
             if (user.Status != "active")

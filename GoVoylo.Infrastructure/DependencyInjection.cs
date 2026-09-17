@@ -14,10 +14,11 @@ namespace GoVoylo.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructureServices(
+        this IServiceCollection services, IConfiguration configuration, string environmentName)
     {
         var connectionString = configuration?.GetConnectionString("DefaultConnection");
-        
+
 
         bool isMigrationRunning = AppDomain.CurrentDomain.GetAssemblies()
             .Any(a => a.FullName != null && a.FullName.Contains("Microsoft.EntityFrameworkCore.Design"));
@@ -30,18 +31,28 @@ public static class DependencyInjection
                 {
                     b.MigrationsAssembly("GoVoylo.Infrastructure");
 
-                    // THE PROFESSIONAL FIX: 
-                    // This forces EF Core to use a secure execution strategy. It prepares the database channel 
-                    // and handles the creation of the schema history table cleanly behind the scenes, 
+                    // THE PROFESSIONAL FIX:
+                    // This forces EF Core to use a secure execution strategy. It prepares the database channel
+                    // and handles the creation of the schema history table cleanly behind the scenes,
                     // preventing raw SQL exception logs on initial setup.
                     b.EnableRetryOnFailure();
                 });
             });
         }
-        else
+        else if (environmentName is "Development" or "Testing")
         {
+            // Convenience only for local dev/test hosts that never set a real
+            // connection string. Any other environment name (Production, UAT, ...)
+            // falls through to the throw below instead of silently persisting
+            // real user data to a database that vanishes on every restart.
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseInMemoryDatabase("GoVoyloDb"));
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                $"ConnectionStrings:DefaultConnection is not configured for environment '{environmentName}'. " +
+                "Refusing to silently fall back to an in-memory database outside Development/Testing.");
         }
         var mongoConnectionString = configuration?.GetConnectionString("MongoConnection");
         if (!string.IsNullOrEmpty(mongoConnectionString))

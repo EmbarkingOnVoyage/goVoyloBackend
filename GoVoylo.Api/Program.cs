@@ -30,7 +30,7 @@ namespace GoVoylo.Api;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         Env.Load();
 
@@ -86,7 +86,7 @@ public class Program
 
         // --- 2. CLEAN ARCHITECTURE SERVICE WIRE UP ---
         // Registers your repository interfaces and your In-Memory database
-        builder.Services.AddInfrastructureServices(builder.Configuration);
+        builder.Services.AddInfrastructureServices(builder.Configuration, builder.Environment.EnvironmentName);
         builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
         builder.Services.AddScoped<IBookFlightRepository, BookFlightRepository>();
         builder.Services.AddScoped<IOtpRepository, OtpRepository>();
@@ -110,6 +110,10 @@ public class Program
         builder.Services.AddScoped<ITravelerEmergencyContactRepository, TravelerEmergencyContactRepository>();
         builder.Services.AddScoped<IRoleRepository, RoleRepository>();
         builder.Services.AddScoped<IUserRoleRepository, UserRoleRepository>();
+        builder.Services.AddScoped<IAirportRepository, AirportRepository>();
+        builder.Services.AddScoped<IRecentAirportSearchRepository, RecentAirportSearchRepository>();
+        builder.Services.AddSingleton<IAirportCacheService, AirportCacheService>();
+        builder.Services.AddScoped<AirportImportService>();
         builder.Services.AddSingleton<AuditLogQueue>();
         builder.Services.AddScoped<IAuditService, AuditService>();
         builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
@@ -171,18 +175,33 @@ public class Program
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst
                     }));
         });
+        // Cors:AllowedOrigins per environment — appsettings.json defaults to the
+        // local Vite dev server; Production/UAT ship an empty array and expect
+        // the real web app origin(s) via the Cors__AllowedOrigins__0 env var
+        // (or appsettings.{Environment}.json), so a hardcoded localhost origin
+        // never silently ships to a deployed environment.
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+            ?? Array.Empty<string>();
+
         builder.Services.AddCors(options =>
         {
             options.AddPolicy("AllowReactApp",
                 policy =>
                 {
-                    policy.WithOrigins("http://localhost:5173")
+                    policy.WithOrigins(allowedOrigins)
                         .AllowAnyHeader()
                         .AllowAnyMethod();
                 });
         });
 
         var app = builder.Build();
+
+        using (var startupScope = app.Services.CreateScope())
+        {
+            var airportImportService = startupScope.ServiceProvider.GetRequiredService<AirportImportService>();
+            await airportImportService.ImportIfEmptyAsync();
+        }
+
         // --- 4. HTTP PIPELINE MIDDLEWARE CONFIGURATION ---
         app.UseExceptionHandler();
 
@@ -246,7 +265,7 @@ public class Program
         // Map your controllers so the API routing endpoints actually work
         app.MapControllers();
 
-        app.Run();
+        await app.RunAsync();
     }
 
 }

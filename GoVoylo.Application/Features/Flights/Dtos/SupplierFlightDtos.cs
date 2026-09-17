@@ -9,6 +9,14 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         DateTime ArrivalDateTime,
         string Duration);
 
+    public record SupplierFareOptionDto(
+        string FareId,
+        bool Refundable,
+        decimal TotalAmount,
+        string CurrencyCode,
+        string? CheckInBaggage,
+        string? HandBaggage);
+
     public record SupplierFlightOptionDto(
         string FlightKey,
         string FareId,
@@ -19,7 +27,8 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         IReadOnlyList<SupplierFlightSegmentDto> Segments,
         decimal TotalAmount,
         string CurrencyCode,
-        int SeatsAvailable);
+        int SeatsAvailable,
+        IReadOnlyList<SupplierFareOptionDto> Fares);
 
     public record SupplierFlightSearchResultDto(
         string SearchKey,

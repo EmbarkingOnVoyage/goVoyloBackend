@@ -1,0 +1,83 @@
+name: Deploy Backend to UAT
+
+on:
+  push:
+    branches:
+      - uat
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: govo-api-u-app
+  DOTNET_VERSION: '10.0.x'
+  API_PROJECT_PATH: GoVoylo.Api/GoVoylo.Api.csproj
+  # Test-run-only values. These configure the CI container for the test suite;
+  # they are never sent to Azure and have no effect on the deployed app, which
+  # gets its real secrets from the App Service's own Application Settings.
+  CI_DB_CONNECTION: Host=localhost;Port=5432;Database=govoylo_ci_db;Username=postgres;Password=ci_test_password
+  CI_JWT_SECRET: ci-only-secret-not-used-by-any-deployed-environment
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: govoylo_ci_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore GoVoyloBackend.slnx
+
+      - name: Restore local tools (dotnet-ef)
+        run: dotnet tool restore
+
+      - name: Build
+        run: dotnet build GoVoyloBackend.slnx --configuration Release --no-restore
+
+      # Applies every migration to the fresh CI Postgres so the test suite
+      # (including the DB-backed integration tests) runs against real schema,
+      # not an empty database.
+      - name: Apply database migrations to test database
+        run: dotnet ef database update --project GoVoylo.Infrastructure --startup-project GoVoylo.Api --configuration Release
+        env:
+          ConnectionStrings__DefaultConnection: ${{ env.CI_DB_CONNECTION }}
+          JWT_SECRET: ${{ env.CI_JWT_SECRET }}
+
+      # Gate: a broken build already stops this workflow at the Build step above;
+      # this step catches broken *behavior* (unit + integration tests) so nothing
+      # gets published or deployed unless the whole suite is green.
+      - name: Run tests
+        run: dotnet test GoVoyloBackend.slnx --configuration Release --no-build
+        env:
+          ConnectionStrings__DefaultConnection: ${{ env.CI_DB_CONNECTION }}
+          JWT_SECRET: ${{ env.CI_JWT_SECRET }}
+          ASPNETCORE_ENVIRONMENT: Development
+
+      - name: Publish API project
+        run: dotnet publish ${{ env.API_PROJECT_PATH }} --configuration Release --no-build --output ./publish
+
+      - name: Deploy to Azure App Service (UAT)
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_UAT }}
+          package: ./publish

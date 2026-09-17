@@ -1,11 +1,8 @@
-﻿using GoVoylo.Application.Features.Authentication.Commands.SendOtp;
-using GoVoylo.Application.Features.Authentication.Dtos;
+﻿using GoVoylo.Application.Features.Authentication.Dtos;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace GoVoylo.Application.Features.Authentication.Commands.VerifyOtp
 {
@@ -67,11 +64,6 @@ namespace GoVoylo.Application.Features.Authentication.Commands.VerifyOtp
                 Message = "OTP verified successfully."
             };
 
-        }
-
-        public static implicit operator VerifyOtpCommandHandler(SendOtpCommandHandler v)
-        {
-            throw new NotImplementedException();
         }
     }
 }

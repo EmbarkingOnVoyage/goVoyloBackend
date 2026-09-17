@@ -7,6 +7,7 @@ using GoVoylo.Application.Features.Payments.Commands.ProcessPayment;
 using GoVoylo.Application.Features.Payments.Dtos;
 using Xunit;
 using GoVoylo.Infrastructure.Persistence.EntityFramework;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GoVoylo.Api.IntegrationTests.Controllers;
 
@@ -79,12 +80,11 @@ public class PaymentsControllerTests : IClassFixture<WebApplicationFactory<Progr
             // Deserialize the response object to grab the new primary tracking ID
             var commandResult = await postResponse.Content.ReadFromJsonAsync<PaymentResponseDto>();
             Assert.NotNull(commandResult);
-            Assert.NotEqual(Guid.Empty, commandResult.Id);
+            Assert.NotEqual(Guid.Empty, commandResult.TransactionId);
 
             // --- 2. THE QUERY (READ) PHASE ---
             // Act: Shoot a real HTTP GET request to pull the uncommitted row back out
-            // (Assuming GET endpoint is structured as: api/payments/{id})
-            var getResponse = await _client.GetAsync($"api/payments/{commandResult.Id}");
+            var getResponse = await _client.GetAsync($"api/payments/{commandResult.TransactionId}");
             getResponse.EnsureSuccessStatusCode();
 
             var queryResult = await getResponse.Content.ReadFromJsonAsync<PaymentDetailsDto>();
