@@ -21,15 +21,31 @@ public class PaymentRepository : IPaymentRepository
             .FirstOrDefaultAsync(p => p.BookingReference == bookingReference);
     }
 
+    //public async Task<BookingPayment?> GetByRazorpayOrderIdAsync(
+    //string razorpayOrderId,
+    //CancellationToken cancellationToken)
+    //{
+    //    return await _context.BookingPayments
+    //        .FirstOrDefaultAsync(
+    //            p => p.PaymentProvider == razorpayOrderId,
+    //            cancellationToken);
+    //}
+
     public async Task<BookingPayment?> GetByRazorpayOrderIdAsync(
     string razorpayOrderId,
     CancellationToken cancellationToken)
     {
         return await _context.BookingPayments
             .FirstOrDefaultAsync(
-                p => p.PaymentProvider == razorpayOrderId,
+                p => p.ProviderOrderId == razorpayOrderId,
                 cancellationToken);
     }
+
+    //public async Task SaveAsync(BookingPayment payment)
+    //{
+    //    await _context.BookingPayments.AddAsync(payment);
+    //    await _context.SaveChangesAsync();
+    //}
 
     public async Task SaveAsync(BookingPayment payment)
     {
@@ -49,10 +65,25 @@ public class PaymentRepository : IPaymentRepository
         await Task.Delay(100); // Simulated async operation
         return null; // For demonstration purposes, returning null
     }
-    public async Task<BookingPayment?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    //public async Task<BookingPayment?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    //{
+    //    return await _context.BookingPayments
+    //        .AsNoTracking()
+    //        .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+    //}
+    public async Task<BookingPayment?> GetByIdAsync(
+    Guid id,
+    CancellationToken cancellationToken)
     {
         return await _context.BookingPayments
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(
+                p => p.Id == id,
+                cancellationToken);
     }
+    public async Task UpdateAsync(BookingPayment payment)
+    {
+        _context.BookingPayments.Update(payment);
+        await _context.SaveChangesAsync();
+    }
+
 }

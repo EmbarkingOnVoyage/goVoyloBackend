@@ -14,5 +14,6 @@ namespace GoVoylo.Domain.Interfaces
 
         Task SaveAsync(BookingPayment payment);
         Task<BookingPayment?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+        Task UpdateAsync(BookingPayment payment);
     }
 }

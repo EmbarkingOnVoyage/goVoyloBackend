@@ -7,15 +7,16 @@ namespace GoVoylo.Application.Interfaces
 {
     public interface IRazorpayService
     {
-        Task<RazorpayOrderResponse> CreateOrderAsync(
+        Task<PaymentOrderResult> CreateOrderAsync(
         decimal amount,
         string currency,
-        string receipt,
+        string bookingReference,
         CancellationToken cancellationToken);
 
-        bool VerifyPaymentSignature(
+        Task<bool> VerifyPaymentAsync(
             string orderId,
             string paymentId,
-            string signature);
+            string signature,
+            CancellationToken cancellationToken);
     }
 }

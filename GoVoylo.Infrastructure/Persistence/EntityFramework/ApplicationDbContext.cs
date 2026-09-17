@@ -32,6 +32,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<TravelerEmergencyContact> TravelerEmergencyContacts => Set<TravelerEmergencyContact>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<RazorpayPaymentDetails> RazorpayPaymentDetails { get; set; }
+    public DbSet<BookingPricing> BookingPricings { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

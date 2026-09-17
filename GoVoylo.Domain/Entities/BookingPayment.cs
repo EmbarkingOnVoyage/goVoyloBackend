@@ -12,6 +12,7 @@ public class BookingPayment : BaseEntity
 
     public string? ProviderOrderId { get; private set; }
     public string? ProviderPaymentId { get; private set; }
+    public string? PaymentMethod { get; private set; }
 
     //public string? RazorpaySignature { get; private set; }
 
@@ -29,9 +30,9 @@ public class BookingPayment : BaseEntity
         PaymentStatus = "Pending";
     }
 
-    public void SetPaymentProvider(string OrderId)
+    public void SetPaymentProvider(string provider)
     {
-        PaymentProvider = OrderId;
+        PaymentProvider = provider;
     }
 
     public void SetProviderOrderId(string orderId)
@@ -55,6 +56,15 @@ public class BookingPayment : BaseEntity
         PaymentStatus = "Failed";
     }
 
+    public void SetPaymentMethod(string paymentMethod)
+    {
+        PaymentMethod = paymentMethod;
+    }
+
+    public void SetPaymentMethod(object value)
+    {
+        throw new NotImplementedException();
+    }
     //public void MarkAsSucceeded() => PaymentStatus = "Succeeded";
     //public void MarkAsFailed() => PaymentStatus = "Failed";
 }

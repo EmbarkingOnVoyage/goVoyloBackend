@@ -7,13 +7,17 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using static GoVoylo.Application.Interfaces.IPaymentProvider;
 
 namespace GoVoylo.Infrastructure.ExternalServices.Razorpay
 {
-    public class RazorpayService : IRazorpayService
+    public class RazorpayService : IPaymentProvider
     {
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
+
+        public string ProviderName => "Razorpay";
+
 
         public RazorpayService(
             HttpClient httpClient,
@@ -23,10 +27,10 @@ namespace GoVoylo.Infrastructure.ExternalServices.Razorpay
             _configuration = configuration;
         }
 
-        public async Task<RazorpayOrderResponse> CreateOrderAsync(
+        public async Task<PaymentOrderResult> CreateOrderAsync(
             decimal amount,
             string currency,
-            string receipt,
+            string bookingReference,
             CancellationToken cancellationToken)
         {
             var keyId = _configuration["Razorpay:KeyId"];
@@ -41,7 +45,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Razorpay
             {
                 amount = amountInPaise,
                 currency = currency,
-                receipt = receipt
+                receipt = bookingReference
             };
 
             var json = JsonSerializer.Serialize(requestBody);
@@ -87,23 +91,88 @@ namespace GoVoylo.Infrastructure.ExternalServices.Razorpay
 
             var razorpayCurrency = root.GetProperty("currency").GetString()!;
 
-            return new RazorpayOrderResponse(
+            return new PaymentOrderResult(
                 orderId,
                 razorpayAmount / 100,
                 razorpayCurrency);
         }
 
-        public bool VerifyPaymentSignature(
-            string orderId,
-            string paymentId,
-            string signature)
+        //public bool VerifyPaymentSignature(
+        //    string orderId,
+        //    string paymentId,
+        //    string signature)
+        //{
+        //    var keySecret = _configuration["Razorpay:KeySecret"];
+
+        //    var payload = $"{orderId}|{paymentId}";
+
+        //    using var hmac = new HMACSHA256(
+        //        Encoding.UTF8.GetBytes(keySecret!));
+
+        //    var hash = hmac.ComputeHash(
+        //        Encoding.UTF8.GetBytes(payload));
+
+        //    var generatedSignature =
+        //        Convert.ToHexString(hash).ToLowerInvariant();
+
+        //    return CryptographicOperations.FixedTimeEquals(
+        //        Encoding.UTF8.GetBytes(generatedSignature),
+        //        Encoding.UTF8.GetBytes(signature));
+        //}
+        //public Task<bool> VerifyPaymentAsync(
+        //       string orderId,
+        //        string paymentId,
+        //        string signature,
+        //        CancellationToken cancellationToken)
+        //{
+        //    var keySecret = _configuration["Razorpay:KeySecret"];
+
+        //    if (string.IsNullOrWhiteSpace(keySecret))
+        //    {
+        //        throw new InvalidOperationException(
+        //            "Razorpay KeySecret is not configured.");
+        //    }
+
+        //    var payload = $"{orderId}|{paymentId}";
+
+        //    using var hmac = new HMACSHA256(
+        //        Encoding.UTF8.GetBytes(keySecret));
+
+        //    var hash = hmac.ComputeHash(
+        //        Encoding.UTF8.GetBytes(payload));
+
+        //    var generatedSignature =
+        //        Convert.ToHexString(hash).ToLowerInvariant();
+
+        //    var isValid =
+        //        CryptographicOperations.FixedTimeEquals(
+        //            Encoding.UTF8.GetBytes(generatedSignature),
+        //            Encoding.UTF8.GetBytes(signature));
+
+        //    return Task.FromResult(isValid);
+        //}
+
+        public async Task<IPaymentProvider.PaymentVerificationResult> VerifyPaymentAsync(
+    string orderId,
+    string paymentId,
+    string signature,
+    CancellationToken cancellationToken)
         {
+            var keyId = _configuration["Razorpay:KeyId"];
             var keySecret = _configuration["Razorpay:KeySecret"];
 
+            if (string.IsNullOrWhiteSpace(keyId) ||
+                string.IsNullOrWhiteSpace(keySecret))
+            {
+                throw new InvalidOperationException(
+                    "Razorpay credentials are not configured.");
+            }
+
+            // 1. Verify Razorpay payment signature
             var payload = $"{orderId}|{paymentId}";
 
             using var hmac = new HMACSHA256(
-                Encoding.UTF8.GetBytes(keySecret!));
+                Encoding.UTF8.GetBytes(keySecret));
 
             var hash = hmac.ComputeHash(
                 Encoding.UTF8.GetBytes(payload));
@@ -111,9 +180,66 @@ namespace GoVoylo.Infrastructure.ExternalServices.Razorpay
             var generatedSignature =
                 Convert.ToHexString(hash).ToLowerInvariant();
 
-            return CryptographicOperations.FixedTimeEquals(
-                Encoding.UTF8.GetBytes(generatedSignature),
-                Encoding.UTF8.GetBytes(signature));
+            var isValid =
+                CryptographicOperations.FixedTimeEquals(
+                    Encoding.UTF8.GetBytes(generatedSignature),
+                    Encoding.UTF8.GetBytes(signature));
+
+            // Payment signature is invalid
+            if (!isValid)
+            {
+                return new IPaymentProvider.PaymentVerificationResult(
+                    false,
+                    null);
+            }
+
+            // 2. Get payment details from Razorpay
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"https://api.razorpay.com/v1/payments/{paymentId}");
+
+            var credentials = Convert.ToBase64String(
+                Encoding.UTF8.GetBytes($"{keyId}:{keySecret}"));
+
+            request.Headers.Authorization =
+                new AuthenticationHeaderValue(
+                    "Basic",
+                    credentials);
+
+            var response = await _httpClient.SendAsync(
+                request,
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody =
+                    await response.Content.ReadAsStringAsync(
+                        cancellationToken);
+
+                throw new HttpRequestException(
+                    $"Razorpay Payment API Error {(int)response.StatusCode}: {errorBody}");
+            }
+
+            // 3. Read Razorpay payment response
+            var responseJson =
+                await response.Content.ReadAsStringAsync(
+                    cancellationToken);
+
+            using var document =
+                JsonDocument.Parse(responseJson);
+
+            var root = document.RootElement;
+
+            // 4. Get payment method
+            var paymentMethod =
+                root.TryGetProperty("method", out var methodProperty)
+                    ? methodProperty.GetString()
+                    : null;
+
+            // 5. Return verification result
+            return new IPaymentProvider.PaymentVerificationResult(
+                true,
+                paymentMethod);
         }
     }
 }

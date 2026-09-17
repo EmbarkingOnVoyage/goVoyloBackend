@@ -1,10 +1,11 @@
 // GoVoylo.Api/Controllers/PaymentsController.cs
+using GoVoylo.Application.Features.Payments.Commands.ProcessPayment;
+using GoVoylo.Application.Features.Payments.Commands.VerifyPayment;
+using GoVoylo.Application.Features.Payments.Dtos;
+using GoVoylo.Application.Features.Payments.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using GoVoylo.Application.Features.Payments.Commands.ProcessPayment;
-using GoVoylo.Application.Features.Payments.Dtos;
-using GoVoylo.Application.Features.Payments.Queries;
 
 namespace GoVoylo.Api.Controllers;
 
@@ -50,6 +51,15 @@ public class PaymentsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> ProcessPayment(
     [FromBody] ProcessPaymentCommand command)
+    {
+        var result = await _mediator.Send(command);
+
+        return Ok(result);
+    }
+
+    [HttpPost("verify")]
+    public async Task<IActionResult> VerifyPayment(
+    [FromBody] VerifyPaymentCommand command)
     {
         var result = await _mediator.Send(command);
 
