@@ -68,6 +68,14 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             var wireResponse = await PostAsync<AirSearchRequestWire, AirSearchResponseWire>(
                 "Air_Search", wireRequest, cancellationToken);
 
+            // "0003" is Flyshop's documented code for "no flights for this search" —
+            // a normal empty result, not a supplier/integration failure. Every other
+            // non-"0000" code is still treated as an unexpected error by EnsureSuccess.
+            if (wireResponse.ResponseHeader?.ErrorCode == "0003")
+            {
+                return new SupplierFlightSearchResultDto(wireResponse.SearchKey, new List<SupplierFlightOptionDto>());
+            }
+
             EnsureSuccess(wireResponse.ResponseHeader, "Air_Search");
 
             var flights = wireResponse.TripDetails
@@ -197,7 +205,22 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 flight.Segments.Select(MapSegment).ToList(),
                 adultFareDetail?.TotalAmount ?? 0m,
                 adultFareDetail?.CurrencyCode ?? "INR",
-                ParseInt(primaryFare?.SeatsAvailable));
+                ParseInt(primaryFare?.SeatsAvailable),
+                flight.Fares.Select(MapFareOption).ToList());
+        }
+
+        private static SupplierFareOptionDto MapFareOption(FareWire fare)
+        {
+            var adultFareDetail = fare.FareDetails.FirstOrDefault(f => f.PaxType == 0)
+                ?? fare.FareDetails.FirstOrDefault();
+
+            return new SupplierFareOptionDto(
+                fare.FareId ?? string.Empty,
+                fare.Refundable,
+                adultFareDetail?.TotalAmount ?? 0m,
+                adultFareDetail?.CurrencyCode ?? "INR",
+                adultFareDetail?.FreeBaggage?.CheckInBaggage,
+                adultFareDetail?.FreeBaggage?.HandBaggage);
         }
 
         private static SupplierFlightSegmentDto MapSegment(SegmentWire segment) => new(

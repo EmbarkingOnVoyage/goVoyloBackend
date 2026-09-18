@@ -129,7 +129,11 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 flight.Segments.Select(MapSegment).ToList(),
                 adultFareDetail?.TotalAmount ?? 0m,
                 adultFareDetail?.CurrencyCode ?? "INR",
-                ParseInt(primaryFare?.SeatsAvailable));
+                ParseInt(primaryFare?.SeatsAvailable),
+                // Tripjack is switched off in favor of Flyshop (see Program.cs) and its wire
+                // format hasn't been mapped to per-fare-tier detail yet — empty rather than
+                // guessing at a shape this supplier's response doesn't confirm.
+                Array.Empty<SupplierFareOptionDto>());
         }
 
         private static SupplierFlightSegmentDto MapSegment(SegmentWire segment) => new(

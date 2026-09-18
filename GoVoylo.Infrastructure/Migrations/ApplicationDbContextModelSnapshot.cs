@@ -22,6 +22,74 @@ namespace GoVoylo.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("GoVoylo.Domain.Entities.Airport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("city");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("country");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("IataCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("iata_code");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsPopular")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_popular");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("City")
+                        .HasDatabaseName("ix_airports_city");
+
+                    b.HasIndex("IataCode")
+                        .IsUnique()
+                        .HasDatabaseName("ux_airports_iata_code");
+
+                    b.ToTable("gv_airports", (string)null);
+                });
+
             modelBuilder.Entity("GoVoylo.Domain.Entities.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -454,6 +522,46 @@ namespace GoVoylo.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("OtpVerifications");
+                });
+
+            modelBuilder.Entity("GoVoylo.Domain.Entities.RecentAirportSearch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("IataCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("iata_code");
+
+                    b.Property<DateTime>("SearchedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("searched_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "IataCode")
+                        .IsUnique()
+                        .HasDatabaseName("ux_recent_airport_searches_user_iata");
+
+                    b.HasIndex("UserId", "SearchedAt")
+                        .HasDatabaseName("ix_recent_airport_searches_user_recency");
+
+                    b.ToTable("gv_recent_airport_searches", (string)null);
                 });
 
             modelBuilder.Entity("GoVoylo.Domain.Entities.RefreshToken", b =>
@@ -1172,6 +1280,15 @@ namespace GoVoylo.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GoVoylo.Domain.Entities.RecentAirportSearch", b =>
+                {
+                    b.HasOne("GoVoylo.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("GoVoylo.Domain.Entities.RefreshToken", b =>

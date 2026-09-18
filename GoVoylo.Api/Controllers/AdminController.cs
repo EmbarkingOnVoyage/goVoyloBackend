@@ -1,3 +1,4 @@
+using GoVoylo.Application.Features.Airports.Commands.UpdateAirportStatus;
 using GoVoylo.Application.Features.Admin.Roles.Commands.CreateRole;
 using GoVoylo.Application.Features.Admin.Roles.Commands.DeleteRole;
 using GoVoylo.Application.Features.Admin.Roles.Commands.GrantRole;
@@ -107,10 +108,19 @@ namespace GoVoylo.Api.Controllers
             var result = await _mediator.Send(new GetCustomerAuditHistoryQuery(userId, page, pageSize));
             return Ok(result);
         }
+
+        [HttpPut("airports/{iata}/status")]
+        [Authorize(Roles = "superadmin")]
+        public async Task<IActionResult> UpdateAirportStatus(string iata, [FromBody] UpdateAirportStatusRequest request)
+        {
+            var result = await _mediator.Send(new UpdateAirportStatusCommand(iata, request.IsActive));
+            return Ok(result);
+        }
     }
 
     public record CreateRoleRequest(string Name);
     public record UpdateRoleRequest(string Name);
     public record RoleAssignmentRequest(Guid RoleId);
     public record UpdateCustomerStatusRequest(string Status);
+    public record UpdateAirportStatusRequest(bool IsActive);
 }
