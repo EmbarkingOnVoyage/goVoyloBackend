@@ -21,6 +21,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -198,6 +199,15 @@ public class Program
 
         using (var startupScope = app.Services.CreateScope())
         {
+            // Skipped for the in-memory provider (Development/Testing without a real
+            // connection string, see AddInfrastructureServices) — Migrate() isn't
+            // supported there and there's no schema to bring up anyway.
+            var dbContext = startupScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            if (dbContext.Database.IsRelational())
+            {
+                await dbContext.Database.MigrateAsync();
+            }
+
             var airportImportService = startupScope.ServiceProvider.GetRequiredService<AirportImportService>();
             await airportImportService.ImportIfEmptyAsync();
         }
