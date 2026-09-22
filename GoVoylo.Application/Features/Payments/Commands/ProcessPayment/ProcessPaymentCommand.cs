@@ -6,10 +6,13 @@ namespace GoVoylo.Application.Features.Payments.Commands.ProcessPayment
 {
     public record ProcessPaymentCommand(
          string BookingReference,
-         decimal Amount,
+         decimal BaseFare,
+    decimal Commission,
+         //decimal Amount,
          string Currency,
-         string SourceClient
-         //string PaymentMethodToken
+         string SourceClient,
+         string PaymentProvider
+    //string PaymentMethodToken
 
     ) : IRequest<CreatePaymentOrderResponseDto>;
 }

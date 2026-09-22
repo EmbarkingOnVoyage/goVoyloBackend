@@ -7,19 +7,18 @@ public interface IPaymentProvider
     string ProviderName { get; }
 
     Task<PaymentOrderResult> CreateOrderAsync(
-        decimal amount,
-        string currency,
-        string bookingReference,
+        PaymentOrderRequest request,
         CancellationToken cancellationToken);
 
     Task<PaymentVerificationResult> VerifyPaymentAsync(
         string orderId,
         string paymentId,
-        string signature,
+        string? signature,
         CancellationToken cancellationToken);
 
     public record PaymentVerificationResult(
-    bool IsVerified,
-    string? PaymentMethod
-);
+        bool IsValid,
+        string? PaymentMethod,
+        string PaymentStatus
+    );
 }

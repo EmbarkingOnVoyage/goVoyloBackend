@@ -8,6 +8,7 @@ using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Interfaces;
 using GoVoylo.Infrastructure;
 using GoVoylo.Infrastructure.Caching;
+using GoVoylo.Infrastructure.ExternalServices.Cashfree;
 using GoVoylo.Infrastructure.ExternalServices.Flyshop;
 using GoVoylo.Infrastructure.ExternalServices.Holidays;
 using GoVoylo.Infrastructure.ExternalServices.Payments;
@@ -122,9 +123,19 @@ public class Program
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
         builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
-        builder.Services.AddHttpClient<IPaymentProvider, RazorpayService>();
+        builder.Services.AddHttpClient<RazorpayPaymentGateway>();
+        builder.Services.AddScoped<IPaymentProvider, RazorpayPaymentGateway>();
         builder.Services.AddScoped<IPaymentProviderResolver, PaymentProviderResolver>();
+        builder.Services.Configure<RazorpayOptions>(builder.Configuration.GetSection("Razorpay"));
 
+        builder.Services.Configure<CashfreeOptions>(
+    builder.Configuration.GetSection("Cashfree"));
+
+        builder.Services.AddHttpClient<CashfreePaymentGateway>();
+
+        builder.Services.AddScoped<
+            IPaymentProvider,
+            CashfreePaymentGateway>();
 
         builder.Services.AddMemoryCache();
         builder.Services.AddSingleton<IFlightSearchSessionStore, InMemoryFlightSearchSessionStore>();

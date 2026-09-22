@@ -72,7 +72,7 @@ public class VerifyPaymentCommandHandler
      cancellationToken);
 
         // 6. If verification failed
-        if (!verificationResult.IsVerified)
+        if (!verificationResult.IsValid)
         {
             payment.MarkAsFailed();
 

@@ -3,7 +3,6 @@ using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Entities;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
-using Microsoft.Extensions.Configuration;
 
 namespace GoVoylo.Application.Features.Payments.Commands.ProcessPayment;
 
@@ -13,50 +12,65 @@ public class ProcessPaymentCommandHandler
     private readonly IPaymentRepository _paymentRepository;
     private readonly IActivityLogRepository _activityLogRepository;
     private readonly IPaymentProviderResolver _providerResolver;
-    private readonly IConfiguration _configuration;
 
     public ProcessPaymentCommandHandler(
         IPaymentRepository paymentRepository,
         IActivityLogRepository activityLogRepository,
-        IPaymentProviderResolver providerResolver,
-        IConfiguration configuration)
+        IPaymentProviderResolver providerResolver)
     {
         _paymentRepository = paymentRepository;
         _activityLogRepository = activityLogRepository;
         _providerResolver = providerResolver;
-        _configuration = configuration;
     }
 
     public async Task<CreatePaymentOrderResponseDto> Handle(
         ProcessPaymentCommand request,
         CancellationToken cancellationToken)
     {
-        // 1. Create internal payment record
+        var supplierAmount = request.BaseFare;
+        var commissionAmount = request.Commission;
+        var totalAmount = supplierAmount + commissionAmount;
+
         var payment = new BookingPayment(
             request.BookingReference,
-            request.Amount,
+            supplierAmount,
+            commissionAmount,
             request.Currency);
 
-        // 2. Get the selected payment provider
-        var provider = _providerResolver.GetProvider("Razorpay");
+        // Get selected payment gateway
+        var provider = _providerResolver.GetProvider(
+            request.PaymentProvider);
 
-        // 3. Create provider order
-        var providerOrder = await provider.CreateOrderAsync(
-            request.Amount,
-            request.Currency,
+        // Create generic payment request
+        var orderRequest = new PaymentOrderRequest(
             request.BookingReference,
+            totalAmount,
+            supplierAmount,
+            commissionAmount,
+            request.Currency);
+
+        // Gateway-specific implementation happens inside the provider
+        var providerOrder = await provider.CreateOrderAsync(
+            orderRequest,
             cancellationToken);
 
-        // 4. Store provider details
-        payment.SetPaymentProvider(provider.ProviderName);
-        payment.SetProviderOrderId(providerOrder.OrderId);
+        payment.SetPaymentProvider(
+            provider.ProviderName);
 
-        // 5. Save payment
+        payment.SetProviderOrderId(
+            providerOrder.OrderId);
+
         await _paymentRepository.SaveAsync(payment);
 
-        // 6. Activity log
         var logPayloadJson =
-            $"{{\"Amount\":{request.Amount},\"Client\":\"{request.SourceClient}\",\"Provider\":\"{provider.ProviderName}\",\"ProviderOrderId\":\"{providerOrder.OrderId}\"}}";
+            $"{{" +
+            $"\"SupplierAmount\":{payment.SupplierAmount}," +
+            $"\"CommissionAmount\":{payment.CommissionAmount}," +
+            $"\"TotalAmount\":{payment.TotalAmount}," +
+            $"\"Client\":\"{request.SourceClient}\"," +
+            $"\"Provider\":\"{provider.ProviderName}\"," +
+            $"\"ProviderOrderId\":\"{providerOrder.OrderId}\"" +
+            $"}}";
 
         var activityLog = new UserActivityLog(
             userId: Guid.NewGuid().ToString(),
@@ -69,18 +83,17 @@ public class ProcessPaymentCommandHandler
             activityLog,
             cancellationToken);
 
-        // 7. Get Razorpay Key ID for frontend
-        var razorpayKeyId =
-            _configuration["Razorpay:KeyId"];
-
-        // 8. Return order details
         return new CreatePaymentOrderResponseDto(
             payment.Id,
             payment.BookingReference,
+            payment.SupplierAmount,
+            payment.CommissionAmount,
             payment.TotalAmount,
             payment.Currency,
-            razorpayKeyId!,
-            providerOrder.OrderId
+            provider.ProviderName,
+            providerOrder.OrderId,
+            providerOrder.PublicKey,
+            providerOrder.CheckoutToken
         );
     }
 }

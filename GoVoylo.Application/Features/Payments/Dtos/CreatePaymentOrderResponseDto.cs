@@ -4,12 +4,17 @@ using System.Text;
 
 namespace GoVoylo.Application.Features.Payments.Dtos
 {
-    public record CreatePaymentOrderResponseDto(
-    Guid PaymentId,
-    string BookingReference,
-    decimal Amount,
-    string Currency,
-    string RazorpayKeyId,
-    string RazorpayOrderId
+ public record CreatePaymentOrderResponseDto(
+        Guid PaymentId,
+        string BookingReference,
+        decimal SupplierAmount,
+        decimal CommissionAmount,
+        decimal CustomerPayableAmount,
+        string Currency,
+        string PaymentProvider,
+        string ProviderOrderId,
+        string? PublicKey,
+        string? CheckoutToken
 );
+
 }

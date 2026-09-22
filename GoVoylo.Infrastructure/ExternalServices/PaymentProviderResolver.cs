@@ -12,10 +12,12 @@ public class PaymentProviderResolver : IPaymentProviderResolver
         _providers = providers;
     }
 
-    public IPaymentProvider GetProvider(string providerName)
+    public IPaymentProvider GetProvider(
+        string providerName)
     {
         var provider = _providers.FirstOrDefault(
-            x => x.ProviderName.Equals(
+            x => string.Equals(
+                x.ProviderName,
                 providerName,
                 StringComparison.OrdinalIgnoreCase));
 
