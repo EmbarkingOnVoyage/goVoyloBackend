@@ -4,6 +4,7 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string Origin,
         string Destination,
         string AirlineCode,
+        string AirlineName,
         string FlightNumber,
         DateTime DepartureDateTime,
         DateTime ArrivalDateTime,
@@ -28,7 +29,12 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         decimal TotalAmount,
         string CurrencyCode,
         int SeatsAvailable,
-        IReadOnlyList<SupplierFareOptionDto> Fares);
+        IReadOnlyList<SupplierFareOptionDto> Fares,
+        // Index into the search request's Segments list this option satisfies —
+        // 0 for a one-way/onward leg, 1 for a round-trip return leg, 0..N-1 for
+        // multi-city. Mirrors the supplier's own Trip_Id grouping so the app can
+        // tell which leg each offer belongs to instead of getting one flat list.
+        int TripLegIndex = 0);
 
     public record SupplierFlightSearchResultDto(
         string SearchKey,

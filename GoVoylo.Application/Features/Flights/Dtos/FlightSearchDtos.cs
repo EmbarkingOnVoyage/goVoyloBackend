@@ -14,6 +14,7 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string Origin,
         string Destination,
         string AirlineCode,
+        string AirlineName,
         string FlightNumber,
         DateTime DepartureDateTime,
         DateTime ArrivalDateTime,
@@ -37,7 +38,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         decimal TotalAmount,
         string CurrencyCode,
         int SeatsAvailable,
-        IReadOnlyList<FareOptionDto> Fares);
+        IReadOnlyList<FareOptionDto> Fares,
+        // See SupplierFlightOptionDto.TripLegIndex — passed through unchanged so
+        // the client can split a round-trip/multi-city response by leg.
+        int TripLegIndex = 0);
 
     public record FlightSearchResponseDto(IReadOnlyList<FlightOfferDto> Offers);
 

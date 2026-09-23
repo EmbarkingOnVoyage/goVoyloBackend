@@ -52,8 +52,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
     "fms/v1/air-search-all", wireRequest, cancellationToken);
 
             var flights = wireResponse.TripDetails
-                .SelectMany(t => t.Flights)
-                .Select(MapFlight)
+                .SelectMany(t => t.Flights.Select(f => MapFlight(f, ParseInt(t.TripId))))
                 .ToList();
 
             return new SupplierFlightSearchResultDto(wireResponse.SearchKey, flights);
@@ -112,7 +111,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             ImeiNumber = _options.ImeiNumber
         };
 
-        private static SupplierFlightOptionDto MapFlight(FlightWire flight)
+        private static SupplierFlightOptionDto MapFlight(FlightWire flight, int tripLegIndex = 0)
         {
             var primaryFare = flight.Fares.FirstOrDefault();
 
@@ -133,13 +132,15 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 // Tripjack is switched off in favor of Flyshop (see Program.cs) and its wire
                 // format hasn't been mapped to per-fare-tier detail yet — empty rather than
                 // guessing at a shape this supplier's response doesn't confirm.
-                Array.Empty<SupplierFareOptionDto>());
+                Array.Empty<SupplierFareOptionDto>(),
+                tripLegIndex);
         }
 
         private static SupplierFlightSegmentDto MapSegment(SegmentWire segment) => new(
             segment.Origin,
             segment.Destination,
             segment.AirlineCode,
+            segment.AirlineName,
             segment.FlightNumber,
             ParseDateTime(segment.DepartureDateTime),
             ParseDateTime(segment.ArrivalDateTime),

@@ -10,6 +10,7 @@ using GoVoylo.Infrastructure;
 using GoVoylo.Infrastructure.Caching;
 using GoVoylo.Infrastructure.ExternalServices.Flyshop;
 using GoVoylo.Infrastructure.ExternalServices.Holidays;
+using GoVoylo.Infrastructure.ExternalServices.Razorpay;
 using GoVoylo.Infrastructure.ExternalServices.Tripjack;
 using GoVoylo.Infrastructure.Jobs;
 using GoVoylo.Infrastructure.Logging;
@@ -142,10 +143,26 @@ public class Program
             {
                 client.BaseAddress = new Uri(flyshopOptions.BaseUrl);
             }
-            client.Timeout = TimeSpan.FromSeconds(20);
+            // A 3-leg multi-city Air_Search has to price every leg's combination
+            // before responding, and on the UAT sandbox that routinely takes well
+            // over the 20s this used to allow — observed timing out around 20-25s
+            // for 3 legs while 2-leg searches stayed under 10s. 60s gives it enough
+            // room without leaving a genuinely broken request to hang indefinitely.
+            client.Timeout = TimeSpan.FromSeconds(60);
         });
 
         builder.Services.AddHttpClient<IHolidayCalendarService, GoogleHolidayCalendarClient>();
+
+        builder.Services.Configure<RazorpayOptions>(builder.Configuration.GetSection("Razorpay"));
+        builder.Services.AddHttpClient<IRazorpayClient, RazorpayClient>((sp, client) =>
+        {
+            var razorpayOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<RazorpayOptions>>().Value;
+            client.BaseAddress = new Uri("https://api.razorpay.com/v1/");
+            var credentials = Convert.ToBase64String(
+                System.Text.Encoding.UTF8.GetBytes($"{razorpayOptions.KeyId}:{razorpayOptions.KeySecret}"));
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
+        });
 
         builder.Services.AddHealthChecks()
             .AddDbContextCheck<ApplicationDbContext>("database")

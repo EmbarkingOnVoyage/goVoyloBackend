@@ -61,6 +61,7 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                             s.Origin,
                             s.Destination,
                             s.AirlineCode,
+                            s.AirlineName,
                             s.FlightNumber,
                             s.DepartureDateTime,
                             s.ArrivalDateTime,
@@ -72,7 +73,8 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                     flight.Fares
                         .Select(f => new FareOptionDto(
                             f.FareId, f.Refundable, f.TotalAmount, f.CurrencyCode, f.CheckInBaggage, f.HandBaggage))
-                        .ToList()));
+                        .ToList(),
+                    flight.TripLegIndex));
             }
 
             return new FlightSearchResponseDto(offers);

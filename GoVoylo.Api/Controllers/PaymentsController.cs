@@ -1,8 +1,11 @@
 // GoVoylo.Api/Controllers/PaymentsController.cs
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using GoVoylo.Application.Features.Payments.Commands.ProcessPayment;
+using GoVoylo.Application.Features.Payments.Commands.CreateRazorpayOrder;
+using GoVoylo.Application.Features.Payments.Commands.VerifyRazorpayPayment;
 using GoVoylo.Application.Features.Payments.Dtos;
 using GoVoylo.Application.Features.Payments.Queries;
 
@@ -44,6 +47,26 @@ public class PaymentsController : ControllerBase
 
         if (result == null) return NotFound();
 
+        return Ok(result);
+    }
+
+    [Authorize]
+    [HttpPost("razorpay/create-order")]
+    [ProducesResponseType(typeof(RazorpayOrderResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateRazorpayOrder([FromBody] CreateRazorpayOrderCommand command)
+    {
+        var result = await _mediator.Send(command);
+        return Ok(result);
+    }
+
+    [Authorize]
+    [HttpPost("razorpay/verify")]
+    [ProducesResponseType(typeof(PaymentResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> VerifyRazorpayPayment([FromBody] VerifyRazorpayPaymentCommand command)
+    {
+        var result = await _mediator.Send(command);
         return Ok(result);
     }
 }

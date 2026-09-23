@@ -79,8 +79,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             EnsureSuccess(wireResponse.ResponseHeader, "Air_Search");
 
             var flights = wireResponse.TripDetails
-                .SelectMany(t => t.Flights)
-                .Select(MapFlight)
+                .SelectMany(t => t.Flights.Select(f => MapFlight(f, t.TripId ?? 0)))
                 .ToList();
 
             return new SupplierFlightSearchResultDto(wireResponse.SearchKey, flights);
@@ -188,7 +187,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             }
         }
 
-        private static SupplierFlightOptionDto MapFlight(FlightWire flight)
+        private static SupplierFlightOptionDto MapFlight(FlightWire flight, int tripLegIndex = 0)
         {
             var primaryFare = flight.Fares.FirstOrDefault();
 
@@ -206,7 +205,8 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 adultFareDetail?.TotalAmount ?? 0m,
                 adultFareDetail?.CurrencyCode ?? "INR",
                 ParseInt(primaryFare?.SeatsAvailable),
-                flight.Fares.Select(MapFareOption).ToList());
+                flight.Fares.Select(MapFareOption).ToList(),
+                tripLegIndex);
         }
 
         private static SupplierFareOptionDto MapFareOption(FareWire fare)
@@ -227,16 +227,22 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             segment.Origin,
             segment.Destination,
             segment.AirlineCode,
+            segment.AirlineName,
             segment.FlightNumber,
             ParseDateTime(segment.DepartureDateTime),
             ParseDateTime(segment.ArrivalDateTime),
             segment.Duration);
 
+        // Confirmed against the live UAT sandbox: Booking_Type 3 returns "0003: No
+        // flight available" for every multi-city combination tried, while 2 returns
+        // real bundled itineraries (one option per Trip_Id 0 entry, each option's
+        // own Segments already spanning every requested leg) — 2 is Flyshop's real
+        // multi-city code, not 3.
         private static int MapBookingType(string tripType) => tripType switch
         {
             "OneWay" => 0,
             "RoundTrip" => 1,
-            "MultiCity" => 3,
+            "MultiCity" => 2,
             _ => 0
         };
 
