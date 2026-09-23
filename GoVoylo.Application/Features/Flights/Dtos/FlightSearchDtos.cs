@@ -54,4 +54,32 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     public record FareCalendarDayDto(DateTime Date, decimal Amount, string CurrencyCode);
 
     public record FareCalendarResponseDto(IReadOnlyList<FareCalendarDayDto> Days);
+
+    public record AncillaryOptionDto(
+        int SsrType,
+        string SsrTypeName,
+        string SsrTypeDesc,
+        string? SsrCode,
+        string SsrKey,
+        int SsrStatus,
+        int LegIndex,
+        int SegmentId,
+        bool SegmentWise,
+        decimal TotalAmount,
+        string CurrencyCode,
+        IReadOnlyList<int> ApplicablePaxTypes);
+
+    public record FlightAncillariesResponseDto(IReadOnlyList<AncillaryOptionDto> Options);
+
+    // PaxType/Gender as plain strings at the API boundary ("Adult"/"Child"/"Infant",
+    // "Male"/"Female") so callers don't need to know Flyshop's numeric codes — the
+    // handler maps them internally.
+    public record SeatMapTravelerRequestDto(
+        string Title, string FirstName, string LastName, string Gender, string PaxType);
+
+    public record SeatMapRowDto(IReadOnlyList<AncillaryOptionDto> Seats);
+
+    public record SeatMapSegmentDto(int LegIndex, IReadOnlyList<SeatMapRowDto> Rows);
+
+    public record SeatMapResponseDto(IReadOnlyList<SeatMapSegmentDto> Segments);
 }

@@ -432,4 +432,159 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
         [JsonPropertyName("FrequentFlyerAccepted")]
         public bool FrequentFlyerAccepted { get; set; }
     }
+
+    // Field names below are taken verbatim from the Postman collection's own
+    // *example response bodies* for Air_GetSSR/Air_GetSeatMap, not from its field
+    // description tables — the two disagree (e.g. the table says "SegmentWise" and
+    // "TotalAmount", the real sample JSON says "Segment_Wise" and "Total_Amount"),
+    // and the samples are what the sandbox actually returns.
+
+    public class AirSsrRequestItemWire
+    {
+        [JsonPropertyName("Flight_Key")]
+        public string FlightKey { get; set; } = string.Empty;
+    }
+
+    public class AirSsrRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Search_Key")]
+        public string SearchKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("AirSSRRequestDetails")]
+        public List<AirSsrRequestItemWire> AirSsrRequestDetails { get; set; } = new();
+    }
+
+    // Shared by Air_GetSSR's SSRDetails and Air_GetSeatMap's Seat_Details — both
+    // endpoints' real sample responses emit an identical SSR-detail shape.
+    public class SsrDetailWire
+    {
+        [JsonPropertyName("ApplicablePaxTypes")]
+        public List<int> ApplicablePaxTypes { get; set; } = new();
+
+        [JsonPropertyName("Currency_Code")]
+        public string? CurrencyCode { get; set; }
+
+        [JsonPropertyName("Flight_ID")]
+        public string? FlightId { get; set; }
+
+        [JsonPropertyName("Leg_Index")]
+        public int LegIndex { get; set; }
+
+        [JsonPropertyName("SSR_Code")]
+        public string? SsrCode { get; set; }
+
+        [JsonPropertyName("SSR_Key")]
+        public string? SsrKey { get; set; }
+
+        [JsonPropertyName("SSR_Status")]
+        public int SsrStatus { get; set; }
+
+        [JsonPropertyName("SSR_Type")]
+        public int SsrType { get; set; }
+
+        [JsonPropertyName("SSR_TypeDesc")]
+        public string? SsrTypeDesc { get; set; }
+
+        [JsonPropertyName("SSR_TypeName")]
+        public string? SsrTypeName { get; set; }
+
+        [JsonPropertyName("Segment_Id")]
+        public int SegmentId { get; set; }
+
+        [JsonPropertyName("Segment_Wise")]
+        public bool SegmentWise { get; set; }
+
+        [JsonPropertyName("Total_Amount")]
+        public decimal TotalAmount { get; set; }
+    }
+
+    public class SsrFlightDetailWire
+    {
+        [JsonPropertyName("SSRDetails")]
+        public List<SsrDetailWire> SsrDetails { get; set; } = new();
+    }
+
+    public class AirSsrResponseWire
+    {
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+
+        [JsonPropertyName("SSRFlightDetails")]
+        public List<SsrFlightDetailWire> SsrFlightDetails { get; set; } = new();
+    }
+
+    // Sample request only ever populates Pax_Id/Pax_type/Title/First_Name/Last_Name/
+    // Gender and sends every other field null — confirms Air_GetSeatMap works with
+    // minimal traveler data, so we never need passport/DOB details just to price seats.
+    public class PaxDetailWire
+    {
+        [JsonPropertyName("Pax_Id")]
+        public int PaxId { get; set; }
+
+        [JsonPropertyName("Pax_type")]
+        public int PaxType { get; set; }
+
+        [JsonPropertyName("Title")]
+        public string? Title { get; set; }
+
+        [JsonPropertyName("First_Name")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [JsonPropertyName("Last_Name")]
+        public string LastName { get; set; } = string.Empty;
+
+        [JsonPropertyName("Gender")]
+        public int Gender { get; set; }
+    }
+
+    public class AirSeatMapRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Search_Key")]
+        public string SearchKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("Flight_Keys")]
+        public List<string> FlightKeys { get; set; } = new();
+
+        [JsonPropertyName("PAX_Details")]
+        public List<PaxDetailWire> PaxDetails { get; set; } = new();
+    }
+
+    public class SeatRowWire
+    {
+        [JsonPropertyName("Seat_Details")]
+        public List<SsrDetailWire> SeatDetails { get; set; } = new();
+    }
+
+    public class SeatSegmentWire
+    {
+        [JsonPropertyName("Leg_Index")]
+        public int LegIndex { get; set; }
+
+        [JsonPropertyName("Seat_Row")]
+        public List<SeatRowWire> SeatRow { get; set; } = new();
+    }
+
+    public class AirSeatMapWire
+    {
+        [JsonPropertyName("Flight_Id")]
+        public string? FlightId { get; set; }
+
+        [JsonPropertyName("Seat_Segments")]
+        public List<SeatSegmentWire> SeatSegments { get; set; } = new();
+    }
+
+    public class AirSeatMapResponseWire
+    {
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+
+        [JsonPropertyName("AirSeatMaps")]
+        public List<AirSeatMapWire> AirSeatMaps { get; set; } = new();
+    }
 }

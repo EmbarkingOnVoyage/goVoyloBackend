@@ -62,4 +62,42 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string AirlineName);
 
     public record SupplierLowFareResultDto(IReadOnlyList<SupplierLowFareDayDto> Days);
+
+    public record SupplierAncillaryRequestDto(string SearchKey, string FlightKey);
+
+    // One priced SSR option — shared shape for a baggage/meal choice (from
+    // Air_GetSSR) and a single seat (from Air_GetSeatMap, where SsrType is always
+    // the SEAT type and SsrTypeName/SsrTypeDesc carry the seat label, e.g. "1A").
+    public record SupplierAncillaryOptionDto(
+        int SsrType,
+        string SsrTypeName,
+        string SsrTypeDesc,
+        string? SsrCode,
+        string SsrKey,
+        // 0-ISLE/1-AVAILABLE/2-BLOCKED/3-BOOKED — meaningful for seats (from
+        // Air_GetSeatMap); the docs say it's meaningless for Air_GetSSR baggage/meal
+        // options, which always come back as 0.
+        int SsrStatus,
+        int LegIndex,
+        int SegmentId,
+        bool SegmentWise,
+        decimal TotalAmount,
+        string CurrencyCode,
+        IReadOnlyList<int> ApplicablePaxTypes);
+
+    public record SupplierAncillaryResultDto(IReadOnlyList<SupplierAncillaryOptionDto> Options);
+
+    // PaxType: 0-ADT/1-CHD/2-INF, Gender: 0-Male/1-Female — mirrors the numeric
+    // codes Flyshop's own PAX_Details/FareDetails already use elsewhere.
+    public record SupplierPaxDetailDto(
+        int PaxId, int PaxType, string Title, string FirstName, string LastName, int Gender);
+
+    public record SupplierSeatMapRequestDto(
+        string SearchKey, string FlightKey, IReadOnlyList<SupplierPaxDetailDto> Travelers);
+
+    public record SupplierSeatRowDto(IReadOnlyList<SupplierAncillaryOptionDto> Seats);
+
+    public record SupplierSeatSegmentDto(int LegIndex, IReadOnlyList<SupplierSeatRowDto> Rows);
+
+    public record SupplierSeatMapResultDto(IReadOnlyList<SupplierSeatSegmentDto> Segments);
 }

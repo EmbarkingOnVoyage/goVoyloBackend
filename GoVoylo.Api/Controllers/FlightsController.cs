@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Features.Flights.Queries.GetFareCalendar;
+using GoVoylo.Application.Features.Flights.Queries.GetFlightAncillaries;
+using GoVoylo.Application.Features.Flights.Queries.GetSeatMap;
 using GoVoylo.Application.Features.Flights.Queries.RepriceFlightOffer;
 using GoVoylo.Application.Features.Flights.Queries.SearchFlights;
 using MediatR;
@@ -47,6 +49,21 @@ namespace GoVoylo.Api.Controllers
             [FromQuery] string origin, [FromQuery] string destination, [FromQuery] int month, [FromQuery] int year)
         {
             var result = await _mediator.Send(new GetFareCalendarQuery(origin, destination, month, year));
+            return Ok(result);
+        }
+
+        [HttpGet("offers/{offerId}/ancillaries")]
+        public async Task<IActionResult> GetAncillaries(Guid offerId)
+        {
+            var result = await _mediator.Send(new GetFlightAncillariesQuery(offerId));
+            return Ok(result);
+        }
+
+        [HttpPost("offers/{offerId}/seatmap")]
+        public async Task<IActionResult> GetSeatMap(
+            Guid offerId, [FromBody] IReadOnlyList<SeatMapTravelerRequestDto> travelers)
+        {
+            var result = await _mediator.Send(new GetSeatMapQuery(offerId, travelers));
             return Ok(result);
         }
     }

@@ -154,6 +154,84 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             return new SupplierLowFareResultDto(days);
         }
 
+        public async Task<SupplierAncillaryResultDto> GetAncillariesAsync(
+            SupplierAncillaryRequestDto request, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirSsrRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                SearchKey = request.SearchKey,
+                AirSsrRequestDetails = new List<AirSsrRequestItemWire>
+                {
+                    new() { FlightKey = request.FlightKey }
+                }
+            };
+
+            var wireResponse = await PostAsync<AirSsrRequestWire, AirSsrResponseWire>(
+                "Air_GetSSR", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_GetSSR");
+
+            var options = wireResponse.SsrFlightDetails
+                .SelectMany(f => f.SsrDetails)
+                .Select(MapSsrDetail)
+                .ToList();
+
+            return new SupplierAncillaryResultDto(options);
+        }
+
+        public async Task<SupplierSeatMapResultDto> GetSeatMapAsync(
+            SupplierSeatMapRequestDto request, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirSeatMapRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                SearchKey = request.SearchKey,
+                FlightKeys = new List<string> { request.FlightKey },
+                PaxDetails = request.Travelers
+                    .Select(t => new PaxDetailWire
+                    {
+                        PaxId = t.PaxId,
+                        PaxType = t.PaxType,
+                        Title = t.Title,
+                        FirstName = t.FirstName,
+                        LastName = t.LastName,
+                        Gender = t.Gender
+                    })
+                    .ToList()
+            };
+
+            var wireResponse = await PostAsync<AirSeatMapRequestWire, AirSeatMapResponseWire>(
+                "Air_GetSeatMap", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_GetSeatMap");
+
+            var segments = wireResponse.AirSeatMaps
+                .SelectMany(m => m.SeatSegments)
+                .Select(seg => new SupplierSeatSegmentDto(
+                    seg.LegIndex,
+                    seg.SeatRow
+                        .Select(row => new SupplierSeatRowDto(row.SeatDetails.Select(MapSsrDetail).ToList()))
+                        .ToList()))
+                .ToList();
+
+            return new SupplierSeatMapResultDto(segments);
+        }
+
+        private static SupplierAncillaryOptionDto MapSsrDetail(SsrDetailWire detail) => new(
+            detail.SsrType,
+            detail.SsrTypeName ?? string.Empty,
+            detail.SsrTypeDesc ?? string.Empty,
+            detail.SsrCode,
+            detail.SsrKey ?? string.Empty,
+            detail.SsrStatus,
+            detail.LegIndex,
+            detail.SegmentId,
+            detail.SegmentWise,
+            detail.TotalAmount,
+            detail.CurrencyCode ?? "INR",
+            detail.ApplicablePaxTypes);
+
         private static DateTime ParseDate(string? value) =>
             DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
                 ? parsed
