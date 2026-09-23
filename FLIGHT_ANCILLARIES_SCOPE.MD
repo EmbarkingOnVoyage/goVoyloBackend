@@ -7,20 +7,42 @@ paid Baggage/Seat/Meal add-ons using fully static, hardcoded prices. Flyshop's A
 does support real priced ancillaries — this document scopes the work to replace the
 mock data with the real integration.
 
-## Current state
+## Current state (updated)
 
-- `WhatsIncludedSection.tsx` (frontend) uses static mock arrays for paid Baggage/Seat/Meal
-  options. The "included" baggage cards (carry-on/checked-bag weight) were fixed to read
-  the real `FareOption.checkInBaggage`/`handBaggage` values already returned by search —
-  that part is done.
-- **No real airline booking exists yet.** `Air_TempBooking` and `Air_Ticketing` are not
-  implemented anywhere in `GoVoylo.Infrastructure`. "Pay Now" only captures a Razorpay
-  payment; it never creates a PNR with Flyshop. The `FlightBooking` domain entity exists
-  but is an unused stub (no PNR/ticketing fields, never constructed in the payment path).
-- `FlyshopClient` currently implements `Air_Search` and `Air_Reprice` only.
-- `FlightOfferSession` (created at search time, see `SearchFlightsQueryHandler`) already
-  stores the real Flyshop `FlightKey` + `FareId` server-side, keyed by `offerId` — so the
-  backend can resolve an offer back to Flyshop identifiers without new session plumbing.
+**Done:**
+- `WhatsIncludedSection.tsx` (frontend) fetches real priced Baggage/Meal options from
+  `Air_GetSSR` and real seat pricing from `Air_GetSeatMap` (deduped into Standard/
+  Preferred price tiers — not a visual seat-map picker) instead of static mock arrays.
+  The "included" baggage cards (carry-on/checked-bag weight) read the real
+  `FareOption.checkInBaggage`/`handBaggage` values.
+- `FlyshopClient` implements `Air_Search`, `Air_Reprice`, `Air_GetSSR`, `Air_GetSeatMap`,
+  `Air_TempBooking`, and `Air_Ticketing` (Block_Ticket only — see below).
+- `POST /api/v1/flights/bookings` (authenticated) creates a Flyshop temp booking across
+  every leg, with each leg's selected `SSR_Key`s attached via `BookingSSRDetails`, then
+  immediately places a **Block_Ticket hold** (`Ticketing_Type: "0"`) — a reversible hold
+  cancellable via `Air_ReleasePNR` (not yet implemented), not a final purchase.
+- **Not implemented, deliberately**: `Add_Payment` and `Ticketing_Type: "1"` (Book_Ticket).
+  `Air_Ticketing`'s docs reveal the real flow is TempBooking → `Add_Payment` (which debits
+  GoVoylo's own Flyshop *agency wallet balance* — a real settlement charge, not a sandbox
+  echo) → Book_Ticket (an essentially final, non-trivially-reversible airline PNR). That's
+  a materially bigger, real-money decision that was explicitly deferred pending separate
+  authorization. Right now `POST /bookings` produces a hold only; nothing pays Flyshop and
+  no final ticket is issued.
+- **Still not wired up**: nothing in the mobile app's "Pay Now" flow calls
+  `POST /api/v1/flights/bookings` yet. The endpoint exists and is authenticated/validated
+  but is not part of the customer-facing payment flow — deciding *when* to call it
+  relative to the Razorpay payment (before/after/on failure handling) is its own product
+  decision, not yet made.
+- The `FlightBooking` domain entity is still an unused stub (no PNR/ticketing/SSR
+  fields) — booking results from `POST /bookings` are returned to the caller but not
+  yet persisted anywhere.
+- `FlightOfferSession` (created at search time, see `SearchFlightsQueryHandler`) stores
+  the real Flyshop `FlightKey` + `FareId` server-side, keyed by `offerId`.
+
+**None of this has been verified against a live Flyshop response** — `uat.flyshop.in`
+has been unreachable (connection timeout) for this entire body of work. Everything above
+is verified structurally (builds clean, auth/validation/session-lookup tested against the
+local backend directly) but not against a real successful Flyshop response.
 
 ## Flyshop APIs to integrate
 
@@ -44,59 +66,48 @@ Source: Flyshop "Client 2.6 Air" Postman collection.
   `SSR_Status` (0-ISLE / 1-AVAILABLE / 2-BLOCKED / 3-BOOKED). `0-ISLE` means the cell is
   an aisle gap, not a purchasable seat.
 
-Both endpoints return an `SSR_Key` per option, which is presumably what attaches an
-ancillary selection to a booking — **not yet confirmed** (see open questions).
+Both endpoints return an `SSR_Key` per option; `Air_TempBooking` does accept these
+directly (see resolved question #1 below).
 
-## Open questions (need answers before/during implementation)
+## Open questions
 
-1. Does `Air_TempBooking` accept SSR selections directly in its request body, or is
-   there a separate call to attach SSRs to a temp booking afterward? The `06 -
-   Air_TempBooking` section of the Postman docs has not been fully reviewed yet.
-2. Is the `Flight_Key` from `Air_Search` (already stored in `FlightOfferSession`) valid
-   as-is for `Air_GetSSR`/`Air_GetSeatMap`, or does it genuinely require a fresh
-   `Air_Reprice` call first, as the docs' wording for `Air_GetSSR` suggests? If reprice
-   is mandatory, every visit to Traveler Details needs a reprice round-trip before
-   ancillaries can be fetched.
-3. `Air_GetSeatMap` requires `PAXDetails` — does it return a usable seat map with
-   placeholder/generic PAX data before travelers are finalized, or does it only work
-   once real traveler details are known? This affects UI ordering: the seat map may need
-   to load only *after* "Add travellers," not eagerly alongside Baggage/Meal.
+1. ~~Does `Air_TempBooking` accept SSR selections directly?~~ **Resolved**: yes, via
+   `BookingFlightDetails[].BookingSSRDetails[]` (`Pax_Id` + `SSR_Key` pairs), one list per
+   leg. Already wired into `POST /api/v1/flights/bookings`.
+2. ~~Does `Air_GetSSR`/`Air_GetSeatMap` need a fresh `Air_Reprice` first?~~ **Resolved**:
+   yes — implemented that way (every ancillary/seatmap/booking call reprices first to get
+   a fresh `Flight_Key`, matching the docs' explicit wording).
+3. ~~Does `Air_GetSeatMap` need full PAX details or work with minimal data?~~
+   **Resolved**: the collection's own sample sends only Title/First_Name/Last_Name/Gender
+   with everything else (Age/DOB/passport) null — minimal traveler data is sufficient.
 4. Whether SSR prices are per-traveler-per-leg or journey-wide when `SegmentWise` is
-   false, and how currency/rounding should be handled.
+   false, and how currency/rounding should be handled — **still open**, not hit in
+   practice since Flyshop has been unreachable for live testing.
+5. **New**: does `Air_TempBooking`/`Air_Ticketing` succeeding against UAT have any real
+   financial or booking-system consequence (real wallet debit, a booking that appears on
+   Flyshop's own books, needing manual cleanup)? Not confirmed by Flyshop in writing —
+   this is exactly why Ticketing_Type is hardcoded to Block_Ticket (reversible hold) and
+   `Add_Payment`/Book_Ticket were left out.
 
-## Prerequisite (blocking)
+## Remaining work
 
-Real `Air_TempBooking` (and ideally `Air_Ticketing`) needs to exist before ancillary
-selections mean anything — otherwise the app would be collecting SSR choices with
-nowhere to send them. This should be scoped and built either as a prerequisite story or
-as Phase 0 of this work.
+**Wire the booking hold into the payment flow**
+- Decide *when* `POST /api/v1/flights/bookings` gets called relative to the Razorpay
+  charge in `TravelerDetailsScreen.handlePayNow` — before payment (hold the seat first,
+  then charge) or after (charge first, then hold)? What happens on partial failure
+  (payment succeeds but the Block_Ticket hold fails, or vice versa)? This is a product
+  decision, not yet made.
+- Give `FlightBooking` real fields (PNR, `BookingRefNo`, hold status, selected SSRs) and
+  actually persist `POST /bookings`' result instead of just returning it to the caller.
+- Surface the booking reference / hold status to the user on the success screen.
 
-## Proposed phasing
+**Real purchase (separate, larger, explicitly not started)**
+- `Add_Payment` (debits the real Flyshop agency wallet) and `Ticketing_Type: "1"`
+  (Book_Ticket, an essentially final PNR) — needs its own explicit go-ahead given the
+  real-money/hard-to-reverse nature, per the discussion that led to Block_Ticket-only.
+- `Air_ReleasePNR` to actually cancel a Block_Ticket hold (currently holds are created
+  but nothing in the app can release one yet).
 
-**Phase 0 — Booking foundation (prerequisite)**
-- Implement `Air_TempBooking` in `FlyshopClient`, wire it into the payment flow so
-  "Pay Now" actually creates a real PNR, and give `FlightBooking` real fields (PNR,
-  ticketing status, etc.) instead of leaving it an unused stub.
-
-**Phase 1 — Backend ancillary APIs**
-- `FlyshopClient`: add `GetSsrAsync(flightKey)` and
-  `GetSeatMapAsync(flightKeys, paxDetails)`.
-- New DTOs (`AncillaryOptionDto`, `SeatMapDto`) and Application-layer queries
-  (`GetFlightAncillaries`, `GetSeatMap`) that resolve `offerId` -> stored
-  `FlightKey`/`FareId` -> reprice (if required by open question #2) -> SSR/seat-map call.
-- New controller endpoints, e.g. `GET /api/v1/flights/{offerId}/ancillaries`,
-  `POST /api/v1/flights/{offerId}/seatmap` (POST, since it needs traveler PAX data in
-  the request body).
-
-**Phase 2 — Frontend integration**
-- Replace `BAGGAGE_PAID_OPTIONS` / `SEAT_PAID_OPTIONS` / `MEAL_PAID_OPTIONS` in
-  `WhatsIncludedSection.tsx` (frontend repo) with real API-fetched, per-leg,
-  per-traveler options.
-- Track selected `SSR_Key`(s) per traveler/leg instead of a local mock option id.
-- Update the running-total calculation to sum real `TotalAmount` values from selected
-  SSRs (the existing total/Save logic stays structurally the same — only the option
-  data source changes).
-
-**Phase 3 — Attach to booking**
-- Pass selected `SSR_Key`(s) into the `Air_TempBooking` request (pending answer to open
-  question #1) so they are actually booked, not just priced and discarded.
+**Everything above is unverified against a live Flyshop response** — build/auth/
+validation/session-lookup were tested directly against the local backend, but
+`uat.flyshop.in` has been unreachable this entire time.
