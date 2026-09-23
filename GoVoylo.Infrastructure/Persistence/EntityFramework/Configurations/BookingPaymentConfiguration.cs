@@ -25,5 +25,11 @@ public class BookingPaymentConfiguration : IEntityTypeConfiguration<BookingPayme
         builder.Property(e => e.Currency)
             .IsRequired()
             .HasMaxLength(3);
+
+        builder.Property(e => e.GatewayOrderId)
+            .HasMaxLength(100);
+
+        builder.Property(e => e.GatewayPaymentId)
+            .HasMaxLength(100);
     }
 }

@@ -45,4 +45,16 @@ public class PaymentRepository : IPaymentRepository
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
+
+    public async Task<BookingPayment?> GetByGatewayOrderIdAsync(string gatewayOrderId, CancellationToken cancellationToken)
+    {
+        return await _context.BookingPayments
+            .FirstOrDefaultAsync(p => p.GatewayOrderId == gatewayOrderId, cancellationToken);
+    }
+
+    public async Task UpdateAsync(BookingPayment payment, CancellationToken cancellationToken)
+    {
+        _context.BookingPayments.Update(payment);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
 }
