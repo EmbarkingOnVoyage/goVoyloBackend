@@ -100,4 +100,29 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     public record SupplierSeatSegmentDto(int LegIndex, IReadOnlyList<SupplierSeatRowDto> Rows);
 
     public record SupplierSeatMapResultDto(IReadOnlyList<SupplierSeatSegmentDto> Segments);
+
+    public record SupplierTempBookingPaxDto(
+        int PaxId, int PaxType, string Title, string FirstName, string LastName, int Gender);
+
+    public record SupplierBookingSsrDto(int PaxId, string SsrKey);
+
+    public record SupplierBookingFlightDto(
+        string SearchKey, string FlightKey, IReadOnlyList<SupplierBookingSsrDto> SelectedSsrs);
+
+    public record SupplierTempBookingRequestDto(
+        string PassengerMobile,
+        string PassengerEmail,
+        IReadOnlyList<SupplierTempBookingPaxDto> Travelers,
+        IReadOnlyList<SupplierBookingFlightDto> Flights);
+
+    public record SupplierTempBookingResultDto(string BookingRefNo);
+
+    public record SupplierTicketingResultDto(
+        string BookingRefNo,
+        // 11-Success, 22-Failed, 33-Block — see Air_Ticketing's own docs.
+        string StatusId,
+        string? AirlineCode,
+        string? AirlinePnr,
+        string? RecordLocator,
+        string? FailureRemark);
 }

@@ -587,4 +587,190 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
         [JsonPropertyName("AirSeatMaps")]
         public List<AirSeatMapWire> AirSeatMaps { get; set; } = new();
     }
+
+    // Field names again taken from the Postman collection's real example bodies —
+    // note Air_Ticketing's request/response use "Booking_RefNo" (underscore) while
+    // the field-description table for both endpoints says "BookingRefNo" (no
+    // underscore); the sample JSON wins, same rationale as the SSR/SeatMap models.
+    public class TempBookingPaxDetailWire
+    {
+        [JsonPropertyName("Pax_Id")]
+        public int PaxId { get; set; }
+
+        [JsonPropertyName("Pax_type")]
+        public int PaxType { get; set; }
+
+        [JsonPropertyName("Title")]
+        public string? Title { get; set; }
+
+        [JsonPropertyName("First_Name")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [JsonPropertyName("Last_Name")]
+        public string LastName { get; set; } = string.Empty;
+
+        [JsonPropertyName("Gender")]
+        public int Gender { get; set; }
+
+        // Left null like the collection's own sample — full passport/DOB capture for
+        // international/Book_Ticket itineraries is future work (see
+        // FLIGHT_ANCILLARIES_SCOPE.MD-style follow-up), not needed for a domestic
+        // Block_Ticket hold.
+        [JsonPropertyName("Age")]
+        public string? Age { get; set; }
+
+        [JsonPropertyName("DOB")]
+        public string? Dob { get; set; }
+
+        [JsonPropertyName("Passport_Number")]
+        public string? PassportNumber { get; set; }
+
+        [JsonPropertyName("Passport_Issuing_Country")]
+        public string? PassportIssuingCountry { get; set; }
+
+        [JsonPropertyName("Passport_Expiry")]
+        public string? PassportExpiry { get; set; }
+
+        [JsonPropertyName("Nationality")]
+        public string? Nationality { get; set; }
+
+        [JsonPropertyName("Pancard_Number")]
+        public string? PancardNumber { get; set; }
+
+        [JsonPropertyName("FrequentFlyerDetails")]
+        public object? FrequentFlyerDetails { get; set; }
+    }
+
+    public class BookingSsrDetailWire
+    {
+        [JsonPropertyName("Pax_Id")]
+        public int PaxId { get; set; }
+
+        [JsonPropertyName("SSR_Key")]
+        public string SsrKey { get; set; } = string.Empty;
+    }
+
+    public class BookingFlightDetailWire
+    {
+        [JsonPropertyName("Search_Key")]
+        public string SearchKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("Flight_Key")]
+        public string FlightKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("BookingSSRDetails")]
+        public List<BookingSsrDetailWire> BookingSsrDetails { get; set; } = new();
+    }
+
+    public class AirTempBookingRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Customer_Mobile")]
+        public string CustomerMobile { get; set; } = string.Empty;
+
+        [JsonPropertyName("Passenger_Mobile")]
+        public string PassengerMobile { get; set; } = string.Empty;
+
+        [JsonPropertyName("WhatsAPP_Mobile")]
+        public string? WhatsappMobile { get; set; }
+
+        [JsonPropertyName("Passenger_Email")]
+        public string PassengerEmail { get; set; } = string.Empty;
+
+        [JsonPropertyName("PAX_Details")]
+        public List<TempBookingPaxDetailWire> PaxDetails { get; set; } = new();
+
+        [JsonPropertyName("GST")]
+        public bool Gst { get; set; }
+
+        [JsonPropertyName("GST_Number")]
+        public string GstNumber { get; set; } = string.Empty;
+
+        [JsonPropertyName("GST_HolderName")]
+        public string GstHolderName { get; set; } = string.Empty;
+
+        [JsonPropertyName("GST_Address")]
+        public string GstAddress { get; set; } = string.Empty;
+
+        [JsonPropertyName("BookingFlightDetails")]
+        public List<BookingFlightDetailWire> BookingFlightDetails { get; set; } = new();
+    }
+
+    public class AirTempBookingResponseWire
+    {
+        [JsonPropertyName("Booking_RefNo")]
+        public string? BookingRefNo { get; set; }
+
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+    }
+
+    public class AirTicketingRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Booking_RefNo")]
+        public string BookingRefNo { get; set; } = string.Empty;
+
+        // Deliberately hardcoded to "0" (Block_Ticket) at the call site — see
+        // IFlightSupplierClient.CreateBlockTicketAsync's own doc comment for why
+        // Book_Ticket (real purchase + Add_Payment wallet debit) isn't wired up.
+        [JsonPropertyName("Ticketing_Type")]
+        public string TicketingType { get; set; } = "0";
+    }
+
+    public class AirlinePnrWire
+    {
+        [JsonPropertyName("Airline_Code")]
+        public string? AirlineCode { get; set; }
+
+        [JsonPropertyName("Airline_PNR")]
+        public string? AirlinePnr { get; set; }
+
+        [JsonPropertyName("CRS_Code")]
+        public string? CrsCode { get; set; }
+
+        [JsonPropertyName("CRS_PNR")]
+        public string? CrsPnr { get; set; }
+
+        [JsonPropertyName("Record_Locator")]
+        public string? RecordLocator { get; set; }
+
+        [JsonPropertyName("Supplier_RefNo")]
+        public string? SupplierRefNo { get; set; }
+    }
+
+    public class AirlinePnrDetailWire
+    {
+        [JsonPropertyName("Flight_Id")]
+        public string? FlightId { get; set; }
+
+        // 11-Success, 22-Failed, 33-Block, per the docs' own note.
+        [JsonPropertyName("Status_Id")]
+        public string? StatusId { get; set; }
+
+        [JsonPropertyName("Failure_Remark")]
+        public string? FailureRemark { get; set; }
+
+        [JsonPropertyName("Hold_Validity")]
+        public string? HoldValidity { get; set; }
+
+        [JsonPropertyName("AirlinePNRs")]
+        public List<AirlinePnrWire> AirlinePnrs { get; set; } = new();
+    }
+
+    public class AirTicketingResponseWire
+    {
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+
+        [JsonPropertyName("Booking_RefNo")]
+        public string? BookingRefNo { get; set; }
+
+        [JsonPropertyName("AirlinePNRDetails")]
+        public List<AirlinePnrDetailWire> AirlinePnrDetails { get; set; } = new();
+    }
 }

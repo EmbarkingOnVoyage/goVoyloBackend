@@ -116,6 +116,18 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             throw new NotSupportedException("Tripjack seat map is not implemented.");
         }
 
+        public Task<SupplierTempBookingResultDto> CreateTempBookingAsync(
+            SupplierTempBookingRequestDto request, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException("Tripjack booking is not implemented.");
+        }
+
+        public Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
+            string bookingRefNo, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException("Tripjack ticketing is not implemented.");
+        }
+
         private AuthHeaderWire BuildAuthHeader() => new()
         {
             UserId = _options.UserId,

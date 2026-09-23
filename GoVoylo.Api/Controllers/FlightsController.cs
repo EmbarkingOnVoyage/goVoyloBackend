@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using GoVoylo.Application.Features.Flights.Commands.CreateBooking;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Features.Flights.Queries.GetFareCalendar;
 using GoVoylo.Application.Features.Flights.Queries.GetFlightAncillaries;
@@ -6,6 +7,7 @@ using GoVoylo.Application.Features.Flights.Queries.GetSeatMap;
 using GoVoylo.Application.Features.Flights.Queries.RepriceFlightOffer;
 using GoVoylo.Application.Features.Flights.Queries.SearchFlights;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GoVoylo.Api.Controllers
@@ -64,6 +66,14 @@ namespace GoVoylo.Api.Controllers
             Guid offerId, [FromBody] IReadOnlyList<SeatMapTravelerRequestDto> travelers)
         {
             var result = await _mediator.Send(new GetSeatMapQuery(offerId, travelers));
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpPost("bookings")]
+        public async Task<IActionResult> CreateBooking([FromBody] CreateBookingCommand command)
+        {
+            var result = await _mediator.Send(command);
             return Ok(result);
         }
     }

@@ -218,6 +218,79 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             return new SupplierSeatMapResultDto(segments);
         }
 
+        public async Task<SupplierTempBookingResultDto> CreateTempBookingAsync(
+            SupplierTempBookingRequestDto request, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirTempBookingRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                CustomerMobile = _options.CustomerMobile,
+                PassengerMobile = request.PassengerMobile,
+                PassengerEmail = request.PassengerEmail,
+                PaxDetails = request.Travelers
+                    .Select(t => new TempBookingPaxDetailWire
+                    {
+                        PaxId = t.PaxId,
+                        PaxType = t.PaxType,
+                        Title = t.Title,
+                        FirstName = t.FirstName,
+                        LastName = t.LastName,
+                        Gender = t.Gender
+                    })
+                    .ToList(),
+                Gst = false,
+                BookingFlightDetails = request.Flights
+                    .Select(f => new BookingFlightDetailWire
+                    {
+                        SearchKey = f.SearchKey,
+                        FlightKey = f.FlightKey,
+                        BookingSsrDetails = f.SelectedSsrs
+                            .Select(s => new BookingSsrDetailWire { PaxId = s.PaxId, SsrKey = s.SsrKey })
+                            .ToList()
+                    })
+                    .ToList()
+            };
+
+            var wireResponse = await PostAsync<AirTempBookingRequestWire, AirTempBookingResponseWire>(
+                "Air_TempBooking", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_TempBooking");
+
+            if (string.IsNullOrEmpty(wireResponse.BookingRefNo))
+            {
+                throw new InvalidOperationException("Flyshop Air_TempBooking returned no booking reference.");
+            }
+
+            return new SupplierTempBookingResultDto(wireResponse.BookingRefNo);
+        }
+
+        public async Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
+            string bookingRefNo, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirTicketingRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                BookingRefNo = bookingRefNo,
+                TicketingType = "0"
+            };
+
+            var wireResponse = await PostAsync<AirTicketingRequestWire, AirTicketingResponseWire>(
+                "Air_Ticketing", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_Ticketing");
+
+            var detail = wireResponse.AirlinePnrDetails.FirstOrDefault();
+            var pnr = detail?.AirlinePnrs.FirstOrDefault();
+
+            return new SupplierTicketingResultDto(
+                wireResponse.BookingRefNo ?? bookingRefNo,
+                detail?.StatusId ?? string.Empty,
+                pnr?.AirlineCode,
+                pnr?.AirlinePnr,
+                pnr?.RecordLocator,
+                detail?.FailureRemark);
+        }
+
         private static SupplierAncillaryOptionDto MapSsrDetail(SsrDetailWire detail) => new(
             detail.SsrType,
             detail.SsrTypeName ?? string.Empty,
