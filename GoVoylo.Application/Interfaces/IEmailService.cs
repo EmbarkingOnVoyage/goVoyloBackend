@@ -10,5 +10,8 @@ namespace GoVoylo.Application.Interfaces
 
         public Task SendPassportExpiryAlertAsync(
             string email, string recipientName, string maskedPassportNumber, DateTime expiryDate);
+
+        public Task SendBookingConfirmationAsync(
+            string email, string recipientName, string bookingRefNo, string? airlinePnr, string? recordLocator);
     }
 }

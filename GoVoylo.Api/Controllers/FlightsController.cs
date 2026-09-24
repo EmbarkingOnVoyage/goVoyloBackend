@@ -7,6 +7,7 @@ using GoVoylo.Application.Features.Flights.Queries.GetFlightAncillaries;
 using GoVoylo.Application.Features.Flights.Queries.GetSeatMap;
 using GoVoylo.Application.Features.Flights.Queries.RepriceFlightOffer;
 using GoVoylo.Application.Features.Flights.Queries.SearchFlights;
+using GoVoylo.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,10 +19,12 @@ namespace GoVoylo.Api.Controllers
     public class FlightsController : ControllerBase
     {
         private readonly ISender _mediator;
+        private readonly ICurrentUserService _currentUser;
 
-        public FlightsController(ISender mediator)
+        public FlightsController(ISender mediator, ICurrentUserService currentUser)
         {
             _mediator = mediator;
+            _currentUser = currentUser;
         }
 
         [HttpPost("search")]
@@ -79,8 +82,10 @@ namespace GoVoylo.Api.Controllers
 
         [Authorize]
         [HttpPost("bookings")]
-        public async Task<IActionResult> CreateBooking([FromBody] CreateBookingCommand command)
+        public async Task<IActionResult> CreateBooking([FromBody] CreateBookingRequestDto request)
         {
+            var command = new CreateBookingCommand(
+                _currentUser.UserId, request.Legs, request.Travelers, request.PassengerMobile, request.PassengerEmail);
             var result = await _mediator.Send(command);
             return Ok(result);
         }

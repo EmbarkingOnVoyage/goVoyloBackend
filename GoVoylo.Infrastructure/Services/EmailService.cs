@@ -81,5 +81,56 @@ namespace GoVoylo.Infrastructure.Services
 
             await client.DisconnectAsync(true);
         }
+
+        // Sent after a Block_Ticket hold succeeds (see
+        // CreateBookingCommandHandler / IFlightSupplierClient.CreateBlockTicketAsync)
+        // — wording says "held", not "confirmed"/"booked", since Block_Ticket is a
+        // reversible hold, not a final purchase.
+        public async Task SendBookingConfirmationAsync(
+            string email, string recipientName, string bookingRefNo, string? airlinePnr, string? recordLocator)
+        {
+            var message = new MimeMessage();
+
+            message.From.Add(new MailboxAddress("GoVoylo", _smtpSettings.SenderEmail));
+
+            message.To.Add(MailboxAddress.Parse(email));
+
+            message.Subject = $"Your GoVoylo booking reference: {bookingRefNo}";
+
+            var bodyText = $"Hi {recipientName},\n\n" +
+                $"Your flight has been held. Booking reference: {bookingRefNo}\n";
+
+            if (!string.IsNullOrWhiteSpace(airlinePnr))
+            {
+                bodyText += $"Airline PNR: {airlinePnr}\n";
+            }
+
+            if (!string.IsNullOrWhiteSpace(recordLocator))
+            {
+                bodyText += $"Record locator: {recordLocator}\n";
+            }
+
+            bodyText += "\n— GoVoylo";
+
+            message.Body = new TextPart("plain")
+            {
+                Text = bodyText
+            };
+
+            using var client = new SmtpClient();
+
+            await client.ConnectAsync(
+                _smtpSettings.Host,
+                _smtpSettings.Port,
+                SecureSocketOptions.StartTls);
+
+            await client.AuthenticateAsync(
+                _smtpSettings.Username,
+                _smtpSettings.Password);
+
+            await client.SendAsync(message);
+
+            await client.DisconnectAsync(true);
+        }
     }
 }

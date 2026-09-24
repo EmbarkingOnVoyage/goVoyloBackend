@@ -92,6 +92,12 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     public record BookingTravelerRequestDto(
         int PaxId, string Title, string FirstName, string LastName, string Gender, string PaxType);
 
+    public record CreateBookingRequestDto(
+        IReadOnlyList<BookingLegRequestDto> Legs,
+        IReadOnlyList<BookingTravelerRequestDto> Travelers,
+        string PassengerMobile,
+        string PassengerEmail);
+
     public record CreateBookingResponseDto(
         string BookingRefNo,
         // 11-Success, 22-Failed, 33-Block — see Air_Ticketing's own docs.
