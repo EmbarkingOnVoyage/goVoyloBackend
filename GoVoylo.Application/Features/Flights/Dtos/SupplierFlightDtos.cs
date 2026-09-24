@@ -50,7 +50,26 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         bool Repriced,
         bool IsFareChange);
 
-    public record FlightOfferSession(string SupplierCode, string SearchKey, string FlightKey, string FareId);
+    // Origin/Destination/TravelDate/AirlineCode/AirlineName/FlightNumber/TotalAmount/
+    // CurrencyCode are captured once at search time (from the first/last segment for
+    // a connecting flight) purely so CreateBookingCommandHandler can persist a
+    // TripBooking without re-deriving route/price data it no longer has access to
+    // after Reprice/TempBooking — they're never used for pricing or supplier calls,
+    // only for the "My Trips" record. Reprice's `with` updates only touch
+    // FlightKey/FareId, so these fields stay exactly as captured at search time.
+    public record FlightOfferSession(
+        string SupplierCode,
+        string SearchKey,
+        string FlightKey,
+        string FareId,
+        string Origin,
+        string Destination,
+        DateTime TravelDate,
+        string AirlineCode,
+        string AirlineName,
+        string FlightNumber,
+        decimal TotalAmount,
+        string CurrencyCode);
 
     public record SupplierLowFareRequestDto(string Origin, string Destination, int Month, int Year);
 
@@ -121,14 +140,27 @@ namespace GoVoylo.Application.Features.Flights.Dtos
 
     public record SupplierTempBookingResultDto(string BookingRefNo);
 
-    public record SupplierTicketingResultDto(
-        string BookingRefNo,
-        // 11-Success, 22-Failed, 33-Block — see Air_Ticketing's own docs.
+    // One AirlinePNRDetails entry from Air_Ticketing's response — for a multi-leg
+    // (roundtrip/multi-city) booking there's one of these per flight, each with its
+    // own Flight_Id (needed to cancel/release that specific leg later).
+    public record SupplierTicketingLegResultDto(
+        string FlightId,
         string StatusId,
         string? AirlineCode,
         string? AirlinePnr,
         string? RecordLocator,
         string? FailureRemark);
+
+    public record SupplierTicketingResultDto(
+        string BookingRefNo,
+        // First leg's values, kept for existing single-leg callers. 11-Success,
+        // 22-Failed, 33-Block — see Air_Ticketing's own docs.
+        string StatusId,
+        string? AirlineCode,
+        string? AirlinePnr,
+        string? RecordLocator,
+        string? FailureRemark,
+        IReadOnlyList<SupplierTicketingLegResultDto> Legs);
 
     public record SupplierFareRuleRequestDto(string SearchKey, string FlightKey, string FareId);
 

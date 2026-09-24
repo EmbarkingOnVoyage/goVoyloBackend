@@ -1,11 +1,13 @@
 using System.Security.Claims;
 using GoVoylo.Application.Features.Flights.Commands.CancelBooking;
+using GoVoylo.Application.Features.Flights.Commands.CancelTripBooking;
 using GoVoylo.Application.Features.Flights.Commands.CreateBooking;
 using GoVoylo.Application.Features.Flights.Commands.ReleaseHold;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Features.Flights.Queries.GetFareCalendar;
 using GoVoylo.Application.Features.Flights.Queries.GetFareRules;
 using GoVoylo.Application.Features.Flights.Queries.GetFlightAncillaries;
+using GoVoylo.Application.Features.Flights.Queries.GetMyTripBookings;
 using GoVoylo.Application.Features.Flights.Queries.GetSeatMap;
 using GoVoylo.Application.Features.Flights.Queries.RepriceFlightOffer;
 using GoVoylo.Application.Features.Flights.Queries.SearchFlights;
@@ -112,6 +114,22 @@ namespace GoVoylo.Api.Controllers
         public async Task<IActionResult> ReleaseHold([FromBody] ReleaseHoldCommand command)
         {
             var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpGet("mybookings")]
+        public async Task<IActionResult> GetMyBookings()
+        {
+            var result = await _mediator.Send(new GetMyTripBookingsQuery(_currentUser.UserId));
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpPost("mybookings/{tripBookingId}/cancel")]
+        public async Task<IActionResult> CancelMyBooking(Guid tripBookingId)
+        {
+            var result = await _mediator.Send(new CancelTripBookingCommand(tripBookingId, _currentUser.UserId));
             return Ok(result);
         }
     }

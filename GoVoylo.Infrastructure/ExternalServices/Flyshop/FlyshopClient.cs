@@ -283,6 +283,20 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
 
             EnsureSuccess(wireResponse.ResponseHeader, "Air_Ticketing");
 
+            var legs = wireResponse.AirlinePnrDetails
+                .Select(d =>
+                {
+                    var legPnr = d.AirlinePnrs.FirstOrDefault();
+                    return new SupplierTicketingLegResultDto(
+                        d.FlightId ?? string.Empty,
+                        d.StatusId ?? string.Empty,
+                        legPnr?.AirlineCode,
+                        legPnr?.AirlinePnr,
+                        legPnr?.RecordLocator,
+                        d.FailureRemark);
+                })
+                .ToList();
+
             var detail = wireResponse.AirlinePnrDetails.FirstOrDefault();
             var pnr = detail?.AirlinePnrs.FirstOrDefault();
 
@@ -292,7 +306,8 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 pnr?.AirlineCode,
                 pnr?.AirlinePnr,
                 pnr?.RecordLocator,
-                detail?.FailureRemark);
+                detail?.FailureRemark,
+                legs);
         }
 
         public async Task<SupplierFareRuleResultDto> GetFareRulesAsync(

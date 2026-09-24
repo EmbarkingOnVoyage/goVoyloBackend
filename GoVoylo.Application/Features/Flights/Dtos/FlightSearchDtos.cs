@@ -124,4 +124,29 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     public record CancelBookingResponseDto(bool Success);
 
     public record ReleaseHoldResponseDto(bool Success);
+
+    public record TripBookingLegDto(
+        int LegIndex,
+        string Origin,
+        string Destination,
+        DateTime TravelDate,
+        string AirlineCode,
+        string AirlineName,
+        string FlightNumber);
+
+    public record TripBookingDto(
+        Guid Id,
+        string BookingRefNo,
+        string? AirlinePnr,
+        // Flyshop's status at creation time (11-Success/22-Failed/33-Block).
+        string StatusId,
+        // App-tracked lifecycle: Active/Cancelled/Released — see TripBooking.
+        string LocalStatus,
+        decimal TotalAmount,
+        string CurrencyCode,
+        string PassengerNames,
+        DateTime CreatedAt,
+        IReadOnlyList<TripBookingLegDto> Legs);
+
+    public record CancelTripBookingResponseDto(bool Success, string LocalStatus);
 }
