@@ -236,7 +236,8 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                         Title = t.Title,
                         FirstName = t.FirstName,
                         LastName = t.LastName,
-                        Gender = t.Gender
+                        Gender = t.Gender,
+                        Dob = t.DateOfBirth?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture)
                     })
                     .ToList(),
                 Gst = request.Gst,

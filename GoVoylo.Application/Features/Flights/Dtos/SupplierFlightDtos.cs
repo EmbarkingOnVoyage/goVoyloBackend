@@ -121,7 +121,13 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     public record SupplierSeatMapResultDto(IReadOnlyList<SupplierSeatSegmentDto> Segments);
 
     public record SupplierTempBookingPaxDto(
-        int PaxId, int PaxType, string Title, string FirstName, string LastName, int Gender);
+        int PaxId,
+        int PaxType,
+        string Title,
+        string FirstName,
+        string LastName,
+        int Gender,
+        DateTime? DateOfBirth = null);
 
     public record SupplierBookingSsrDto(int PaxId, string SsrKey);
 

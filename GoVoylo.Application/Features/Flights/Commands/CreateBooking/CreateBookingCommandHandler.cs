@@ -58,22 +58,48 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
 
                 legSummaries.Add(session);
 
-                // Same reasoning as GetFlightAncillariesQueryHandler/GetSeatMapQueryHandler:
-                // Air_TempBooking needs the Flight_Key from a fresh Air_Reprice response.
-                var repriceResult = await _supplierClient.RepriceAsync(
-                    new SupplierRepriceRequestDto(session.SearchKey, session.FlightKey, session.FareId),
-                    cancellationToken);
+                // A seat/meal/baggage SSR_Key returned by Air_GetSeatMap or Air_GetSSR is
+                // only valid against the exact Flight_Key that request was repriced
+                // against (both handlers persist their reprice back into the session).
+                // Repricing again here — as this used to do unconditionally — hands
+                // Air_TempBooking a *different* Flight_Key than the one the SSR_Key was
+                // issued for, and the seat lock in particular doesn't carry over: the
+                // booking still creates a Ref_No, but Air_Ticketing then fails at the
+                // airline host (confirmed live: "Err002: This transaction is already
+                // Rejected/Deleted"). A plain meal SSR tolerated the mismatch in testing,
+                // but seat selection consistently did not, so any selection is treated
+                // the same way here — when the caller already selected SSRs for this leg,
+                // trust the session's current Flight_Key/Fare_Id (already fresh from
+                // whichever ancillaries/seatmap call produced those keys) instead of
+                // repricing again. A leg with no SSR selections still reprices as before,
+                // since its Flight_Key may still be the original, un-repriced search
+                // result (Air_TempBooking's own docs require a Reprice-sourced Flight_Key).
+                string flightKeyToBook;
+                string searchKeyToBook = session.SearchKey;
 
-                var updatedSession = session with
+                if (leg.SelectedSsrs.Count > 0)
                 {
-                    FlightKey = repriceResult.FlightKey,
-                    FareId = repriceResult.FareId
-                };
-                await _sessionStore.UpdateAsync(leg.OfferId, updatedSession, cancellationToken);
+                    flightKeyToBook = session.FlightKey;
+                }
+                else
+                {
+                    var repriceResult = await _supplierClient.RepriceAsync(
+                        new SupplierRepriceRequestDto(session.SearchKey, session.FlightKey, session.FareId),
+                        cancellationToken);
+
+                    var updatedSession = session with
+                    {
+                        FlightKey = repriceResult.FlightKey,
+                        FareId = repriceResult.FareId
+                    };
+                    await _sessionStore.UpdateAsync(leg.OfferId, updatedSession, cancellationToken);
+
+                    flightKeyToBook = updatedSession.FlightKey;
+                }
 
                 bookingFlights.Add(new SupplierBookingFlightDto(
-                    session.SearchKey,
-                    updatedSession.FlightKey,
+                    searchKeyToBook,
+                    flightKeyToBook,
                     leg.SelectedSsrs
                         .Select(s => new SupplierBookingSsrDto(s.PaxId, s.SsrKey))
                         .ToList()));
@@ -81,7 +107,13 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
 
             var travelers = request.Travelers
                 .Select(t => new SupplierTempBookingPaxDto(
-                    t.PaxId, MapPaxType(t.PaxType), t.Title, t.FirstName, t.LastName, MapGender(t.Gender)))
+                    t.PaxId,
+                    MapPaxType(t.PaxType),
+                    t.Title,
+                    t.FirstName,
+                    t.LastName,
+                    MapGender(t.Gender),
+                    t.DateOfBirth))
                 .ToList();
 
             var hasGst = !string.IsNullOrWhiteSpace(request.GstNumber);

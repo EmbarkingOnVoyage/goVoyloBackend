@@ -89,8 +89,17 @@ namespace GoVoylo.Application.Features.Flights.Dtos
 
     // PaxType/Gender as plain strings at the API boundary, same reasoning as
     // SeatMapTravelerRequestDto — the handler maps them to Flyshop's numeric codes.
+    // DateOfBirth is optional for adults/children but required by Flyshop for
+    // infants (Air_Reprice's own Required_PAX_Details marks DOB mandatory only for
+    // Pax_Type 2-INF) — omitting it for an infant traveler will fail Air_TempBooking.
     public record BookingTravelerRequestDto(
-        int PaxId, string Title, string FirstName, string LastName, string Gender, string PaxType);
+        int PaxId,
+        string Title,
+        string FirstName,
+        string LastName,
+        string Gender,
+        string PaxType,
+        DateTime? DateOfBirth = null);
 
     // GST fields are optional — omit all three for a booking with no GST invoice.
     // Air_TempBooking's own GST flag is derived from whether GstNumber is present,
