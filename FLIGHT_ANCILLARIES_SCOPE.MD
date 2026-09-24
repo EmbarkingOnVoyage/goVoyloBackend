@@ -61,10 +61,37 @@ mock data with the real integration.
   only"). Needed for Flyshop's API certification test matrix — see
   `01_Test Cases_For_APITesting.xls` provided by Flyshop.
 
-**None of this has been verified against a live Flyshop response** — `uat.flyshop.in`
-has been unreachable (connection timeout) for this entire body of work. Everything above
-is verified structurally (builds clean, auth/validation/session-lookup tested against the
-local backend directly) but not against a real successful Flyshop response.
+**Verified live against `uat.flyshop.in` on 2026-09-24** (it came back up after being
+unreachable for the entire body of work above). Real results, not mocked:
+- `Air_Search` → `Air_Reprice` → `Air_GetSSR` → `Air_GetSeatMap` → `Air_FareRule`: all
+  returned real IndiGo data for a DEL→BOM one-way search.
+- `POST /api/v1/flights/bookings` (no GST): real Block_Ticket hold created —
+  `BookingRefNo FLYB6ZOWY`, `Airline_PNR RP5WNY`, `Status_Id 33` (Blocked).
+- `POST /api/v1/flights/bookings` (with GST): same, with `GstNumber`/`GstHolderName`/
+  `GstAddress` populated — `BookingRefNo FLYB6ZOWZ`, `Airline_PNR BMQD9L`, `Status_Id 33`.
+  Confirms the GST fix (test case 5, below) round-trips correctly against real Flyshop,
+  not just local validation.
+- Booking-confirmation email: the code path ran without throwing (account email looked
+  up, `SendBookingConfirmationAsync` called), but the test account's email is on a
+  `.test` domain (non-routable), so actual delivery could not be confirmed. Needs a real
+  mailbox to verify end-to-end.
+- **`Air_TicketCancellation` does not work on an un-ticketed Block_Ticket hold** — Flyshop
+  returns `Error_Code 0016 / Err007: "Please check your RefNo Status"` even with the
+  correct `FlightId`/`PassengerId`/`SegmentId` (looked up via `Air_History`, since our own
+  responses don't currently surface `Flight_Id`). This looks like a genuine business rule
+  (cancellation only applies to already-ticketed bookings), not a bug in our request
+  shape — the request was accepted and processed, just rejected on business logic.
+  Releasing a Block_Ticket hold specifically likely needs `Air_ReleasePNR` (still not
+  implemented) rather than `Air_TicketCancellation`. Both test holds above will
+  self-expire per their own `BlockedExpiryDate` (a few hours after creation, confirmed via
+  `Air_History`) — no manual cleanup needed, but this is worth flagging for the
+  cancellation certification test cases, which may need an actually-ticketed booking to
+  exercise `Air_TicketCancellation` meaningfully rather than a hold.
+- `Booking_Type: 2` (SPECIALROUNDTRIP), tested for a 2-leg round trip: confirmed it
+  returns a genuinely different response shape than `Booking_Type: 1` — one combined
+  itinerary per result (a single `Flight` object whose `Segments` bundle both outbound
+  and return together) instead of two separate `TripDetails` per leg. Confirms this is
+  real, separately-scoped work, not a simple flag flip — see the Special Fare gap below.
 
 ## Flyshop certification test matrix — coverage gaps
 
