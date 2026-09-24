@@ -70,15 +70,18 @@ local backend directly) but not against a real successful Flyshop response.
 
 Flyshop's own test sheet (`01_Test Cases_For_APITesting.xls`) lists 5 booking scenarios
 and 4 cancellation scenarios that need to pass for certification. Cancellation is now
-implemented (above). Booking-side gaps not yet addressed:
-- **GST details** (test case 5, "2ADT/1CHD/1INF With GST Details") — `Air_TempBooking`
-  supports `GST`/`GST_Number`/`GST_HolderName`/`GST_Address`, but
-  `CreateBookingCommandHandler`/`CreateTempBookingAsync` currently hardcode `Gst: false`
-  and never accept GST fields from the caller.
+implemented (above). Status of the booking-side scenarios:
+- **GST details** (test case 5, "2ADT/1CHD/1INF With GST Details") — DONE. `CreateBooking`
+  request/command now accept optional `GstNumber`/`GstHolderName`/`GstAddress`, threaded
+  through to `Air_TempBooking`'s `GST`/`GST_Number`/`GST_HolderName`/`GST_Address` fields.
+  Validator requires holder name + address once a GST number is supplied. Verified locally
+  (clean build, validation and pipeline-passthrough checked via direct curl); not yet run
+  against a real successful Flyshop response.
 - **Special Fare** (test case 3, "Roundtrip Special Fare 1ADT/1CHD/1INF, connecting
-  flight") — the mobile app's Special Fare UI is already known to be disconnected from
-  the search request (see the separate Special Fare investigation earlier this
-  engagement); the booking flow itself has no special-fare-specific handling either.
+  flight") — still open, deliberately out of scope for now. The mobile app's Special Fare
+  UI is already known to be disconnected from the search request (see the separate Special
+  Fare investigation earlier this engagement); the booking flow itself has no
+  special-fare-specific handling either. Not started pending a separate scoping decision.
 - Test cases 1, 2, 4 (plain Oneway/Roundtrip, SEAT & SSR, connecting flights) should
   already be coverable by what's built (`CreateBooking` + ancillary/seat selection), but
   haven't been run against real Flyshop data.
