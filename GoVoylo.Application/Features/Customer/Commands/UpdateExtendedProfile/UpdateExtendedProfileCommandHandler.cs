@@ -35,13 +35,27 @@ namespace GoVoylo.Application.Features.Customer.Commands.UpdateExtendedProfile
                 throw new NotFoundException("Customer profile not found.");
             }
 
+            // The client only sends PassportNumber/PanCardNumber when the user actually
+            // retyped them — omitted (null) means "leave whatever's already saved alone",
+            // not "clear it". Falling back to the user's existing encrypted values here
+            // is what makes that contract hold; overwriting with null on every other
+            // profile save (name, DOB, marital status, ...) was wiping out passport/PAN
+            // data the user had entered in a previous save.
             var passportNumberEncrypted = string.IsNullOrWhiteSpace(request.PassportNumber)
-                ? null
+                ? user.PassportNumberEncrypted
                 : _encryptionService.Encrypt(request.PassportNumber);
 
             var panCardNumberEncrypted = string.IsNullOrWhiteSpace(request.PanCardNumber)
-                ? null
+                ? user.PanCardNumberEncrypted
                 : _encryptionService.Encrypt(request.PanCardNumber);
+
+            var passportExpiryDate = string.IsNullOrWhiteSpace(request.PassportNumber)
+                ? user.PassportExpiryDate
+                : request.PassportExpiryDate;
+
+            var passportIssuingCountry = string.IsNullOrWhiteSpace(request.PassportNumber)
+                ? user.PassportIssuingCountry
+                : request.PassportIssuingCountry;
 
             user.UpdateExtendedProfile(
                 request.Gender,
@@ -52,8 +66,8 @@ namespace GoVoylo.Application.Features.Customer.Commands.UpdateExtendedProfile
                 request.CityOfResidence,
                 request.State,
                 passportNumberEncrypted,
-                passportNumberEncrypted == null ? null : request.PassportExpiryDate,
-                passportNumberEncrypted == null ? null : request.PassportIssuingCountry,
+                passportExpiryDate,
+                passportIssuingCountry,
                 panCardNumberEncrypted,
                 request.AutoAddTravelInsurance);
 

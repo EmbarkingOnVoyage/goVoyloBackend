@@ -432,4 +432,450 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
         [JsonPropertyName("FrequentFlyerAccepted")]
         public bool FrequentFlyerAccepted { get; set; }
     }
+
+    // Field names below are taken verbatim from the Postman collection's own
+    // *example response bodies* for Air_GetSSR/Air_GetSeatMap, not from its field
+    // description tables — the two disagree (e.g. the table says "SegmentWise" and
+    // "TotalAmount", the real sample JSON says "Segment_Wise" and "Total_Amount"),
+    // and the samples are what the sandbox actually returns.
+
+    public class AirSsrRequestItemWire
+    {
+        [JsonPropertyName("Flight_Key")]
+        public string FlightKey { get; set; } = string.Empty;
+    }
+
+    public class AirSsrRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Search_Key")]
+        public string SearchKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("AirSSRRequestDetails")]
+        public List<AirSsrRequestItemWire> AirSsrRequestDetails { get; set; } = new();
+    }
+
+    // Shared by Air_GetSSR's SSRDetails and Air_GetSeatMap's Seat_Details — both
+    // endpoints' real sample responses emit an identical SSR-detail shape.
+    public class SsrDetailWire
+    {
+        [JsonPropertyName("ApplicablePaxTypes")]
+        public List<int> ApplicablePaxTypes { get; set; } = new();
+
+        [JsonPropertyName("Currency_Code")]
+        public string? CurrencyCode { get; set; }
+
+        [JsonPropertyName("Flight_ID")]
+        public string? FlightId { get; set; }
+
+        [JsonPropertyName("Leg_Index")]
+        public int LegIndex { get; set; }
+
+        [JsonPropertyName("SSR_Code")]
+        public string? SsrCode { get; set; }
+
+        [JsonPropertyName("SSR_Key")]
+        public string? SsrKey { get; set; }
+
+        [JsonPropertyName("SSR_Status")]
+        public int SsrStatus { get; set; }
+
+        [JsonPropertyName("SSR_Type")]
+        public int SsrType { get; set; }
+
+        [JsonPropertyName("SSR_TypeDesc")]
+        public string? SsrTypeDesc { get; set; }
+
+        [JsonPropertyName("SSR_TypeName")]
+        public string? SsrTypeName { get; set; }
+
+        [JsonPropertyName("Segment_Id")]
+        public int SegmentId { get; set; }
+
+        [JsonPropertyName("Segment_Wise")]
+        public bool SegmentWise { get; set; }
+
+        [JsonPropertyName("Total_Amount")]
+        public decimal TotalAmount { get; set; }
+    }
+
+    public class SsrFlightDetailWire
+    {
+        [JsonPropertyName("SSRDetails")]
+        public List<SsrDetailWire> SsrDetails { get; set; } = new();
+    }
+
+    public class AirSsrResponseWire
+    {
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+
+        [JsonPropertyName("SSRFlightDetails")]
+        public List<SsrFlightDetailWire> SsrFlightDetails { get; set; } = new();
+    }
+
+    // Sample request only ever populates Pax_Id/Pax_type/Title/First_Name/Last_Name/
+    // Gender and sends every other field null — confirms Air_GetSeatMap works with
+    // minimal traveler data, so we never need passport/DOB details just to price seats.
+    public class PaxDetailWire
+    {
+        [JsonPropertyName("Pax_Id")]
+        public int PaxId { get; set; }
+
+        [JsonPropertyName("Pax_type")]
+        public int PaxType { get; set; }
+
+        [JsonPropertyName("Title")]
+        public string? Title { get; set; }
+
+        [JsonPropertyName("First_Name")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [JsonPropertyName("Last_Name")]
+        public string LastName { get; set; } = string.Empty;
+
+        [JsonPropertyName("Gender")]
+        public int Gender { get; set; }
+    }
+
+    public class AirSeatMapRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Search_Key")]
+        public string SearchKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("Flight_Keys")]
+        public List<string> FlightKeys { get; set; } = new();
+
+        [JsonPropertyName("PAX_Details")]
+        public List<PaxDetailWire> PaxDetails { get; set; } = new();
+    }
+
+    public class SeatRowWire
+    {
+        [JsonPropertyName("Seat_Details")]
+        public List<SsrDetailWire> SeatDetails { get; set; } = new();
+    }
+
+    public class SeatSegmentWire
+    {
+        [JsonPropertyName("Leg_Index")]
+        public int LegIndex { get; set; }
+
+        [JsonPropertyName("Seat_Row")]
+        public List<SeatRowWire> SeatRow { get; set; } = new();
+    }
+
+    public class AirSeatMapWire
+    {
+        [JsonPropertyName("Flight_Id")]
+        public string? FlightId { get; set; }
+
+        [JsonPropertyName("Seat_Segments")]
+        public List<SeatSegmentWire> SeatSegments { get; set; } = new();
+    }
+
+    public class AirSeatMapResponseWire
+    {
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+
+        [JsonPropertyName("AirSeatMaps")]
+        public List<AirSeatMapWire> AirSeatMaps { get; set; } = new();
+    }
+
+    // Field names again taken from the Postman collection's real example bodies —
+    // note Air_Ticketing's request/response use "Booking_RefNo" (underscore) while
+    // the field-description table for both endpoints says "BookingRefNo" (no
+    // underscore); the sample JSON wins, same rationale as the SSR/SeatMap models.
+    public class TempBookingPaxDetailWire
+    {
+        [JsonPropertyName("Pax_Id")]
+        public int PaxId { get; set; }
+
+        [JsonPropertyName("Pax_type")]
+        public int PaxType { get; set; }
+
+        [JsonPropertyName("Title")]
+        public string? Title { get; set; }
+
+        [JsonPropertyName("First_Name")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [JsonPropertyName("Last_Name")]
+        public string LastName { get; set; } = string.Empty;
+
+        [JsonPropertyName("Gender")]
+        public int Gender { get; set; }
+
+        // Left null like the collection's own sample — full passport/DOB capture for
+        // international/Book_Ticket itineraries is future work (see
+        // FLIGHT_ANCILLARIES_SCOPE.MD-style follow-up), not needed for a domestic
+        // Block_Ticket hold.
+        [JsonPropertyName("Age")]
+        public string? Age { get; set; }
+
+        [JsonPropertyName("DOB")]
+        public string? Dob { get; set; }
+
+        [JsonPropertyName("Passport_Number")]
+        public string? PassportNumber { get; set; }
+
+        [JsonPropertyName("Passport_Issuing_Country")]
+        public string? PassportIssuingCountry { get; set; }
+
+        [JsonPropertyName("Passport_Expiry")]
+        public string? PassportExpiry { get; set; }
+
+        [JsonPropertyName("Nationality")]
+        public string? Nationality { get; set; }
+
+        [JsonPropertyName("Pancard_Number")]
+        public string? PancardNumber { get; set; }
+
+        [JsonPropertyName("FrequentFlyerDetails")]
+        public object? FrequentFlyerDetails { get; set; }
+    }
+
+    public class BookingSsrDetailWire
+    {
+        [JsonPropertyName("Pax_Id")]
+        public int PaxId { get; set; }
+
+        [JsonPropertyName("SSR_Key")]
+        public string SsrKey { get; set; } = string.Empty;
+    }
+
+    public class BookingFlightDetailWire
+    {
+        [JsonPropertyName("Search_Key")]
+        public string SearchKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("Flight_Key")]
+        public string FlightKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("BookingSSRDetails")]
+        public List<BookingSsrDetailWire> BookingSsrDetails { get; set; } = new();
+    }
+
+    public class AirTempBookingRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Customer_Mobile")]
+        public string CustomerMobile { get; set; } = string.Empty;
+
+        [JsonPropertyName("Passenger_Mobile")]
+        public string PassengerMobile { get; set; } = string.Empty;
+
+        [JsonPropertyName("WhatsAPP_Mobile")]
+        public string? WhatsappMobile { get; set; }
+
+        [JsonPropertyName("Passenger_Email")]
+        public string PassengerEmail { get; set; } = string.Empty;
+
+        [JsonPropertyName("PAX_Details")]
+        public List<TempBookingPaxDetailWire> PaxDetails { get; set; } = new();
+
+        [JsonPropertyName("GST")]
+        public bool Gst { get; set; }
+
+        [JsonPropertyName("GST_Number")]
+        public string GstNumber { get; set; } = string.Empty;
+
+        [JsonPropertyName("GST_HolderName")]
+        public string GstHolderName { get; set; } = string.Empty;
+
+        [JsonPropertyName("GST_Address")]
+        public string GstAddress { get; set; } = string.Empty;
+
+        [JsonPropertyName("BookingFlightDetails")]
+        public List<BookingFlightDetailWire> BookingFlightDetails { get; set; } = new();
+    }
+
+    public class AirTempBookingResponseWire
+    {
+        [JsonPropertyName("Booking_RefNo")]
+        public string? BookingRefNo { get; set; }
+
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+    }
+
+    public class AirTicketingRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Booking_RefNo")]
+        public string BookingRefNo { get; set; } = string.Empty;
+
+        // Deliberately hardcoded to "0" (Block_Ticket) at the call site — see
+        // IFlightSupplierClient.CreateBlockTicketAsync's own doc comment for why
+        // Book_Ticket (real purchase + Add_Payment wallet debit) isn't wired up.
+        [JsonPropertyName("Ticketing_Type")]
+        public string TicketingType { get; set; } = "0";
+    }
+
+    public class AirlinePnrWire
+    {
+        [JsonPropertyName("Airline_Code")]
+        public string? AirlineCode { get; set; }
+
+        [JsonPropertyName("Airline_PNR")]
+        public string? AirlinePnr { get; set; }
+
+        [JsonPropertyName("CRS_Code")]
+        public string? CrsCode { get; set; }
+
+        [JsonPropertyName("CRS_PNR")]
+        public string? CrsPnr { get; set; }
+
+        [JsonPropertyName("Record_Locator")]
+        public string? RecordLocator { get; set; }
+
+        [JsonPropertyName("Supplier_RefNo")]
+        public string? SupplierRefNo { get; set; }
+    }
+
+    public class AirlinePnrDetailWire
+    {
+        [JsonPropertyName("Flight_Id")]
+        public string? FlightId { get; set; }
+
+        // 11-Success, 22-Failed, 33-Block, per the docs' own note.
+        [JsonPropertyName("Status_Id")]
+        public string? StatusId { get; set; }
+
+        [JsonPropertyName("Failure_Remark")]
+        public string? FailureRemark { get; set; }
+
+        [JsonPropertyName("Hold_Validity")]
+        public string? HoldValidity { get; set; }
+
+        [JsonPropertyName("AirlinePNRs")]
+        public List<AirlinePnrWire> AirlinePnrs { get; set; } = new();
+    }
+
+    public class AirTicketingResponseWire
+    {
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+
+        [JsonPropertyName("Booking_RefNo")]
+        public string? BookingRefNo { get; set; }
+
+        [JsonPropertyName("AirlinePNRDetails")]
+        public List<AirlinePnrDetailWire> AirlinePnrDetails { get; set; } = new();
+    }
+
+    public class AirFareRuleRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Search_Key")]
+        public string SearchKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("Flight_Key")]
+        public string FlightKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("Fare_Id")]
+        public string FareId { get; set; } = string.Empty;
+    }
+
+    // FareRuleDesc is a full XHTML document string, not structured data — the
+    // collection's own sample response confirms this (a whole <html><head>...
+    // <style>...</style></head><body>... blob for a single sentence of real text).
+    public class FareRuleWire
+    {
+        [JsonPropertyName("Segment_Id")]
+        public string? SegmentId { get; set; }
+
+        [JsonPropertyName("FareRuleName")]
+        public string? FareRuleName { get; set; }
+
+        [JsonPropertyName("FareRuleDesc")]
+        public string? FareRuleDesc { get; set; }
+    }
+
+    public class AirFareRuleResponseWire
+    {
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+
+        [JsonPropertyName("FareRules")]
+        public List<FareRuleWire> FareRules { get; set; } = new();
+    }
+
+    public class AirTicketCancelDetailWire
+    {
+        [JsonPropertyName("FlightId")]
+        public string FlightId { get; set; } = string.Empty;
+
+        [JsonPropertyName("PassengerId")]
+        public string PassengerId { get; set; } = string.Empty;
+
+        [JsonPropertyName("SegmentId")]
+        public string SegmentId { get; set; } = string.Empty;
+    }
+
+    // Real endpoint name is Air_TicketCancellation (the "10 - Air_Cancellation"
+    // sidebar entry is just the collection's shorthand label for it).
+    public class AirTicketCancellationRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("AirTicketCancelDetails")]
+        public List<AirTicketCancelDetailWire> AirTicketCancelDetails { get; set; } = new();
+
+        [JsonPropertyName("Airline_PNR")]
+        public string AirlinePnr { get; set; } = string.Empty;
+
+        [JsonPropertyName("RefNo")]
+        public string RefNo { get; set; } = string.Empty;
+
+        [JsonPropertyName("CancelCode")]
+        public string CancelCode { get; set; } = string.Empty;
+
+        [JsonPropertyName("ReqRemarks")]
+        public string ReqRemarks { get; set; } = string.Empty;
+
+        [JsonPropertyName("CancellationType")]
+        public int CancellationType { get; set; }
+    }
+
+    public class AirTicketCancellationResponseWire
+    {
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+    }
+
+    // Releases a Block_Ticket hold (Ticketing_Type "0") that was never converted to a
+    // real ticket. Confirmed against live UAT: Air_TicketCancellation rejects an
+    // un-ticketed hold with Err007 "Please check your RefNo Status" — this is the real
+    // release path for holds specifically.
+    public class AirReleasePnrRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Booking_RefNo")]
+        public string BookingRefNo { get; set; } = string.Empty;
+
+        [JsonPropertyName("Airline_PNR")]
+        public string AirlinePnr { get; set; } = string.Empty;
+    }
+
+    public class AirReleasePnrResponseWire
+    {
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+    }
 }

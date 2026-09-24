@@ -45,8 +45,22 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
 
             foreach (var flight in result.Flights)
             {
+                var firstSegment = flight.Segments.FirstOrDefault();
+                var lastSegment = flight.Segments.LastOrDefault();
+
                 var session = new FlightOfferSession(
-                    _supplierClient.SupplierCode, result.SearchKey, flight.FlightKey, flight.FareId);
+                    _supplierClient.SupplierCode,
+                    result.SearchKey,
+                    flight.FlightKey,
+                    flight.FareId,
+                    firstSegment?.Origin ?? string.Empty,
+                    lastSegment?.Destination ?? string.Empty,
+                    firstSegment?.DepartureDateTime ?? default,
+                    flight.AirlineCode,
+                    flight.AirlineName,
+                    firstSegment?.FlightNumber ?? string.Empty,
+                    flight.TotalAmount,
+                    flight.CurrencyCode);
 
                 var offerId = await _sessionStore.SaveAsync(session, cancellationToken);
 

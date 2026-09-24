@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Common;
@@ -153,6 +154,264 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
 
             return new SupplierLowFareResultDto(days);
         }
+
+        public async Task<SupplierAncillaryResultDto> GetAncillariesAsync(
+            SupplierAncillaryRequestDto request, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirSsrRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                SearchKey = request.SearchKey,
+                AirSsrRequestDetails = new List<AirSsrRequestItemWire>
+                {
+                    new() { FlightKey = request.FlightKey }
+                }
+            };
+
+            var wireResponse = await PostAsync<AirSsrRequestWire, AirSsrResponseWire>(
+                "Air_GetSSR", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_GetSSR");
+
+            var options = wireResponse.SsrFlightDetails
+                .SelectMany(f => f.SsrDetails)
+                .Select(MapSsrDetail)
+                .ToList();
+
+            return new SupplierAncillaryResultDto(options);
+        }
+
+        public async Task<SupplierSeatMapResultDto> GetSeatMapAsync(
+            SupplierSeatMapRequestDto request, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirSeatMapRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                SearchKey = request.SearchKey,
+                FlightKeys = new List<string> { request.FlightKey },
+                PaxDetails = request.Travelers
+                    .Select(t => new PaxDetailWire
+                    {
+                        PaxId = t.PaxId,
+                        PaxType = t.PaxType,
+                        Title = t.Title,
+                        FirstName = t.FirstName,
+                        LastName = t.LastName,
+                        Gender = t.Gender
+                    })
+                    .ToList()
+            };
+
+            var wireResponse = await PostAsync<AirSeatMapRequestWire, AirSeatMapResponseWire>(
+                "Air_GetSeatMap", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_GetSeatMap");
+
+            var segments = wireResponse.AirSeatMaps
+                .SelectMany(m => m.SeatSegments)
+                .Select(seg => new SupplierSeatSegmentDto(
+                    seg.LegIndex,
+                    seg.SeatRow
+                        .Select(row => new SupplierSeatRowDto(row.SeatDetails.Select(MapSsrDetail).ToList()))
+                        .ToList()))
+                .ToList();
+
+            return new SupplierSeatMapResultDto(segments);
+        }
+
+        public async Task<SupplierTempBookingResultDto> CreateTempBookingAsync(
+            SupplierTempBookingRequestDto request, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirTempBookingRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                CustomerMobile = _options.CustomerMobile,
+                PassengerMobile = request.PassengerMobile,
+                PassengerEmail = request.PassengerEmail,
+                PaxDetails = request.Travelers
+                    .Select(t => new TempBookingPaxDetailWire
+                    {
+                        PaxId = t.PaxId,
+                        PaxType = t.PaxType,
+                        Title = t.Title,
+                        FirstName = t.FirstName,
+                        LastName = t.LastName,
+                        Gender = t.Gender,
+                        Dob = t.DateOfBirth?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture)
+                    })
+                    .ToList(),
+                Gst = request.Gst,
+                GstNumber = request.GstNumber,
+                GstHolderName = request.GstHolderName,
+                GstAddress = request.GstAddress,
+                BookingFlightDetails = request.Flights
+                    .Select(f => new BookingFlightDetailWire
+                    {
+                        SearchKey = f.SearchKey,
+                        FlightKey = f.FlightKey,
+                        BookingSsrDetails = f.SelectedSsrs
+                            .Select(s => new BookingSsrDetailWire { PaxId = s.PaxId, SsrKey = s.SsrKey })
+                            .ToList()
+                    })
+                    .ToList()
+            };
+
+            var wireResponse = await PostAsync<AirTempBookingRequestWire, AirTempBookingResponseWire>(
+                "Air_TempBooking", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_TempBooking");
+
+            if (string.IsNullOrEmpty(wireResponse.BookingRefNo))
+            {
+                throw new InvalidOperationException("Flyshop Air_TempBooking returned no booking reference.");
+            }
+
+            return new SupplierTempBookingResultDto(wireResponse.BookingRefNo);
+        }
+
+        public async Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
+            string bookingRefNo, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirTicketingRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                BookingRefNo = bookingRefNo,
+                TicketingType = "0"
+            };
+
+            var wireResponse = await PostAsync<AirTicketingRequestWire, AirTicketingResponseWire>(
+                "Air_Ticketing", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_Ticketing");
+
+            var legs = wireResponse.AirlinePnrDetails
+                .Select(d =>
+                {
+                    var legPnr = d.AirlinePnrs.FirstOrDefault();
+                    return new SupplierTicketingLegResultDto(
+                        d.FlightId ?? string.Empty,
+                        d.StatusId ?? string.Empty,
+                        legPnr?.AirlineCode,
+                        legPnr?.AirlinePnr,
+                        legPnr?.RecordLocator,
+                        d.FailureRemark);
+                })
+                .ToList();
+
+            var detail = wireResponse.AirlinePnrDetails.FirstOrDefault();
+            var pnr = detail?.AirlinePnrs.FirstOrDefault();
+
+            return new SupplierTicketingResultDto(
+                wireResponse.BookingRefNo ?? bookingRefNo,
+                detail?.StatusId ?? string.Empty,
+                pnr?.AirlineCode,
+                pnr?.AirlinePnr,
+                pnr?.RecordLocator,
+                detail?.FailureRemark,
+                legs);
+        }
+
+        public async Task<SupplierFareRuleResultDto> GetFareRulesAsync(
+            SupplierFareRuleRequestDto request, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirFareRuleRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                SearchKey = request.SearchKey,
+                FlightKey = request.FlightKey,
+                FareId = request.FareId
+            };
+
+            var wireResponse = await PostAsync<AirFareRuleRequestWire, AirFareRuleResponseWire>(
+                "Air_FareRule", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_FareRule");
+
+            var rules = wireResponse.FareRules
+                .Select(r => new SupplierFareRuleDto(
+                    r.SegmentId ?? string.Empty,
+                    r.FareRuleName ?? string.Empty,
+                    StripHtml(r.FareRuleDesc)))
+                .ToList();
+
+            return new SupplierFareRuleResultDto(rules);
+        }
+
+        // FareRuleDesc arrives as a full XHTML document (doctype, head, inline
+        // <style>, the lot) wrapping what's usually one short plain-text paragraph —
+        // strip markup down to readable text rather than pull in an HTML renderer
+        // for what the supplier's own sample shows is trivial boilerplate content.
+        private static string StripHtml(string? html)
+        {
+            if (string.IsNullOrWhiteSpace(html))
+            {
+                return string.Empty;
+            }
+
+            var withoutStyle = Regex.Replace(html, "<style[^>]*>.*?</style>", " ", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            var withoutTags = Regex.Replace(withoutStyle, "<[^>]+>", " ");
+            var decoded = System.Net.WebUtility.HtmlDecode(withoutTags);
+            return Regex.Replace(decoded, @"\s+", " ").Trim();
+        }
+
+        public async Task CancelBookingAsync(
+            SupplierCancellationRequestDto request, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirTicketCancellationRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                AirTicketCancelDetails = request.Segments
+                    .Select(s => new AirTicketCancelDetailWire
+                    {
+                        FlightId = s.FlightId,
+                        PassengerId = s.PassengerId,
+                        SegmentId = s.SegmentId
+                    })
+                    .ToList(),
+                AirlinePnr = request.AirlinePnr,
+                RefNo = request.RefNo,
+                CancelCode = request.CancelCode,
+                ReqRemarks = request.ReqRemarks,
+                CancellationType = request.CancellationType
+            };
+
+            // Endpoint name really is Air_TicketCancellation, not Air_Cancellation —
+            // confirmed from the collection's own sample URL, not just its sidebar label.
+            var wireResponse = await PostAsync<AirTicketCancellationRequestWire, AirTicketCancellationResponseWire>(
+                "Air_TicketCancellation", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_TicketCancellation");
+        }
+
+        public async Task ReleaseHoldAsync(
+            SupplierReleaseHoldRequestDto request, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirReleasePnrRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                BookingRefNo = request.BookingRefNo,
+                AirlinePnr = request.AirlinePnr
+            };
+
+            var wireResponse = await PostAsync<AirReleasePnrRequestWire, AirReleasePnrResponseWire>(
+                "Air_ReleasePNR", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_ReleasePNR");
+        }
+
+        private static SupplierAncillaryOptionDto MapSsrDetail(SsrDetailWire detail) => new(
+            detail.SsrType,
+            detail.SsrTypeName ?? string.Empty,
+            detail.SsrTypeDesc ?? string.Empty,
+            detail.SsrCode,
+            detail.SsrKey ?? string.Empty,
+            detail.SsrStatus,
+            detail.LegIndex,
+            detail.SegmentId,
+            detail.SegmentWise,
+            detail.TotalAmount,
+            detail.CurrencyCode ?? "INR",
+            detail.ApplicablePaxTypes);
 
         private static DateTime ParseDate(string? value) =>
             DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)

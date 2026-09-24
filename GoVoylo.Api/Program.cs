@@ -114,6 +114,7 @@ public class Program
         builder.Services.AddScoped<IUserRoleRepository, UserRoleRepository>();
         builder.Services.AddScoped<IAirportRepository, AirportRepository>();
         builder.Services.AddScoped<IRecentAirportSearchRepository, RecentAirportSearchRepository>();
+        builder.Services.AddScoped<ITripBookingRepository, TripBookingRepository>();
         builder.Services.AddSingleton<IAirportCacheService, AirportCacheService>();
         builder.Services.AddScoped<AirportImportService>();
         builder.Services.AddSingleton<AuditLogQueue>();

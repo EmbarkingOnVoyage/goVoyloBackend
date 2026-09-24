@@ -14,5 +14,36 @@ namespace GoVoylo.Application.Interfaces
 
         Task<SupplierLowFareResultDto> GetLowFareCalendarAsync(
             SupplierLowFareRequestDto request, CancellationToken cancellationToken);
+
+        Task<SupplierAncillaryResultDto> GetAncillariesAsync(
+            SupplierAncillaryRequestDto request, CancellationToken cancellationToken);
+
+        Task<SupplierSeatMapResultDto> GetSeatMapAsync(
+            SupplierSeatMapRequestDto request, CancellationToken cancellationToken);
+
+        Task<SupplierTempBookingResultDto> CreateTempBookingAsync(
+            SupplierTempBookingRequestDto request, CancellationToken cancellationToken);
+
+        // Deliberately Block_Ticket only (Ticketing_Type "0" — a reversible hold,
+        // cancellable via Air_ReleasePNR), never Book_Ticket ("1"). Book_Ticket
+        // requires an Add_Payment call first, which debits GoVoylo's real Flyshop
+        // agency wallet balance and produces an essentially final airline PNR —
+        // a materially bigger, real-money decision that hasn't been authorized.
+        // See FLIGHT_ANCILLARIES_SCOPE.MD in the repo root for the fuller writeup.
+        Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
+            string bookingRefNo, CancellationToken cancellationToken);
+
+        Task<SupplierFareRuleResultDto> GetFareRulesAsync(
+            SupplierFareRuleRequestDto request, CancellationToken cancellationToken);
+
+        Task CancelBookingAsync(
+            SupplierCancellationRequestDto request, CancellationToken cancellationToken);
+
+        // Releases a Block_Ticket hold that was never converted to a real ticket.
+        // See CancelBookingAsync's own doc comment / FLIGHT_ANCILLARIES_SCOPE.MD for
+        // why this is a separate operation from cancellation: Air_TicketCancellation
+        // rejects an un-ticketed hold outright (confirmed against live UAT).
+        Task ReleaseHoldAsync(
+            SupplierReleaseHoldRequestDto request, CancellationToken cancellationToken);
     }
 }

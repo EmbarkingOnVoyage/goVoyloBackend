@@ -102,6 +102,50 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             throw new NotSupportedException("Tripjack does not support a low-fare calendar.");
         }
 
+        public Task<SupplierAncillaryResultDto> GetAncillariesAsync(
+            SupplierAncillaryRequestDto request, CancellationToken cancellationToken)
+        {
+            // Tripjack is switched off in favor of Flyshop (see Program.cs) and its
+            // ancillary/SSR endpoints were never mapped for this client.
+            throw new NotSupportedException("Tripjack ancillary services are not implemented.");
+        }
+
+        public Task<SupplierSeatMapResultDto> GetSeatMapAsync(
+            SupplierSeatMapRequestDto request, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException("Tripjack seat map is not implemented.");
+        }
+
+        public Task<SupplierTempBookingResultDto> CreateTempBookingAsync(
+            SupplierTempBookingRequestDto request, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException("Tripjack booking is not implemented.");
+        }
+
+        public Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
+            string bookingRefNo, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException("Tripjack ticketing is not implemented.");
+        }
+
+        public Task CancelBookingAsync(
+            SupplierCancellationRequestDto request, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException("Tripjack cancellation is not implemented.");
+        }
+
+        public Task ReleaseHoldAsync(
+            SupplierReleaseHoldRequestDto request, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException("Tripjack hold release is not implemented.");
+        }
+
+        public Task<SupplierFareRuleResultDto> GetFareRulesAsync(
+            SupplierFareRuleRequestDto request, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException("Tripjack fare rules are not implemented.");
+        }
+
         private AuthHeaderWire BuildAuthHeader() => new()
         {
             UserId = _options.UserId,
