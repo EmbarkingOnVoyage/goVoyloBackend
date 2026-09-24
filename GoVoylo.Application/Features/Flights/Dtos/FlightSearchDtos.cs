@@ -122,4 +122,6 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     public record CancelBookingSegmentDto(string FlightId, string PassengerId, string SegmentId);
 
     public record CancelBookingResponseDto(bool Success);
+
+    public record ReleaseHoldResponseDto(bool Success);
 }

@@ -153,4 +153,6 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string CancelCode,
         string ReqRemarks,
         IReadOnlyList<SupplierCancelSegmentDto> Segments);
+
+    public record SupplierReleaseHoldRequestDto(string BookingRefNo, string AirlinePnr);
 }

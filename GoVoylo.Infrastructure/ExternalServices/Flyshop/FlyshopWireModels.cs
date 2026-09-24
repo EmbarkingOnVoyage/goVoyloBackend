@@ -856,4 +856,26 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
         [JsonPropertyName("Response_Header")]
         public ResponseHeaderWire? ResponseHeader { get; set; }
     }
+
+    // Releases a Block_Ticket hold (Ticketing_Type "0") that was never converted to a
+    // real ticket. Confirmed against live UAT: Air_TicketCancellation rejects an
+    // un-ticketed hold with Err007 "Please check your RefNo Status" — this is the real
+    // release path for holds specifically.
+    public class AirReleasePnrRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Booking_RefNo")]
+        public string BookingRefNo { get; set; } = string.Empty;
+
+        [JsonPropertyName("Airline_PNR")]
+        public string AirlinePnr { get; set; } = string.Empty;
+    }
+
+    public class AirReleasePnrResponseWire
+    {
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+    }
 }

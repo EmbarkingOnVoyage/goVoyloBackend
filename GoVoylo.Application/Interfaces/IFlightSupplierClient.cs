@@ -38,5 +38,12 @@ namespace GoVoylo.Application.Interfaces
 
         Task CancelBookingAsync(
             SupplierCancellationRequestDto request, CancellationToken cancellationToken);
+
+        // Releases a Block_Ticket hold that was never converted to a real ticket.
+        // See CancelBookingAsync's own doc comment / FLIGHT_ANCILLARIES_SCOPE.MD for
+        // why this is a separate operation from cancellation: Air_TicketCancellation
+        // rejects an un-ticketed hold outright (confirmed against live UAT).
+        Task ReleaseHoldAsync(
+            SupplierReleaseHoldRequestDto request, CancellationToken cancellationToken);
     }
 }

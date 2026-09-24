@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using GoVoylo.Application.Features.Flights.Commands.CancelBooking;
 using GoVoylo.Application.Features.Flights.Commands.CreateBooking;
+using GoVoylo.Application.Features.Flights.Commands.ReleaseHold;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Features.Flights.Queries.GetFareCalendar;
 using GoVoylo.Application.Features.Flights.Queries.GetFareRules;
@@ -101,6 +102,14 @@ namespace GoVoylo.Api.Controllers
         [Authorize]
         [HttpPost("bookings/cancel")]
         public async Task<IActionResult> CancelBooking([FromBody] CancelBookingCommand command)
+        {
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpPost("bookings/release")]
+        public async Task<IActionResult> ReleaseHold([FromBody] ReleaseHoldCommand command)
         {
             var result = await _mediator.Send(command);
             return Ok(result);

@@ -20,7 +20,8 @@ mock data with the real integration.
 - `POST /api/v1/flights/bookings` (authenticated) creates a Flyshop temp booking across
   every leg, with each leg's selected `SSR_Key`s attached via `BookingSSRDetails`, then
   immediately places a **Block_Ticket hold** (`Ticketing_Type: "0"`) — a reversible hold
-  cancellable via `Air_ReleasePNR` (not yet implemented), not a final purchase.
+  releasable via `Air_ReleasePNR` (`POST /api/v1/flights/bookings/release`, see below), not
+  a final purchase.
 - **Not implemented, deliberately**: `Add_Payment` and `Ticketing_Type: "1"` (Book_Ticket).
   `Air_Ticketing`'s docs reveal the real flow is TempBooking → `Add_Payment` (which debits
   GoVoylo's own Flyshop *agency wallet balance* — a real settlement charge, not a sandbox
@@ -80,13 +81,15 @@ unreachable for the entire body of work above). Real results, not mocked:
   correct `FlightId`/`PassengerId`/`SegmentId` (looked up via `Air_History`, since our own
   responses don't currently surface `Flight_Id`). This looks like a genuine business rule
   (cancellation only applies to already-ticketed bookings), not a bug in our request
-  shape — the request was accepted and processed, just rejected on business logic.
-  Releasing a Block_Ticket hold specifically likely needs `Air_ReleasePNR` (still not
-  implemented) rather than `Air_TicketCancellation`. Both test holds above will
-  self-expire per their own `BlockedExpiryDate` (a few hours after creation, confirmed via
-  `Air_History`) — no manual cleanup needed, but this is worth flagging for the
-  cancellation certification test cases, which may need an actually-ticketed booking to
-  exercise `Air_TicketCancellation` meaningfully rather than a hold.
+  shape — the request was accepted and processed, just rejected on business logic. This is
+  worth flagging for the cancellation certification test cases, which may need an
+  actually-ticketed booking to exercise `Air_TicketCancellation` meaningfully rather than
+  a hold.
+- **`Air_ReleasePNR` is now implemented** for releasing a Block_Ticket hold specifically —
+  authenticated `POST /api/v1/flights/bookings/release` (`BookingRefNo` + `Airline_PNR`).
+  Verified live: created a fresh hold, released it via this endpoint, confirmed success.
+  The two test holds from the paragraph above (`FLYB6ZOWY`/`RP5WNY` and
+  `FLYB6ZOWZ`/`BMQD9L`) were also released this way rather than left to self-expire.
 - `Booking_Type: 2` (SPECIALROUNDTRIP), tested for a 2-leg round trip: confirmed it
   returns a genuinely different response shape than `Booking_Type: 1` — one combined
   itinerary per result (a single `Flight` object whose `Segments` bundle both outbound

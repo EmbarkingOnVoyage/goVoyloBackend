@@ -367,6 +367,22 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             EnsureSuccess(wireResponse.ResponseHeader, "Air_TicketCancellation");
         }
 
+        public async Task ReleaseHoldAsync(
+            SupplierReleaseHoldRequestDto request, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirReleasePnrRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                BookingRefNo = request.BookingRefNo,
+                AirlinePnr = request.AirlinePnr
+            };
+
+            var wireResponse = await PostAsync<AirReleasePnrRequestWire, AirReleasePnrResponseWire>(
+                "Air_ReleasePNR", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_ReleasePNR");
+        }
+
         private static SupplierAncillaryOptionDto MapSsrDetail(SsrDetailWire detail) => new(
             detail.SsrType,
             detail.SsrTypeName ?? string.Empty,

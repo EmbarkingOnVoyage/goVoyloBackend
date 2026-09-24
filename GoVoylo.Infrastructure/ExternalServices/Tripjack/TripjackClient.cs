@@ -134,6 +134,12 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             throw new NotSupportedException("Tripjack cancellation is not implemented.");
         }
 
+        public Task ReleaseHoldAsync(
+            SupplierReleaseHoldRequestDto request, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException("Tripjack hold release is not implemented.");
+        }
+
         public Task<SupplierFareRuleResultDto> GetFareRulesAsync(
             SupplierFareRuleRequestDto request, CancellationToken cancellationToken)
         {
