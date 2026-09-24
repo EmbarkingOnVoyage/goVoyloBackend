@@ -53,10 +53,35 @@ mock data with the real integration.
 - `FlightOfferSession` (created at search time, see `SearchFlightsQueryHandler`) stores
   the real Flyshop `FlightKey` + `FareId` server-side, keyed by `offerId`.
 
+- `Air_TicketCancellation` (the collection's sidebar shorthand calls it "Air_Cancellation")
+  is implemented, exposed as authenticated `POST /api/v1/flights/bookings/cancel`.
+  Supports `CancellationType` 0-Normal Cancel/1-Full Refund/2-No Show with per-segment
+  `FlightId`/`PassengerId`/`SegmentId`, so a single leg of a multi-leg booking can be
+  cancelled independently (e.g. Flyshop's own certification scenario "cancel return trip
+  only"). Needed for Flyshop's API certification test matrix — see
+  `01_Test Cases_For_APITesting.xls` provided by Flyshop.
+
 **None of this has been verified against a live Flyshop response** — `uat.flyshop.in`
 has been unreachable (connection timeout) for this entire body of work. Everything above
 is verified structurally (builds clean, auth/validation/session-lookup tested against the
 local backend directly) but not against a real successful Flyshop response.
+
+## Flyshop certification test matrix — coverage gaps
+
+Flyshop's own test sheet (`01_Test Cases_For_APITesting.xls`) lists 5 booking scenarios
+and 4 cancellation scenarios that need to pass for certification. Cancellation is now
+implemented (above). Booking-side gaps not yet addressed:
+- **GST details** (test case 5, "2ADT/1CHD/1INF With GST Details") — `Air_TempBooking`
+  supports `GST`/`GST_Number`/`GST_HolderName`/`GST_Address`, but
+  `CreateBookingCommandHandler`/`CreateTempBookingAsync` currently hardcode `Gst: false`
+  and never accept GST fields from the caller.
+- **Special Fare** (test case 3, "Roundtrip Special Fare 1ADT/1CHD/1INF, connecting
+  flight") — the mobile app's Special Fare UI is already known to be disconnected from
+  the search request (see the separate Special Fare investigation earlier this
+  engagement); the booking flow itself has no special-fare-specific handling either.
+- Test cases 1, 2, 4 (plain Oneway/Roundtrip, SEAT & SSR, connecting flights) should
+  already be coverable by what's built (`CreateBooking` + ancillary/seat selection), but
+  haven't been run against real Flyshop data.
 
 ## Flyshop APIs to integrate
 
