@@ -28,11 +28,19 @@ mock data with the real integration.
   a materially bigger, real-money decision that was explicitly deferred pending separate
   authorization. Right now `POST /bookings` produces a hold only; nothing pays Flyshop and
   no final ticket is issued.
-- **Still not wired up**: nothing in the mobile app's "Pay Now" flow calls
-  `POST /api/v1/flights/bookings` yet. The endpoint exists and is authenticated/validated
-  but is not part of the customer-facing payment flow — deciding *when* to call it
-  relative to the Razorpay payment (before/after/on failure handling) is its own product
-  decision, not yet made.
+- **Now wired up**: `TravelerDetailsScreen.handlePayNow` calls `POST /api/v1/flights/bookings`
+  *before* the Razorpay create-order/checkout/verify flow — the flight is held with the
+  supplier first, and the customer is only charged if that hold succeeds. On a hold
+  failure, a clear error is shown and Razorpay never opens (verified live against a
+  mock/expired offer). Selected baggage/seat/meal `SSR_Key`s are surfaced up from
+  `WhatsIncludedSection` via a new `onSelectionsChange` callback and attached per
+  traveller/leg. The trip's contact `PassengerMobile`/`PassengerEmail` come from the
+  logged-in user's own profile (`useCustomerProfileMobile`), since saved travellers carry
+  no contact info of their own — if the profile is missing either, Pay Now blocks with an
+  error asking the user to complete their profile first, rather than sending an
+  incomplete request. The success banner shows the booking reference and airline PNR
+  when present. **Not yet verified**: an actual successful hold end-to-end, since that
+  needs Flyshop reachable.
 - When a Block_Ticket hold succeeds, `CreateBookingCommandHandler` emails the caller's
   *registered account email* (looked up via `ICurrentUserService`/`IUserRepository`, not
   `PassengerEmail`) the booking reference, airline PNR, and record locator, via a new
