@@ -33,6 +33,12 @@ mock data with the real integration.
   but is not part of the customer-facing payment flow — deciding *when* to call it
   relative to the Razorpay payment (before/after/on failure handling) is its own product
   decision, not yet made.
+- When a Block_Ticket hold succeeds, `CreateBookingCommandHandler` emails the caller's
+  *registered account email* (looked up via `ICurrentUserService`/`IUserRepository`, not
+  `PassengerEmail`) the booking reference, airline PNR, and record locator, via a new
+  `IEmailService.SendBookingConfirmationAsync`. Best-effort — a failed send never turns a
+  successful hold into an error response. Not yet verified against a real send (needs a
+  real Flyshop hold to trigger it, which needs Flyshop reachable).
 - The `FlightBooking` domain entity is still an unused stub (no PNR/ticketing/SSR
   fields) — booking results from `POST /bookings` are returned to the caller but not
   yet persisted anywhere.
