@@ -812,4 +812,48 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
         [JsonPropertyName("FareRules")]
         public List<FareRuleWire> FareRules { get; set; } = new();
     }
+
+    public class AirTicketCancelDetailWire
+    {
+        [JsonPropertyName("FlightId")]
+        public string FlightId { get; set; } = string.Empty;
+
+        [JsonPropertyName("PassengerId")]
+        public string PassengerId { get; set; } = string.Empty;
+
+        [JsonPropertyName("SegmentId")]
+        public string SegmentId { get; set; } = string.Empty;
+    }
+
+    // Real endpoint name is Air_TicketCancellation (the "10 - Air_Cancellation"
+    // sidebar entry is just the collection's shorthand label for it).
+    public class AirTicketCancellationRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("AirTicketCancelDetails")]
+        public List<AirTicketCancelDetailWire> AirTicketCancelDetails { get; set; } = new();
+
+        [JsonPropertyName("Airline_PNR")]
+        public string AirlinePnr { get; set; } = string.Empty;
+
+        [JsonPropertyName("RefNo")]
+        public string RefNo { get; set; } = string.Empty;
+
+        [JsonPropertyName("CancelCode")]
+        public string CancelCode { get; set; } = string.Empty;
+
+        [JsonPropertyName("ReqRemarks")]
+        public string ReqRemarks { get; set; } = string.Empty;
+
+        [JsonPropertyName("CancellationType")]
+        public int CancellationType { get; set; }
+    }
+
+    public class AirTicketCancellationResponseWire
+    {
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+    }
 }

@@ -35,5 +35,8 @@ namespace GoVoylo.Application.Interfaces
 
         Task<SupplierFareRuleResultDto> GetFareRulesAsync(
             SupplierFareRuleRequestDto request, CancellationToken cancellationToken);
+
+        Task CancelBookingAsync(
+            SupplierCancellationRequestDto request, CancellationToken cancellationToken);
     }
 }

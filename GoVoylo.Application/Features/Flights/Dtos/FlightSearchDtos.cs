@@ -112,4 +112,8 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     public record LegFareRulesDto(Guid OfferId, IReadOnlyList<FareRuleDto> Rules);
 
     public record FareRulesResponseDto(IReadOnlyList<LegFareRulesDto> Legs);
+
+    public record CancelBookingSegmentDto(string FlightId, string PassengerId, string SegmentId);
+
+    public record CancelBookingResponseDto(bool Success);
 }

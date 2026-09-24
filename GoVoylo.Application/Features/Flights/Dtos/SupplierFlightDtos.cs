@@ -133,4 +133,20 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     public record SupplierFareRuleDto(string SegmentId, string FareRuleName, string FareRuleDesc);
 
     public record SupplierFareRuleResultDto(IReadOnlyList<SupplierFareRuleDto> Rules);
+
+    public record SupplierCancelSegmentDto(string FlightId, string PassengerId, string SegmentId);
+
+    // CancellationType: 0-Normal Cancel (online, auto-cancelled with the airline's
+    // applicable penalty) / 1-Full Refund (offline, only if a full refund applies) /
+    // 2-No Show (offline). CancelCode is one of a fixed set of reason codes specific
+    // to each CancellationType — see Air_TicketCancellation's own docs for the table;
+    // not re-validated here since a wrong combination is something Flyshop's own API
+    // already rejects.
+    public record SupplierCancellationRequestDto(
+        string RefNo,
+        string AirlinePnr,
+        int CancellationType,
+        string CancelCode,
+        string ReqRemarks,
+        IReadOnlyList<SupplierCancelSegmentDto> Segments);
 }

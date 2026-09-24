@@ -335,6 +335,35 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             return Regex.Replace(decoded, @"\s+", " ").Trim();
         }
 
+        public async Task CancelBookingAsync(
+            SupplierCancellationRequestDto request, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirTicketCancellationRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                AirTicketCancelDetails = request.Segments
+                    .Select(s => new AirTicketCancelDetailWire
+                    {
+                        FlightId = s.FlightId,
+                        PassengerId = s.PassengerId,
+                        SegmentId = s.SegmentId
+                    })
+                    .ToList(),
+                AirlinePnr = request.AirlinePnr,
+                RefNo = request.RefNo,
+                CancelCode = request.CancelCode,
+                ReqRemarks = request.ReqRemarks,
+                CancellationType = request.CancellationType
+            };
+
+            // Endpoint name really is Air_TicketCancellation, not Air_Cancellation —
+            // confirmed from the collection's own sample URL, not just its sidebar label.
+            var wireResponse = await PostAsync<AirTicketCancellationRequestWire, AirTicketCancellationResponseWire>(
+                "Air_TicketCancellation", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_TicketCancellation");
+        }
+
         private static SupplierAncillaryOptionDto MapSsrDetail(SsrDetailWire detail) => new(
             detail.SsrType,
             detail.SsrTypeName ?? string.Empty,
