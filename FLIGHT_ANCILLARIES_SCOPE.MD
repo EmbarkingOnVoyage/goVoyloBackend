@@ -96,25 +96,86 @@ unreachable for the entire body of work above). Real results, not mocked:
   and return together) instead of two separate `TripDetails` per leg. Confirms this is
   real, separately-scoped work, not a simple flag flip — see the Special Fare gap below.
 
-## Flyshop certification test matrix — coverage gaps
+## Flyshop certification test matrix — results (run live on 2026-09-24/25)
 
 Flyshop's own test sheet (`01_Test Cases_For_APITesting.xls`) lists 5 booking scenarios
-and 4 cancellation scenarios that need to pass for certification. Cancellation is now
-implemented (above). Status of the booking-side scenarios:
-- **GST details** (test case 5, "2ADT/1CHD/1INF With GST Details") — DONE. `CreateBooking`
-  request/command now accept optional `GstNumber`/`GstHolderName`/`GstAddress`, threaded
-  through to `Air_TempBooking`'s `GST`/`GST_Number`/`GST_HolderName`/`GST_Address` fields.
-  Validator requires holder name + address once a GST number is supplied. Verified locally
-  (clean build, validation and pipeline-passthrough checked via direct curl); not yet run
-  against a real successful Flyshop response.
-- **Special Fare** (test case 3, "Roundtrip Special Fare 1ADT/1CHD/1INF, connecting
-  flight") — still open, deliberately out of scope for now. The mobile app's Special Fare
-  UI is already known to be disconnected from the search request (see the separate Special
-  Fare investigation earlier this engagement); the booking flow itself has no
-  special-fare-specific handling either. Not started pending a separate scoping decision.
-- Test cases 1, 2, 4 (plain Oneway/Roundtrip, SEAT & SSR, connecting flights) should
-  already be coverable by what's built (`CreateBooking` + ancillary/seat selection), but
-  haven't been run against real Flyshop data.
+and 4 cancellation scenarios. All bookings below were created as **Block_Ticket holds**
+(`Ticketing_Type: 0`) against live `uat.flyshop.in`, then released via `Air_ReleasePNR`
+once confirmed — no real purchase (`Book_Ticket`/`Add_Payment`) was made for any of them.
+
+### Booking scenarios
+
+| # | Scenario | Result | Evidence |
+|---|---|---|---|
+| 1 | Oneway, 1 ADT, direct flight | **PASS** | `FLYB6ZOXC` / `IZ8YSD` |
+| 2 | Roundtrip, 2 ADT/2 CHD, with SEAT & SSR | **PARTIAL** — see below | `FLYB6ZOXS` / `CP226F` (SSR only) |
+| 3 | Roundtrip Special Fare, 1 ADT/1 CHD/1 INF, connecting flight | **NOT STARTED** — separate scope, see below | — |
+| 4 | Oneway, 2 ADT/1 CHD, SSR for one adult + the child | **PASS** | `FLYB6ZOXQ` / `RSSQ8Z` |
+| 5 | Oneway, 2 ADT/1 CHD/1 INF, with GST details | **PASS** | `FLYB6ZOXR` / `AT5S2G` |
+
+**Test case 2 detail — a real bug found and fixed, plus one still-open Flyshop-side issue:**
+- The underlying roundtrip + 4-passenger (2 adults, 2 children) booking mechanics work
+  correctly on their own (`FLYB6ZOXF` / `Q33IPK`, no SSR).
+- Adding a **meal** SSR to that same booking also works correctly (`FLYB6ZOXS` /
+  `CP226F` — the PASS result recorded above).
+- Adding a **seat** SSR consistently fails — `Air_TempBooking` succeeds (accepts the
+  seat `SSR_Key` fine), but `Air_Ticketing` then fails at the airline host itself:
+  `"0009: Your ticket request failed with the airline... (Err002: This transaction is
+  already Rejected/Deleted, Please check in transaction track)"`. Reproduced 3 times,
+  including with a single adult and no other complexity (simplest possible case), so
+  this isn't about passenger count or roundtrip specifically — it's specific to seat
+  assignment.
+  - Along the way, found and fixed a real bug: `CreateBookingCommandHandler` was
+    re-repricing a leg immediately before `Air_TempBooking` even when
+    `Air_GetSeatMap`/`Air_GetSSR` had already repriced it to obtain the SSR key,
+    handing `Air_TempBooking` a different `Flight_Key` than the one the key was
+    issued against. Fixed: a leg with SSR selections now reuses the session's
+    current `Flight_Key`/`Fare_Id` instead of repricing again.
+  - That fix did **not** resolve the seat-ticketing failure — it's reproducible
+    identically before and after. This looks like a Flyshop UAT-side limitation
+    specific to seat assignment during Block_Ticket, not a defect in our request
+    shape (structurally accepted at every step up to the airline itself). **Needs
+    Flyshop's input** — worth sending them the reproduction above (or a fresh one)
+    directly, since it's not something fixable from our side without knowing what
+    their sandbox expects differently for seats specifically.
+
+**Test case 3 (Special Fare)** — deliberately not attempted. Confirmed earlier this
+engagement that `Booking_Type: 2` (SPECIALROUNDTRIP) returns a genuinely different
+response shape (one combined itinerary bundling both directions into a single `Flight`
+object) than the per-leg model the rest of this integration is built around — real,
+separately-scoped work, not a simple flag flip. Not started pending a scoping decision.
+
+**GST + infant DOB fix**: test case 5 initially had no way to supply a traveler's date
+of birth at all. `Air_Reprice`'s own `Required_PAX_Details` marks `DOB` mandatory for
+infants — added `DateOfBirth` end-to-end (`BookingTravelerRequestDto` →
+`CreateBookingCommand` → `Air_TempBooking`'s `PAX_Details.DOB`) and confirmed the fix
+live with a real infant traveler.
+
+### Cancellation scenarios — blocked, need a real ticketed booking
+
+| # | Scenario | Status |
+|---|---|---|
+| 1 | Oneway, 1 ADT, CancellationType 0 (Normal Cancel) | **BLOCKED** |
+| 2 | Oneway, 1 ADT, CancellationType 1 (Full Refund) | **BLOCKED** |
+| 3 | Oneway, 1 ADT, CancellationType 2 (No Show) | **BLOCKED** |
+| 4 | Roundtrip, 1 ADT, cancel return leg only, CancellationType 0 | **BLOCKED** |
+
+All four need `Air_TicketCancellation` to run against a genuinely **ticketed** booking
+(`Status_Id 11`) — confirmed live earlier that it rejects an un-ticketed Block_Ticket
+hold outright (`Err007: "Please check your RefNo Status"`). A ticketed booking only
+exists after `Air_Ticketing` with `Ticketing_Type: 1` (Book_Ticket), which requires
+`Add_Payment` first — a real debit against GoVoylo's Flyshop wallet balance and an
+essentially final airline PNR. That authorization hasn't been given, so these four
+remain unexecuted. The code path itself is implemented and ready
+(`POST /api/v1/flights/bookings/cancel` already supports arbitrary `CancellationType`
+and per-segment targeting, which is exactly what test case 4 needs for "return leg
+only") — it just has nothing valid to run against yet.
+
+Two ways to unblock, either is fine:
+1. Ask Flyshop whether they can supply pre-ticketed sandbox PNRs for certification,
+   so cancellation can be exercised without a real purchase.
+2. Explicitly authorize one real `Book_Ticket` + `Add_Payment` purely to produce a
+   ticketed booking to cancel.
 
 ## Flyshop APIs to integrate
 
