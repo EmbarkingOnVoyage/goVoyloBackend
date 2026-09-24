@@ -100,4 +100,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string? AirlinePnr,
         string? RecordLocator,
         string? FailureRemark);
+
+    public record FareRuleDto(string SegmentId, string FareRuleName, string FareRuleDesc);
+
+    public record LegFareRulesDto(Guid OfferId, IReadOnlyList<FareRuleDto> Rules);
+
+    public record FareRulesResponseDto(IReadOnlyList<LegFareRulesDto> Legs);
 }

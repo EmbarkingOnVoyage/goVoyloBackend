@@ -32,5 +32,8 @@ namespace GoVoylo.Application.Interfaces
         // See FLIGHT_ANCILLARIES_SCOPE.MD in the repo root for the fuller writeup.
         Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
             string bookingRefNo, CancellationToken cancellationToken);
+
+        Task<SupplierFareRuleResultDto> GetFareRulesAsync(
+            SupplierFareRuleRequestDto request, CancellationToken cancellationToken);
     }
 }

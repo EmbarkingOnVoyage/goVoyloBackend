@@ -2,6 +2,7 @@ using System.Security.Claims;
 using GoVoylo.Application.Features.Flights.Commands.CreateBooking;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Features.Flights.Queries.GetFareCalendar;
+using GoVoylo.Application.Features.Flights.Queries.GetFareRules;
 using GoVoylo.Application.Features.Flights.Queries.GetFlightAncillaries;
 using GoVoylo.Application.Features.Flights.Queries.GetSeatMap;
 using GoVoylo.Application.Features.Flights.Queries.RepriceFlightOffer;
@@ -66,6 +67,13 @@ namespace GoVoylo.Api.Controllers
             Guid offerId, [FromBody] IReadOnlyList<SeatMapTravelerRequestDto> travelers)
         {
             var result = await _mediator.Send(new GetSeatMapQuery(offerId, travelers));
+            return Ok(result);
+        }
+
+        [HttpPost("fare-rules")]
+        public async Task<IActionResult> GetFareRules([FromBody] IReadOnlyList<Guid> offerIds)
+        {
+            var result = await _mediator.Send(new GetFareRulesQuery(offerIds));
             return Ok(result);
         }
 

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Common;
@@ -289,6 +290,49 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 pnr?.AirlinePnr,
                 pnr?.RecordLocator,
                 detail?.FailureRemark);
+        }
+
+        public async Task<SupplierFareRuleResultDto> GetFareRulesAsync(
+            SupplierFareRuleRequestDto request, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AirFareRuleRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                SearchKey = request.SearchKey,
+                FlightKey = request.FlightKey,
+                FareId = request.FareId
+            };
+
+            var wireResponse = await PostAsync<AirFareRuleRequestWire, AirFareRuleResponseWire>(
+                "Air_FareRule", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "Air_FareRule");
+
+            var rules = wireResponse.FareRules
+                .Select(r => new SupplierFareRuleDto(
+                    r.SegmentId ?? string.Empty,
+                    r.FareRuleName ?? string.Empty,
+                    StripHtml(r.FareRuleDesc)))
+                .ToList();
+
+            return new SupplierFareRuleResultDto(rules);
+        }
+
+        // FareRuleDesc arrives as a full XHTML document (doctype, head, inline
+        // <style>, the lot) wrapping what's usually one short plain-text paragraph —
+        // strip markup down to readable text rather than pull in an HTML renderer
+        // for what the supplier's own sample shows is trivial boilerplate content.
+        private static string StripHtml(string? html)
+        {
+            if (string.IsNullOrWhiteSpace(html))
+            {
+                return string.Empty;
+            }
+
+            var withoutStyle = Regex.Replace(html, "<style[^>]*>.*?</style>", " ", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            var withoutTags = Regex.Replace(withoutStyle, "<[^>]+>", " ");
+            var decoded = System.Net.WebUtility.HtmlDecode(withoutTags);
+            return Regex.Replace(decoded, @"\s+", " ").Trim();
         }
 
         private static SupplierAncillaryOptionDto MapSsrDetail(SsrDetailWire detail) => new(

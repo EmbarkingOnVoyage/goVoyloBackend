@@ -773,4 +773,43 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
         [JsonPropertyName("AirlinePNRDetails")]
         public List<AirlinePnrDetailWire> AirlinePnrDetails { get; set; } = new();
     }
+
+    public class AirFareRuleRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Search_Key")]
+        public string SearchKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("Flight_Key")]
+        public string FlightKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("Fare_Id")]
+        public string FareId { get; set; } = string.Empty;
+    }
+
+    // FareRuleDesc is a full XHTML document string, not structured data — the
+    // collection's own sample response confirms this (a whole <html><head>...
+    // <style>...</style></head><body>... blob for a single sentence of real text).
+    public class FareRuleWire
+    {
+        [JsonPropertyName("Segment_Id")]
+        public string? SegmentId { get; set; }
+
+        [JsonPropertyName("FareRuleName")]
+        public string? FareRuleName { get; set; }
+
+        [JsonPropertyName("FareRuleDesc")]
+        public string? FareRuleDesc { get; set; }
+    }
+
+    public class AirFareRuleResponseWire
+    {
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+
+        [JsonPropertyName("FareRules")]
+        public List<FareRuleWire> FareRules { get; set; } = new();
+    }
 }

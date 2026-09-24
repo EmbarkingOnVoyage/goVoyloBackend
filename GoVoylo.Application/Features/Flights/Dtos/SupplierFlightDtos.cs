@@ -125,4 +125,12 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string? AirlinePnr,
         string? RecordLocator,
         string? FailureRemark);
+
+    public record SupplierFareRuleRequestDto(string SearchKey, string FlightKey, string FareId);
+
+    // Plain text, HTML already stripped — Flyshop returns FareRuleDesc as a full
+    // XHTML document (often just one boilerplate paragraph), not structured data.
+    public record SupplierFareRuleDto(string SegmentId, string FareRuleName, string FareRuleDesc);
+
+    public record SupplierFareRuleResultDto(IReadOnlyList<SupplierFareRuleDto> Rules);
 }

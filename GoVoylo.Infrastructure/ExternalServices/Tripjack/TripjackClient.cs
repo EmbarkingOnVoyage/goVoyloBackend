@@ -128,6 +128,12 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             throw new NotSupportedException("Tripjack ticketing is not implemented.");
         }
 
+        public Task<SupplierFareRuleResultDto> GetFareRulesAsync(
+            SupplierFareRuleRequestDto request, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException("Tripjack fare rules are not implemented.");
+        }
+
         private AuthHeaderWire BuildAuthHeader() => new()
         {
             UserId = _options.UserId,
