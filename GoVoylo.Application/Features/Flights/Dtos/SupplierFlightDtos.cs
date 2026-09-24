@@ -113,7 +113,11 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string PassengerMobile,
         string PassengerEmail,
         IReadOnlyList<SupplierTempBookingPaxDto> Travelers,
-        IReadOnlyList<SupplierBookingFlightDto> Flights);
+        IReadOnlyList<SupplierBookingFlightDto> Flights,
+        bool Gst = false,
+        string GstNumber = "",
+        string GstHolderName = "",
+        string GstAddress = "");
 
     public record SupplierTempBookingResultDto(string BookingRefNo);
 

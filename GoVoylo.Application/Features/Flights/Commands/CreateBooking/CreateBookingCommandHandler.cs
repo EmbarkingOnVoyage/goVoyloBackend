@@ -73,9 +73,18 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                     t.PaxId, MapPaxType(t.PaxType), t.Title, t.FirstName, t.LastName, MapGender(t.Gender)))
                 .ToList();
 
+            var hasGst = !string.IsNullOrWhiteSpace(request.GstNumber);
+
             var tempBooking = await _supplierClient.CreateTempBookingAsync(
                 new SupplierTempBookingRequestDto(
-                    request.PassengerMobile, request.PassengerEmail, travelers, bookingFlights),
+                    request.PassengerMobile,
+                    request.PassengerEmail,
+                    travelers,
+                    bookingFlights,
+                    Gst: hasGst,
+                    GstNumber: request.GstNumber ?? string.Empty,
+                    GstHolderName: request.GstHolderName ?? string.Empty,
+                    GstAddress: request.GstAddress ?? string.Empty),
                 cancellationToken);
 
             var ticket = await _supplierClient.CreateBlockTicketAsync(tempBooking.BookingRefNo, cancellationToken);

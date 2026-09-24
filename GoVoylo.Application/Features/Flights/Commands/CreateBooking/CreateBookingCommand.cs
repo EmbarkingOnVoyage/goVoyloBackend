@@ -13,5 +13,8 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
         IReadOnlyList<BookingLegRequestDto> Legs,
         IReadOnlyList<BookingTravelerRequestDto> Travelers,
         string PassengerMobile,
-        string PassengerEmail) : IRequest<CreateBookingResponseDto>;
+        string PassengerEmail,
+        string? GstNumber = null,
+        string? GstHolderName = null,
+        string? GstAddress = null) : IRequest<CreateBookingResponseDto>;
 }

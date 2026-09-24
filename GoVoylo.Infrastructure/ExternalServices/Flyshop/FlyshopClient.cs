@@ -239,7 +239,10 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                         Gender = t.Gender
                     })
                     .ToList(),
-                Gst = false,
+                Gst = request.Gst,
+                GstNumber = request.GstNumber,
+                GstHolderName = request.GstHolderName,
+                GstAddress = request.GstAddress,
                 BookingFlightDetails = request.Flights
                     .Select(f => new BookingFlightDetailWire
                     {

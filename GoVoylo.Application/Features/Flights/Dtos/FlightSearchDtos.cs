@@ -92,11 +92,17 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     public record BookingTravelerRequestDto(
         int PaxId, string Title, string FirstName, string LastName, string Gender, string PaxType);
 
+    // GST fields are optional — omit all three for a booking with no GST invoice.
+    // Air_TempBooking's own GST flag is derived from whether GstNumber is present,
+    // not passed separately, so there's no way to send an inconsistent combination.
     public record CreateBookingRequestDto(
         IReadOnlyList<BookingLegRequestDto> Legs,
         IReadOnlyList<BookingTravelerRequestDto> Travelers,
         string PassengerMobile,
-        string PassengerEmail);
+        string PassengerEmail,
+        string? GstNumber = null,
+        string? GstHolderName = null,
+        string? GstAddress = null);
 
     public record CreateBookingResponseDto(
         string BookingRefNo,

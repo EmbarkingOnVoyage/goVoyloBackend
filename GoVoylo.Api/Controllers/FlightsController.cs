@@ -86,7 +86,14 @@ namespace GoVoylo.Api.Controllers
         public async Task<IActionResult> CreateBooking([FromBody] CreateBookingRequestDto request)
         {
             var command = new CreateBookingCommand(
-                _currentUser.UserId, request.Legs, request.Travelers, request.PassengerMobile, request.PassengerEmail);
+                _currentUser.UserId,
+                request.Legs,
+                request.Travelers,
+                request.PassengerMobile,
+                request.PassengerEmail,
+                request.GstNumber,
+                request.GstHolderName,
+                request.GstAddress);
             var result = await _mediator.Send(command);
             return Ok(result);
         }
