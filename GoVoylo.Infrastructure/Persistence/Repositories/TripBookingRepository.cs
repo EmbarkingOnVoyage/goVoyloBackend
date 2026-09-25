@@ -40,6 +40,25 @@ namespace GoVoylo.Infrastructure.Persistence.Repositories
             return booking;
         }
 
+        public async Task<TripBooking?> GetByBookingRefNoAsync(string bookingRefNo, CancellationToken cancellationToken)
+        {
+            var booking = await _context.TripBookings
+                .FirstOrDefaultAsync(x => x.BookingRefNo == bookingRefNo, cancellationToken);
+
+            if (booking == null)
+            {
+                return null;
+            }
+
+            var legs = await _context.TripBookingLegs
+                .Where(x => x.TripBookingId == booking.Id)
+                .OrderBy(x => x.LegIndex)
+                .ToListAsync(cancellationToken);
+
+            booking.LoadLegs(legs);
+            return booking;
+        }
+
         public async Task<IReadOnlyList<TripBooking>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken)
         {
             var bookings = await _context.TripBookings

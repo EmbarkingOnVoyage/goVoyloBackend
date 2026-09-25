@@ -193,4 +193,9 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         IReadOnlyList<SupplierCancelSegmentDto> Segments);
 
     public record SupplierReleaseHoldRequestDto(string BookingRefNo, string AirlinePnr);
+
+    // Result of AddPayment — debiting GoVoylo's Flyshop agency wallet against a held
+    // booking. StatusId here is AddPayment's own Response_Header.Status_Id (Flyshop
+    // reuses the same 11-Success/22-Failed convention as Air_Ticketing).
+    public record SupplierPaymentResultDto(decimal Amount, string? PaymentId, string StatusId);
 }

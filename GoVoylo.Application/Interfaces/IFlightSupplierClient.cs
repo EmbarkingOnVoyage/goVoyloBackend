@@ -24,13 +24,25 @@ namespace GoVoylo.Application.Interfaces
         Task<SupplierTempBookingResultDto> CreateTempBookingAsync(
             SupplierTempBookingRequestDto request, CancellationToken cancellationToken);
 
-        // Deliberately Block_Ticket only (Ticketing_Type "0" — a reversible hold,
-        // cancellable via Air_ReleasePNR), never Book_Ticket ("1"). Book_Ticket
-        // requires an Add_Payment call first, which debits GoVoylo's real Flyshop
-        // agency wallet balance and produces an essentially final airline PNR —
-        // a materially bigger, real-money decision that hasn't been authorized.
-        // See FLIGHT_ANCILLARIES_SCOPE.MD in the repo root for the fuller writeup.
+        // Places a reversible Block_Ticket hold (Ticketing_Type "0"), cancellable via
+        // Air_ReleasePNR — not a final purchase. See FLIGHT_ANCILLARIES_SCOPE.MD for
+        // the fuller writeup of the hold → pay → ticket flow.
         Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
+            string bookingRefNo, CancellationToken cancellationToken);
+
+        // Debits GoVoylo's real Flyshop agency wallet balance against an existing
+        // Block_Ticket hold's Booking_RefNo — a real settlement charge, not a sandbox
+        // echo. Must succeed before BookTicketAsync will; see AddPaymentRequestWire's
+        // own doc comment for the wire contract (sourced from Flyshop's "Client 2.6
+        // Air" Postman collection, AddPayment endpoint).
+        Task<SupplierPaymentResultDto> AddPaymentAsync(
+            string bookingRefNo, string clientRefNo, CancellationToken cancellationToken);
+
+        // Converts an already-paid-for Block_Ticket hold into a real, essentially
+        // final airline PNR (Ticketing_Type "1"). Only call this after AddPaymentAsync
+        // has succeeded for the same bookingRefNo — Flyshop's own Air_Ticketing
+        // rejects Book_Ticket against a hold with no registered payment.
+        Task<SupplierTicketingResultDto> BookTicketAsync(
             string bookingRefNo, CancellationToken cancellationToken);
 
         Task<SupplierFareRuleResultDto> GetFareRulesAsync(

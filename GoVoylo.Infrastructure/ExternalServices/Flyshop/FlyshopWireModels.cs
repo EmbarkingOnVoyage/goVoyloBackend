@@ -878,4 +878,45 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
         [JsonPropertyName("Response_Header")]
         public ResponseHeaderWire? ResponseHeader { get; set; }
     }
+
+    // AddPayment lives on a different Flyshop service entirely (tradehost/
+    // TradeAPIService.svc, not airlinehost/AirAPIService.svc like every other call
+    // here) — confirmed from the "Client 2.6 Air" collection's own AddPayment sample
+    // URL. Debits GoVoylo's real Flyshop agency wallet balance against RefNo (the
+    // Booking_RefNo from Air_TempBooking); Air_Ticketing with Ticketing_Type "1" only
+    // succeeds once this has been called. ProductId is documented as Int but the
+    // collection's own real example sends it as the string "1" — matching the sample
+    // rather than the type table, same as this file already does elsewhere.
+    public class AddPaymentRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("RefNo")]
+        public string RefNo { get; set; } = string.Empty;
+
+        [JsonPropertyName("ProductId")]
+        public string ProductId { get; set; } = "1";
+
+        // 0-BOOKING/1-SSR/2-Reschedule Online, per the collection's own docs. Always
+        // 0 here — this call only ever pays for the initial booking, never an SSR
+        // add-on purchased after the fact.
+        [JsonPropertyName("TransactionType")]
+        public int TransactionType { get; set; } = 0;
+
+        [JsonPropertyName("ClientRefNo")]
+        public string ClientRefNo { get; set; } = string.Empty;
+    }
+
+    public class AddPaymentResponseWire
+    {
+        [JsonPropertyName("Amount")]
+        public decimal Amount { get; set; }
+
+        [JsonPropertyName("PaymentID")]
+        public string? PaymentId { get; set; }
+
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+    }
 }

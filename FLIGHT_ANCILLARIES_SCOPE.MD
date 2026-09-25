@@ -16,19 +16,37 @@ mock data with the real integration.
   The "included" baggage cards (carry-on/checked-bag weight) read the real
   `FareOption.checkInBaggage`/`handBaggage` values.
 - `FlyshopClient` implements `Air_Search`, `Air_Reprice`, `Air_GetSSR`, `Air_GetSeatMap`,
-  `Air_TempBooking`, and `Air_Ticketing` (Block_Ticket only — see below).
+  `Air_TempBooking`, `Air_Ticketing` (both Block_Ticket and Book_Ticket — see below), and
+  `AddPayment`.
 - `POST /api/v1/flights/bookings` (authenticated) creates a Flyshop temp booking across
   every leg, with each leg's selected `SSR_Key`s attached via `BookingSSRDetails`, then
   immediately places a **Block_Ticket hold** (`Ticketing_Type: "0"`) — a reversible hold
   releasable via `Air_ReleasePNR` (`POST /api/v1/flights/bookings/release`, see below), not
-  a final purchase.
-- **Not implemented, deliberately**: `Add_Payment` and `Ticketing_Type: "1"` (Book_Ticket).
-  `Air_Ticketing`'s docs reveal the real flow is TempBooking → `Add_Payment` (which debits
-  GoVoylo's own Flyshop *agency wallet balance* — a real settlement charge, not a sandbox
-  echo) → Book_Ticket (an essentially final, non-trivially-reversible airline PNR). That's
-  a materially bigger, real-money decision that was explicitly deferred pending separate
-  authorization. Right now `POST /bookings` produces a hold only; nothing pays Flyshop and
-  no final ticket is issued.
+  a final purchase. This step never moves money and is unchanged.
+- **Now implemented**: `AddPayment` and `Ticketing_Type: "1"` (Book_Ticket), wired into
+  `VerifyRazorpayPaymentCommandHandler`. Once the customer's Razorpay payment is verified,
+  the handler looks up the `TripBooking` by the same reference (Flyshop's own
+  `Booking_RefNo` — `TravelerDetailsScreen.handlePayNow` now passes that through to
+  `CreateRazorpayOrder` instead of a client-generated id, so `BookingPayment` and
+  `TripBooking` are always linked), and if it's still a Block_Ticket hold (`Status_Id 33`),
+  calls `AddPaymentAsync` (debits GoVoylo's own Flyshop *agency wallet balance* — a real
+  settlement charge, not a sandbox echo — via `RefNo`/`ProductId`/`TransactionType` against
+  `tradehost/TradeAPIService.svc/JSONService/AddPayment`, a different Flyshop service host
+  than every other call here) followed by `BookTicketAsync` (`Air_Ticketing` with
+  `Ticketing_Type: "1"`), then updates the `TripBooking` with the real ticketed
+  `Status_Id`/`Airline_PNR`/`Record_Locator`. Deliberately **not** wrapped in a
+  swallow-and-continue try/catch like the best-effort email/persist paths elsewhere: the
+  customer has already been charged via Razorpay by this point, so a Flyshop failure here
+  surfaces as a real error rather than a false "booking confirmed" response — that failure
+  mode (paid but unticketed) needs manual follow-up (refund or retry), which is not
+  automated. `TradeBaseUrl` needs its own `FlyshopSettings__TradeBaseUrl` app setting
+  wherever this runs (separate from the existing `FlyshopSettings__BaseUrl`) — not yet set
+  on UAT as of this writing.
+  Wire contract sourced directly from Flyshop's own "Client 2.6 Air" Postman collection
+  (`documenter.getpostman.com/view/18594709/UVJfiFLA`, `AddPayment` section) via its
+  underlying `documenter.gw.postman.com/api/collections/...` JSON — not guessed. Not yet
+  verified end-to-end against a real ticketed booking (needs Flyshop wallet balance,
+  confirmed present as of 2026-09-25, and one live Pay Now run to prove out).
 - **Now wired up**: `TravelerDetailsScreen.handlePayNow` calls `POST /api/v1/flights/bookings`
   *before* the Razorpay create-order/checkout/verify flow — the flight is held with the
   supplier first, and the customer is only charged if that hold succeeds. On a hold
@@ -234,12 +252,10 @@ directly (see resolved question #1 below).
   actually persist `POST /bookings`' result instead of just returning it to the caller.
 - Surface the booking reference / hold status to the user on the success screen.
 
-**Real purchase (separate, larger, explicitly not started)**
-- `Add_Payment` (debits the real Flyshop agency wallet) and `Ticketing_Type: "1"`
-  (Book_Ticket, an essentially final PNR) — needs its own explicit go-ahead given the
-  real-money/hard-to-reverse nature, per the discussion that led to Block_Ticket-only.
-- `Air_ReleasePNR` to actually cancel a Block_Ticket hold (currently holds are created
-  but nothing in the app can release one yet).
+**Real purchase — now implemented, see "Now implemented" above.** `Add_Payment` +
+`Ticketing_Type: "1"` (Book_Ticket) run automatically after a verified Razorpay payment.
+`Air_ReleasePNR` (releasing a Block_Ticket hold) was already implemented earlier and is
+exposed via `POST /api/v1/flights/bookings/release` / My Trips' "Release hold" action.
 
 **Everything above is unverified against a live Flyshop response** — build/auth/
 validation/session-lookup were tested directly against the local backend, but
