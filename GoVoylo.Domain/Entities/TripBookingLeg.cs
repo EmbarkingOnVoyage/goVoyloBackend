@@ -18,6 +18,15 @@ namespace GoVoylo.Domain.Entities
         public string FlightNumber { get; private set; } = null!;
         public string FlightId { get; private set; } = null!;
 
+        // Set when this leg is cancelled on its own via Air_TicketCancellation
+        // (e.g. cancelling only the return leg of a roundtrip) rather than the whole
+        // booking. TripBooking.LocalStatus only flips to Cancelled once every leg here
+        // is cancelled — see TripBooking.MarkLegCancelled.
+        public bool IsCancelled { get; private set; }
+        public DateTime? CancelledAt { get; private set; }
+        public int? CancellationType { get; private set; }
+        public string? CancelCode { get; private set; }
+
         public TripBookingLeg(
             Guid tripBookingId,
             int legIndex,
@@ -44,6 +53,14 @@ namespace GoVoylo.Domain.Entities
         // Required by EF Core
         private TripBookingLeg()
         {
+        }
+
+        public void MarkCancelled(int cancellationType, string cancelCode)
+        {
+            IsCancelled = true;
+            CancelledAt = DateTime.UtcNow;
+            CancellationType = cancellationType;
+            CancelCode = cancelCode;
         }
     }
 }

@@ -142,7 +142,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         DateTime TravelDate,
         string AirlineCode,
         string AirlineName,
-        string FlightNumber);
+        string FlightNumber,
+        // True once this leg was cancelled on its own (e.g. return-leg-only
+        // cancellation) rather than via the whole booking — see TripBooking.MarkLegCancelled.
+        bool IsCancelled);
 
     public record TripBookingDto(
         Guid Id,
@@ -164,8 +167,8 @@ namespace GoVoylo.Application.Features.Flights.Dtos
 
     public record CancelTripBookingResponseDto(bool Success, string LocalStatus);
 
-    // Both optional — an empty/omitted body keeps the handler's own customer-initiated
-    // default (CancellationType 0 / CancelCode "015"). See CancelTripBookingCommand's
-    // own doc comment for why a caller would ever supply these.
-    public record CancelMyBookingRequestDto(int? CancellationType, string? CancelCode);
+    // All optional — an empty/omitted body keeps the handler's own customer-initiated
+    // default (CancellationType 0 / CancelCode "015") and cancels every leg. See
+    // CancelTripBookingCommand's own doc comment for why a caller would ever supply these.
+    public record CancelMyBookingRequestDto(int? CancellationType, string? CancelCode, int? LegIndex);
 }

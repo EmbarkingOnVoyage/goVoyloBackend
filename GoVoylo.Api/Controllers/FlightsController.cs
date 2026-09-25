@@ -131,7 +131,7 @@ namespace GoVoylo.Api.Controllers
             Guid tripBookingId, [FromBody] CancelMyBookingRequestDto? request)
         {
             var result = await _mediator.Send(new CancelTripBookingCommand(
-                tripBookingId, _currentUser.UserId, request?.CancellationType, request?.CancelCode));
+                tripBookingId, _currentUser.UserId, request?.CancellationType, request?.CancelCode, request?.LegIndex));
             return Ok(result);
         }
     }

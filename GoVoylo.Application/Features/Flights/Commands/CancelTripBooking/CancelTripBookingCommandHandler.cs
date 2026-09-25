@@ -73,6 +73,13 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
                     "missing_pnr", "This booking has no airline PNR on file and can't be cancelled automatically.");
             }
 
+            if (request.LegIndex.HasValue && booking.StatusId == StatusBlocked)
+            {
+                throw new BusinessRuleException(
+                    "leg_cancel_not_supported_for_hold",
+                    "A held (un-ticketed) booking must be released as a whole, not by leg.");
+            }
+
             if (booking.StatusId == StatusBlocked)
             {
                 await _supplierClient.ReleaseHoldAsync(
@@ -89,7 +96,24 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
                 var paxIds = booking.PaxIds
                     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-                var segments = booking.Legs
+                var legsToCancel = booking.Legs.AsEnumerable();
+                if (request.LegIndex.HasValue)
+                {
+                    var targetLeg = booking.Legs.FirstOrDefault(l => l.LegIndex == request.LegIndex.Value);
+                    if (targetLeg == null)
+                    {
+                        throw new BusinessRuleException(
+                            "leg_not_found", $"Leg {request.LegIndex.Value} does not exist on this booking.");
+                    }
+                    if (targetLeg.IsCancelled)
+                    {
+                        throw new BusinessRuleException(
+                            "leg_already_cancelled", "This leg has already been cancelled.");
+                    }
+                    legsToCancel = new[] { targetLeg };
+                }
+
+                var segments = legsToCancel
                     .SelectMany(leg => paxIds
                         .Select(paxId => new SupplierCancelSegmentDto(leg.FlightId, paxId, DirectFlightSegmentId)))
                     .ToList();
@@ -104,7 +128,14 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
                         segments),
                     cancellationToken);
 
-                booking.MarkCancelled(cancellationType, cancelCode);
+                if (request.LegIndex.HasValue)
+                {
+                    booking.MarkLegCancelled(request.LegIndex.Value, cancellationType, cancelCode);
+                }
+                else
+                {
+                    booking.MarkCancelled(cancellationType, cancelCode);
+                }
             }
 
             await _tripBookingRepository.UpdateAsync(booking, cancellationToken);

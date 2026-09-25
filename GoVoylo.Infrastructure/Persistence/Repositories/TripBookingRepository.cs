@@ -86,6 +86,7 @@ namespace GoVoylo.Infrastructure.Persistence.Repositories
         public async Task UpdateAsync(TripBooking booking, CancellationToken cancellationToken)
         {
             _context.TripBookings.Update(booking);
+            _context.TripBookingLegs.UpdateRange(booking.Legs);
             await _context.SaveChangesAsync(cancellationToken);
         }
     }

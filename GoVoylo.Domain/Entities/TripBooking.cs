@@ -111,6 +111,26 @@ namespace GoVoylo.Domain.Entities
             CancelCode = cancelCode;
         }
 
+        // Cancels one leg on its own (e.g. the return leg of a roundtrip) instead of
+        // the whole booking. Only flips the booking's own LocalStatus to Cancelled once
+        // every leg has been cancelled this way — a booking with a still-active leg
+        // stays Active so "My Trips" keeps showing/allowing action on what's left.
+        public void MarkLegCancelled(int legIndex, int cancellationType, string cancelCode)
+        {
+            var leg = _legs.FirstOrDefault(l => l.LegIndex == legIndex);
+            if (leg == null)
+            {
+                throw new InvalidOperationException($"Leg {legIndex} not found on booking {Id}.");
+            }
+
+            leg.MarkCancelled(cancellationType, cancelCode);
+
+            if (_legs.All(l => l.IsCancelled))
+            {
+                MarkCancelled(cancellationType, cancelCode);
+            }
+        }
+
         public void MarkReleased()
         {
             LocalStatus = StatusReleased;
