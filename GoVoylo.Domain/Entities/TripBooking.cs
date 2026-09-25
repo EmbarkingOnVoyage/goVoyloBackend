@@ -11,6 +11,7 @@ namespace GoVoylo.Domain.Entities
         public Guid UserId { get; private set; }
         public string BookingRefNo { get; private set; } = null!;
         public string? AirlinePnr { get; private set; }
+        public string? CrsPnr { get; private set; }
         public string? RecordLocator { get; private set; }
 
         // Flyshop's own status at creation time: 11-Success/22-Failed/33-Block.
@@ -34,6 +35,12 @@ namespace GoVoylo.Domain.Entities
 
         public DateTime? CancelledAt { get; private set; }
 
+        // Only set when LocalStatus is Cancelled (via Air_TicketCancellation) — a
+        // Released hold went through Air_ReleasePNR instead, which has no
+        // CancellationType/CancelCode concept of its own.
+        public int? CancellationType { get; private set; }
+        public string? CancelCode { get; private set; }
+
         private readonly List<TripBookingLeg> _legs = new();
         public IReadOnlyList<TripBookingLeg> Legs => _legs;
 
@@ -45,6 +52,7 @@ namespace GoVoylo.Domain.Entities
             Guid userId,
             string bookingRefNo,
             string? airlinePnr,
+            string? crsPnr,
             string? recordLocator,
             string statusId,
             decimal totalAmount,
@@ -55,6 +63,7 @@ namespace GoVoylo.Domain.Entities
             UserId = userId;
             BookingRefNo = bookingRefNo;
             AirlinePnr = airlinePnr;
+            CrsPnr = crsPnr;
             RecordLocator = recordLocator;
             StatusId = statusId;
             LocalStatus = StatusActive;
@@ -86,17 +95,20 @@ namespace GoVoylo.Domain.Entities
         // Status_Id/PNR/RecordLocator with the real, ticketed ones. LocalStatus stays
         // Active: the hold-vs-ticketed distinction lives entirely in StatusId, same as
         // CancelTripBookingCommandHandler already branches on it.
-        public void MarkTicketed(string statusId, string? airlinePnr, string? recordLocator)
+        public void MarkTicketed(string statusId, string? airlinePnr, string? crsPnr, string? recordLocator)
         {
             StatusId = statusId;
             AirlinePnr = airlinePnr;
+            CrsPnr = crsPnr;
             RecordLocator = recordLocator;
         }
 
-        public void MarkCancelled()
+        public void MarkCancelled(int cancellationType, string cancelCode)
         {
             LocalStatus = StatusCancelled;
             CancelledAt = DateTime.UtcNow;
+            CancellationType = cancellationType;
+            CancelCode = cancelCode;
         }
 
         public void MarkReleased()

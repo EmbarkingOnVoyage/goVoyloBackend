@@ -127,9 +127,11 @@ namespace GoVoylo.Api.Controllers
 
         [Authorize]
         [HttpPost("mybookings/{tripBookingId}/cancel")]
-        public async Task<IActionResult> CancelMyBooking(Guid tripBookingId)
+        public async Task<IActionResult> CancelMyBooking(
+            Guid tripBookingId, [FromBody] CancelMyBookingRequestDto? request)
         {
-            var result = await _mediator.Send(new CancelTripBookingCommand(tripBookingId, _currentUser.UserId));
+            var result = await _mediator.Send(new CancelTripBookingCommand(
+                tripBookingId, _currentUser.UserId, request?.CancellationType, request?.CancelCode));
             return Ok(result);
         }
     }

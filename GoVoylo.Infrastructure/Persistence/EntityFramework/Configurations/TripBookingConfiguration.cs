@@ -29,6 +29,10 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasColumnName("airline_pnr")
                 .HasMaxLength(32);
 
+            builder.Property(x => x.CrsPnr)
+                .HasColumnName("crs_pnr")
+                .HasMaxLength(32);
+
             builder.Property(x => x.RecordLocator)
                 .HasColumnName("record_locator")
                 .HasMaxLength(32);
@@ -71,6 +75,13 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
             builder.Property(x => x.CancelledAt)
                 .HasColumnName("cancelled_at")
                 .HasColumnType("timestamptz");
+
+            builder.Property(x => x.CancellationType)
+                .HasColumnName("cancellation_type");
+
+            builder.Property(x => x.CancelCode)
+                .HasColumnName("cancel_code")
+                .HasMaxLength(8);
 
             builder.Ignore(x => x.Legs);
 

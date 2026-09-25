@@ -83,6 +83,9 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
             }
             else
             {
+                var cancellationType = request.CancellationType ?? 0;
+                var cancelCode = request.CancelCode ?? CustomerCancelCode;
+
                 var paxIds = booking.PaxIds
                     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
@@ -95,13 +98,13 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
                     new SupplierCancellationRequestDto(
                         booking.BookingRefNo,
                         booking.AirlinePnr,
-                        CancellationType: 0,
-                        CustomerCancelCode,
+                        cancellationType,
+                        cancelCode,
                         "Cancelled by customer via GoVoylo app",
                         segments),
                     cancellationToken);
 
-                booking.MarkCancelled();
+                booking.MarkCancelled(cancellationType, cancelCode);
             }
 
             await _tripBookingRepository.UpdateAsync(booking, cancellationToken);

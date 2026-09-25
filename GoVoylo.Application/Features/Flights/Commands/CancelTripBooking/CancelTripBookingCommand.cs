@@ -8,7 +8,15 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
     // since those were captured once at booking time (see TripBooking). UserId comes
     // from the authenticated caller (ICurrentUserService), never the request body, so
     // one user can't cancel another user's booking.
+    // CancellationType/CancelCode are optional — omitted (null) for the ordinary "My
+    // Trips" cancel button, which keeps the handler's own customer-initiated default
+    // (0/"015"); a caller that needs a specific Air_TicketCancellation type (e.g.
+    // 1-Full Refund, 2-No Show) can supply it directly. Only meaningful for the
+    // already-ticketed branch — a Block_Ticket hold is always released via
+    // Air_ReleasePNR regardless of what's passed here.
     public record CancelTripBookingCommand(
         Guid TripBookingId,
-        Guid UserId) : IRequest<CancelTripBookingResponseDto>;
+        Guid UserId,
+        int? CancellationType = null,
+        string? CancelCode = null) : IRequest<CancelTripBookingResponseDto>;
 }
