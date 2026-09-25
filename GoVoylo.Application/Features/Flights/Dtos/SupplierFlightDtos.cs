@@ -154,6 +154,7 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string StatusId,
         string? AirlineCode,
         string? AirlinePnr,
+        string? CrsPnr,
         string? RecordLocator,
         string? FailureRemark);
 
@@ -164,6 +165,7 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string StatusId,
         string? AirlineCode,
         string? AirlinePnr,
+        string? CrsPnr,
         string? RecordLocator,
         string? FailureRemark,
         IReadOnlyList<SupplierTicketingLegResultDto> Legs);

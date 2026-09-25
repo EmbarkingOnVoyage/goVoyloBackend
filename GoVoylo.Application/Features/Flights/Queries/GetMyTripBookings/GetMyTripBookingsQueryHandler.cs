@@ -24,12 +24,15 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetMyTripBookings
                     b.Id,
                     b.BookingRefNo,
                     b.AirlinePnr,
+                    b.CrsPnr,
                     b.StatusId,
                     b.LocalStatus,
                     b.TotalAmount,
                     b.CurrencyCode,
                     b.PassengerNames,
                     b.CreatedAt,
+                    b.CancellationType,
+                    b.CancelCode,
                     b.Legs
                         .Select(l => new TripBookingLegDto(
                             l.LegIndex,

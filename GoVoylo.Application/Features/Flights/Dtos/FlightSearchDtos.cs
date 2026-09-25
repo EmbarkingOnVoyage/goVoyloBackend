@@ -119,6 +119,7 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string StatusId,
         string? AirlineCode,
         string? AirlinePnr,
+        string? CrsPnr,
         string? RecordLocator,
         string? FailureRemark);
 
@@ -147,6 +148,7 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         Guid Id,
         string BookingRefNo,
         string? AirlinePnr,
+        string? CrsPnr,
         // Flyshop's status at creation time (11-Success/22-Failed/33-Block).
         string StatusId,
         // App-tracked lifecycle: Active/Cancelled/Released — see TripBooking.
@@ -155,7 +157,15 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string CurrencyCode,
         string PassengerNames,
         DateTime CreatedAt,
+        // Only set once LocalStatus is Cancelled — see TripBooking.MarkCancelled.
+        int? CancellationType,
+        string? CancelCode,
         IReadOnlyList<TripBookingLegDto> Legs);
 
     public record CancelTripBookingResponseDto(bool Success, string LocalStatus);
+
+    // Both optional — an empty/omitted body keeps the handler's own customer-initiated
+    // default (CancellationType 0 / CancelCode "015"). See CancelTripBookingCommand's
+    // own doc comment for why a caller would ever supply these.
+    public record CancelMyBookingRequestDto(int? CancellationType, string? CancelCode);
 }

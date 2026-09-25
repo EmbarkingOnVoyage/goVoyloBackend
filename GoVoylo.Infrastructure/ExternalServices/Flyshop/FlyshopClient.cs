@@ -301,6 +301,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                         d.StatusId ?? string.Empty,
                         legPnr?.AirlineCode,
                         legPnr?.AirlinePnr,
+                        legPnr?.CrsPnr,
                         legPnr?.RecordLocator,
                         d.FailureRemark);
                 })
@@ -314,6 +315,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 detail?.StatusId ?? string.Empty,
                 pnr?.AirlineCode,
                 pnr?.AirlinePnr,
+                pnr?.CrsPnr,
                 pnr?.RecordLocator,
                 detail?.FailureRemark,
                 legs);

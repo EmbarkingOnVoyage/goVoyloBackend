@@ -66,7 +66,7 @@ public class VerifyRazorpayPaymentCommandHandler : IRequestHandler<VerifyRazorpa
 
             var ticket = await _supplierClient.BookTicketAsync(booking.BookingRefNo, cancellationToken);
 
-            booking.MarkTicketed(ticket.StatusId, ticket.AirlinePnr, ticket.RecordLocator);
+            booking.MarkTicketed(ticket.StatusId, ticket.AirlinePnr, ticket.CrsPnr, ticket.RecordLocator);
             await _tripBookingRepository.UpdateAsync(booking, cancellationToken);
         }
 

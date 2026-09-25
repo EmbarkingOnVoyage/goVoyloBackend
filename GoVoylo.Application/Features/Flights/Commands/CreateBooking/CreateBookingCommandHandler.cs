@@ -173,6 +173,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                     request.UserId,
                     ticket.BookingRefNo,
                     ticket.AirlinePnr,
+                    ticket.CrsPnr,
                     ticket.RecordLocator,
                     ticket.StatusId,
                     totalAmount,
@@ -215,6 +216,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                 ticket.StatusId,
                 ticket.AirlineCode,
                 ticket.AirlinePnr,
+                ticket.CrsPnr,
                 ticket.RecordLocator,
                 ticket.FailureRemark);
         }
