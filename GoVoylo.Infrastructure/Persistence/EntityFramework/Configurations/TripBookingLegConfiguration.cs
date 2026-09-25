@@ -62,6 +62,22 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasMaxLength(64)
                 .IsRequired();
 
+            builder.Property(x => x.IsCancelled)
+                .HasColumnName("is_cancelled")
+                .HasDefaultValue(false)
+                .IsRequired();
+
+            builder.Property(x => x.CancelledAt)
+                .HasColumnName("cancelled_at")
+                .HasColumnType("timestamptz");
+
+            builder.Property(x => x.CancellationType)
+                .HasColumnName("cancellation_type");
+
+            builder.Property(x => x.CancelCode)
+                .HasColumnName("cancel_code")
+                .HasMaxLength(8);
+
             builder.HasOne<TripBooking>()
                 .WithMany()
                 .HasForeignKey(x => x.TripBookingId)

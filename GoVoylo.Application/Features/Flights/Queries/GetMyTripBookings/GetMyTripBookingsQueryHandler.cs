@@ -41,7 +41,8 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetMyTripBookings
                             l.TravelDate,
                             l.AirlineCode,
                             l.AirlineName,
-                            l.FlightNumber))
+                            l.FlightNumber,
+                            l.IsCancelled))
                         .ToList()))
                 .ToList();
         }

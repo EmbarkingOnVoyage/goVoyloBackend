@@ -14,9 +14,14 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
     // 1-Full Refund, 2-No Show) can supply it directly. Only meaningful for the
     // already-ticketed branch — a Block_Ticket hold is always released via
     // Air_ReleasePNR regardless of what's passed here.
+    // LegIndex is also optional — omitted (null) cancels every leg (the ordinary
+    // behavior, and the only option for a oneway booking). Supplying a specific
+    // TripBookingLeg.LegIndex cancels only that leg (e.g. the return leg of a
+    // roundtrip) and leaves the booking Active as long as another leg still stands.
     public record CancelTripBookingCommand(
         Guid TripBookingId,
         Guid UserId,
         int? CancellationType = null,
-        string? CancelCode = null) : IRequest<CancelTripBookingResponseDto>;
+        string? CancelCode = null,
+        int? LegIndex = null) : IRequest<CancelTripBookingResponseDto>;
 }
