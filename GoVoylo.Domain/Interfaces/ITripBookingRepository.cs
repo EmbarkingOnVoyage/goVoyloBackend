@@ -8,6 +8,8 @@ namespace GoVoylo.Domain.Interfaces
 
         Task<TripBooking?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
+        Task<TripBooking?> GetByBookingRefNoAsync(string bookingRefNo, CancellationToken cancellationToken);
+
         Task<IReadOnlyList<TripBooking>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken);
 
         Task UpdateAsync(TripBooking booking, CancellationToken cancellationToken);

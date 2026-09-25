@@ -269,14 +269,22 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             return new SupplierTempBookingResultDto(wireResponse.BookingRefNo);
         }
 
-        public async Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
-            string bookingRefNo, CancellationToken cancellationToken)
+        public Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
+            string bookingRefNo, CancellationToken cancellationToken) =>
+            TicketAsync(bookingRefNo, ticketingType: "0", cancellationToken);
+
+        public Task<SupplierTicketingResultDto> BookTicketAsync(
+            string bookingRefNo, CancellationToken cancellationToken) =>
+            TicketAsync(bookingRefNo, ticketingType: "1", cancellationToken);
+
+        private async Task<SupplierTicketingResultDto> TicketAsync(
+            string bookingRefNo, string ticketingType, CancellationToken cancellationToken)
         {
             var wireRequest = new AirTicketingRequestWire
             {
                 AuthHeader = BuildAuthHeader(),
                 BookingRefNo = bookingRefNo,
-                TicketingType = "0"
+                TicketingType = ticketingType
             };
 
             var wireResponse = await PostAsync<AirTicketingRequestWire, AirTicketingResponseWire>(
@@ -309,6 +317,31 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 pnr?.RecordLocator,
                 detail?.FailureRemark,
                 legs);
+        }
+
+        // AddPayment lives on Flyshop's separate tradehost/TradeAPIService.svc, not
+        // the airlinehost/AirAPIService.svc every other call here uses — passing the
+        // full absolute URL through PostAsync bypasses _httpClient.BaseAddress for
+        // just this one call (HttpClient treats an absolute request URI as-is).
+        public async Task<SupplierPaymentResultDto> AddPaymentAsync(
+            string bookingRefNo, string clientRefNo, CancellationToken cancellationToken)
+        {
+            var wireRequest = new AddPaymentRequestWire
+            {
+                AuthHeader = BuildAuthHeader(),
+                RefNo = bookingRefNo,
+                ClientRefNo = clientRefNo
+            };
+
+            var wireResponse = await PostAsync<AddPaymentRequestWire, AddPaymentResponseWire>(
+                $"{_options.TradeBaseUrl}AddPayment", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.ResponseHeader, "AddPayment");
+
+            return new SupplierPaymentResultDto(
+                wireResponse.Amount,
+                wireResponse.PaymentId,
+                wireResponse.ResponseHeader?.StatusId ?? string.Empty);
         }
 
         public async Task<SupplierFareRuleResultDto> GetFareRulesAsync(

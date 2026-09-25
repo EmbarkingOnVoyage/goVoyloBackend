@@ -81,6 +81,18 @@ namespace GoVoylo.Domain.Entities
             _legs.AddRange(legs);
         }
 
+        // Called once AddPayment + Book_Ticket (Ticketing_Type "1") succeed for a
+        // booking that started as a Block_Ticket hold — replaces the hold's own
+        // Status_Id/PNR/RecordLocator with the real, ticketed ones. LocalStatus stays
+        // Active: the hold-vs-ticketed distinction lives entirely in StatusId, same as
+        // CancelTripBookingCommandHandler already branches on it.
+        public void MarkTicketed(string statusId, string? airlinePnr, string? recordLocator)
+        {
+            StatusId = statusId;
+            AirlinePnr = airlinePnr;
+            RecordLocator = recordLocator;
+        }
+
         public void MarkCancelled()
         {
             LocalStatus = StatusCancelled;
