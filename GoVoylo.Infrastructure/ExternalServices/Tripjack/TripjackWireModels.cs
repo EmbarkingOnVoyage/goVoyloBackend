@@ -2,224 +2,295 @@ using System.Text.Json.Serialization;
 
 namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 {
-    public class AuthHeaderWire
+    // Every wire model below has been verified against a real, live response from
+    // Tripjack's UAT environment (apitest.tripjack.com), not just their docs —
+    // the previous version of this file was built from field-table descriptions
+    // alone and used the wrong auth model and endpoint names entirely. Field names
+    // are Tripjack's own short/minified keys (e.g. "sI" = segment info, "fD" =
+    // flight designator, "fd" = fare details — same abbreviation, different meaning,
+    // exactly as Tripjack's own API returns it).
+
+    // ===== Search (POST fms/v1/air-search-all) =====
+
+    public class TripjackSearchRequestWire
     {
-        [JsonPropertyName("UserId")]
-        public string UserId { get; set; } = string.Empty;
-
-        [JsonPropertyName("Password")]
-        public string Password { get; set; } = string.Empty;
-
-        [JsonPropertyName("IP_Address")]
-        public string IpAddress { get; set; } = string.Empty;
-
-        [JsonPropertyName("Request_Id")]
-        public string RequestId { get; set; } = string.Empty;
-
-        [JsonPropertyName("IMEI_Number")]
-        public string ImeiNumber { get; set; } = string.Empty;
+        [JsonPropertyName("searchQuery")]
+        public TripjackSearchQueryWire SearchQuery { get; set; } = new();
     }
 
-    public class TripInfoWire
+    public class TripjackSearchQueryWire
     {
-        [JsonPropertyName("Origin")]
-        public string Origin { get; set; } = string.Empty;
+        [JsonPropertyName("cabinClass")]
+        public string CabinClass { get; set; } = "ECONOMY";
 
-        [JsonPropertyName("Destination")]
-        public string Destination { get; set; } = string.Empty;
+        [JsonPropertyName("paxInfo")]
+        public TripjackPaxInfoWire PaxInfo { get; set; } = new();
 
-        [JsonPropertyName("TravelDate")]
+        [JsonPropertyName("routeInfos")]
+        public List<TripjackRouteInfoWire> RouteInfos { get; set; } = new();
+    }
+
+    public class TripjackPaxInfoWire
+    {
+        [JsonPropertyName("ADULT")]
+        public int Adult { get; set; }
+
+        [JsonPropertyName("CHILD")]
+        public int Child { get; set; }
+
+        [JsonPropertyName("INFANT")]
+        public int Infant { get; set; }
+    }
+
+    public class TripjackRouteInfoWire
+    {
+        [JsonPropertyName("fromCityOrAirport")]
+        public TripjackAirportCodeWire FromCityOrAirport { get; set; } = new();
+
+        [JsonPropertyName("toCityOrAirport")]
+        public TripjackAirportCodeWire ToCityOrAirport { get; set; } = new();
+
+        // YYYY-MM-DD.
+        [JsonPropertyName("travelDate")]
         public string TravelDate { get; set; } = string.Empty;
-
-        [JsonPropertyName("Trip_Id")]
-        public int TripId { get; set; }
     }
 
-    public class FilteredAirlineWire
+    public class TripjackAirportCodeWire
     {
-        [JsonPropertyName("Airline_Code")]
-        public string AirlineCode { get; set; } = string.Empty;
+        [JsonPropertyName("code")]
+        public string Code { get; set; } = string.Empty;
     }
 
-    public class AirSearchRequestWire
+    public class TripjackSearchResponseWire
     {
-        [JsonPropertyName("Auth_Header")]
-        public AuthHeaderWire AuthHeader { get; set; } = new();
+        [JsonPropertyName("searchResult")]
+        public TripjackSearchResultWire? SearchResult { get; set; }
 
-        [JsonPropertyName("Travel_Type")]
-        public int TravelType { get; set; }
-
-        [JsonPropertyName("Booking_Type")]
-        public int BookingType { get; set; }
-
-        [JsonPropertyName("TripInfo")]
-        public List<TripInfoWire> TripInfo { get; set; } = new();
-
-        [JsonPropertyName("Adult_Count")]
-        public string AdultCount { get; set; } = "1";
-
-        [JsonPropertyName("Child_Count")]
-        public string ChildCount { get; set; } = "0";
-
-        [JsonPropertyName("Infant_Count")]
-        public string InfantCount { get; set; } = "0";
-
-        [JsonPropertyName("Class_Of_Travel")]
-        public string ClassOfTravel { get; set; } = "0";
-
-        [JsonPropertyName("InventoryType")]
-        public int InventoryType { get; set; }
-
-        [JsonPropertyName("Source_Type")]
-        public int SourceType { get; set; }
-
-        [JsonPropertyName("Filtered_Airline")]
-        public List<FilteredAirlineWire> FilteredAirline { get; set; } = new();
+        [JsonPropertyName("status")]
+        public TripjackStatusWire? Status { get; set; }
     }
 
-    public class SegmentWire
+    public class TripjackStatusWire
     {
-        [JsonPropertyName("Origin")]
-        public string Origin { get; set; } = string.Empty;
+        [JsonPropertyName("success")]
+        public bool Success { get; set; }
 
-        [JsonPropertyName("Destination")]
-        public string Destination { get; set; } = string.Empty;
+        [JsonPropertyName("httpStatus")]
+        public int HttpStatus { get; set; }
+    }
 
-        [JsonPropertyName("AirlineCode")]
-        public string AirlineCode { get; set; } = string.Empty;
+    public class TripjackSearchResultWire
+    {
+        // Keyed by "ONWARD"/"RETURN" for a domestic return, "COMBO" for
+        // international-return/multi-city, or indexed keys for a domestic
+        // multi-city (2-6 legs) — see Tripjack's own "Journey Types & Response
+        // Structure" table. Order of Dictionary insertion follows the JSON's own
+        // property order, which is what TripLegIndex is derived from below.
+        [JsonPropertyName("tripInfos")]
+        public Dictionary<string, List<TripjackTripOptionWire>> TripInfos { get; set; } = new();
+    }
 
-        [JsonPropertyName("AirlineName")]
-        public string AirlineName { get; set; } = string.Empty;
+    public class TripjackTripOptionWire
+    {
+        [JsonPropertyName("sI")]
+        public List<TripjackSegmentInfoWire> SegmentInfos { get; set; } = new();
 
-        [JsonPropertyName("FlightNumber")]
-        public string FlightNumber { get; set; } = string.Empty;
+        // Multiple entries here are different fare tiers (PUBLISHED/SPECIAL_RETURN/
+        // TJ_FLEX, or different fare baskets) for the SAME physical flight above —
+        // mapped as this flight's own Fares list, same shape Flyshop already uses.
+        [JsonPropertyName("totalPriceList")]
+        public List<TripjackPriceWire> TotalPriceList { get; set; } = new();
+    }
 
-        [JsonPropertyName("DepartureDateTime")]
+    public class TripjackSegmentInfoWire
+    {
+        [JsonPropertyName("fD")]
+        public TripjackFlightDesignatorWire FlightDesignator { get; set; } = new();
+
+        [JsonPropertyName("stops")]
+        public int Stops { get; set; }
+
+        [JsonPropertyName("duration")]
+        public int DurationMinutes { get; set; }
+
+        [JsonPropertyName("da")]
+        public TripjackAirportDetailWire Departure { get; set; } = new();
+
+        [JsonPropertyName("aa")]
+        public TripjackAirportDetailWire Arrival { get; set; } = new();
+
+        // Local wall-clock, e.g. "2026-10-25T06:30" — no timezone offset given.
+        [JsonPropertyName("dt")]
         public string DepartureDateTime { get; set; } = string.Empty;
 
-        [JsonPropertyName("ArrivalDateTime")]
+        [JsonPropertyName("at")]
         public string ArrivalDateTime { get; set; } = string.Empty;
-
-        [JsonPropertyName("Duration")]
-        public string Duration { get; set; } = string.Empty;
     }
 
-    public class FareDetailWire
+    public class TripjackFlightDesignatorWire
     {
-        [JsonPropertyName("PAXType")]
-        public string? PaxType { get; set; }
+        [JsonPropertyName("aI")]
+        public TripjackAirlineInfoWire AirlineInfo { get; set; } = new();
 
-        [JsonPropertyName("TotalAmount")]
-        public decimal? TotalAmount { get; set; }
-
-        [JsonPropertyName("CurrencyCode")]
-        public string? CurrencyCode { get; set; }
+        [JsonPropertyName("fN")]
+        public string FlightNumber { get; set; } = string.Empty;
     }
 
-    public class FareWire
+    public class TripjackAirlineInfoWire
     {
-        [JsonPropertyName("FareId")]
-        public string? FareId { get; set; }
+        [JsonPropertyName("code")]
+        public string Code { get; set; } = string.Empty;
 
-        [JsonPropertyName("FareKey")]
-        public string? FareKey { get; set; }
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
 
-        [JsonPropertyName("Refundable")]
-        public string? Refundable { get; set; }
-
-        [JsonPropertyName("SeatsAvailable")]
-        public string? SeatsAvailable { get; set; }
-
-        [JsonPropertyName("FareDetails")]
-        public List<FareDetailWire> FareDetails { get; set; } = new();
-    }
-
-    public class FlightWire
-    {
-        [JsonPropertyName("Flight_Id")]
-        public string? FlightId { get; set; }
-
-        [JsonPropertyName("Flight_Key")]
-        public string FlightKey { get; set; } = string.Empty;
-
-        [JsonPropertyName("Origin")]
-        public string Origin { get; set; } = string.Empty;
-
-        [JsonPropertyName("Destination")]
-        public string Destination { get; set; } = string.Empty;
-
-        [JsonPropertyName("Segments")]
-        public List<SegmentWire> Segments { get; set; } = new();
-
-        [JsonPropertyName("Fares")]
-        public List<FareWire> Fares { get; set; } = new();
-
-        [JsonPropertyName("Airline_Code")]
-        public string? AirlineCode { get; set; }
-
-        [JsonPropertyName("IsLCC")]
+        [JsonPropertyName("isLcc")]
         public bool IsLcc { get; set; }
-
-        [JsonPropertyName("Repriced")]
-        public bool Repriced { get; set; }
-
-        [JsonPropertyName("IsFareChange")]
-        public bool IsFareChange { get; set; }
     }
 
-    public class TripDetailWire
+    public class TripjackAirportDetailWire
     {
-        [JsonPropertyName("Trip_Id")]
-        public string? TripId { get; set; }
+        [JsonPropertyName("code")]
+        public string Code { get; set; } = string.Empty;
 
-        [JsonPropertyName("Flights")]
-        public List<FlightWire> Flights { get; set; } = new();
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
     }
 
-    public class AirSearchResponseWire
+    public class TripjackPriceWire
     {
-        [JsonPropertyName("Search_Key")]
-        public string SearchKey { get; set; } = string.Empty;
+        // This IS the priceId — pass verbatim to Review. Tripjack has no separate
+        // Flight_Key/Fare_Id split the way Flyshop does; one opaque id covers both,
+        // so this same value is used for both SupplierFlightOptionDto.FlightKey and
+        // SupplierFareOptionDto.FareId (see TripjackClient.MapFlight).
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = string.Empty;
 
-        [JsonPropertyName("TripDetails")]
-        public List<TripDetailWire> TripDetails { get; set; } = new();
+        [JsonPropertyName("fareIdentifier")]
+        public string? FareIdentifier { get; set; }
+
+        // Keyed by pax type ("ADULT"/"CHILD"/"INFANT").
+        [JsonPropertyName("fd")]
+        public Dictionary<string, TripjackFareDetailWire> FareDetailsByPaxType { get; set; } = new();
     }
 
-    public class AirRepriceRequestItemWire
+    public class TripjackFareDetailWire
     {
-        [JsonPropertyName("Flight_Key")]
-        public string FlightKey { get; set; } = string.Empty;
+        [JsonPropertyName("fC")]
+        public TripjackFareComponentWire FareComponent { get; set; } = new();
 
-        [JsonPropertyName("Fare_Id")]
-        public string FareId { get; set; } = string.Empty;
+        [JsonPropertyName("sR")]
+        public int SeatsRemaining { get; set; }
+
+        [JsonPropertyName("bI")]
+        public TripjackBaggageInfoWire? BaggageInfo { get; set; }
+
+        // 0-Non-refundable, 1-Refundable, 2-Partially refundable.
+        [JsonPropertyName("rT")]
+        public int RefundableType { get; set; }
+
+        [JsonPropertyName("cc")]
+        public string? CabinClass { get; set; }
     }
 
-    public class AirRepriceRequestWire
+    public class TripjackFareComponentWire
     {
-        [JsonPropertyName("Auth_Header")]
-        public AuthHeaderWire AuthHeader { get; set; } = new();
+        // Base Fare.
+        [JsonPropertyName("BF")]
+        public decimal BaseFare { get; set; }
 
-        [JsonPropertyName("Search_Key")]
-        public string SearchKey { get; set; } = string.Empty;
+        // Total Fare — what the agent is actually charged.
+        [JsonPropertyName("TF")]
+        public decimal TotalFare { get; set; }
 
-        [JsonPropertyName("AirRepriceRequests")]
-        public List<AirRepriceRequestItemWire> AirRepriceRequests { get; set; } = new();
-
-        [JsonPropertyName("GST_Input")]
-        public bool GstInput { get; set; }
-
-        [JsonPropertyName("SinglePricing")]
-        public bool SinglePricing { get; set; } = true;
+        // Taxes and Fees.
+        [JsonPropertyName("TAF")]
+        public decimal TaxesAndFees { get; set; }
     }
 
-    // NOTE: Tripjack's doc only describes the Reprice *request* schema in full; the
-    // response is only described as "returns the flight object, with Repriced as true".
-    // This mirrors the Air_Search flight shape as the best available inference — confirm
-    // against a real response once live credentials are available and adjust if the
-    // envelope key differs.
-    public class AirRepriceResponseWire
+    public class TripjackBaggageInfoWire
     {
-        [JsonPropertyName("AirRepriceResponses")]
-        public List<FlightWire> AirRepriceResponses { get; set; } = new();
+        [JsonPropertyName("iB")]
+        public string? CheckInBaggage { get; set; }
+
+        [JsonPropertyName("cB")]
+        public string? CabinBaggage { get; set; }
     }
+
+    // ===== Review (POST fms/v1/review) =====
+    //
+    // Tripjack's booking flow has no separate "reprice" step the way Flyshop does —
+    // Review both re-validates price/availability AND is the one call that produces
+    // the bookingId every later step (Seat Map, Book, Confirm-Book, Fare Rules,
+    // Booking Details) needs. IFlightSupplierClient.RepriceAsync is the closest
+    // existing seam in our own interface, so TripjackClient.RepriceAsync calls
+    // Review and returns the resulting bookingId packed into
+    // SupplierRepriceResultDto.FlightKey — every later Tripjack call in this client
+    // reads it back out of there rather than the priceId, since bookingId is what
+    // Tripjack itself expects from this point on.
+
+    public class TripjackReviewRequestWire
+    {
+        [JsonPropertyName("priceIds")]
+        public List<string> PriceIds { get; set; } = new();
+    }
+
+    public class TripjackReviewResponseWire
+    {
+        [JsonPropertyName("bookingId")]
+        public string BookingId { get; set; } = string.Empty;
+
+        [JsonPropertyName("totalPriceInfo")]
+        public TripjackTotalPriceInfoWire? TotalPriceInfo { get; set; }
+
+        [JsonPropertyName("conditions")]
+        public TripjackConditionsWire? Conditions { get; set; }
+
+        [JsonPropertyName("status")]
+        public TripjackStatusWire? Status { get; set; }
+    }
+
+    public class TripjackTotalPriceInfoWire
+    {
+        [JsonPropertyName("totalFareDetail")]
+        public TripjackFareComponentWire? TotalFareDetail { get; set; }
+    }
+
+    public class TripjackConditionsWire
+    {
+        // Hold (hold without payment) allowed for this fare.
+        [JsonPropertyName("isBA")]
+        public bool IsHoldAllowed { get; set; }
+
+        // Call Seat Map only when true.
+        [JsonPropertyName("isa")]
+        public bool IsSeatApplicable { get; set; }
+
+        // Session time in seconds — how long this bookingId stays valid.
+        [JsonPropertyName("st")]
+        public int SessionTimeSeconds { get; set; }
+    }
+
+    // ===== Everything past Review is still NOT implemented =====
+    //
+    // Real endpoints and shapes (confirmed from Tripjack's own docs, NOT yet
+    // verified against a live response the way Search/Review above are — treat the
+    // field names below as a starting point to confirm, not ground truth):
+    //
+    //   Seat Map            POST fms/v1/seat                          { bookingId }
+    //   Fare Rule           POST fms/v2/farerule                      { flowType: SEARCH|REVIEW|BOOKING_DETAIL, id }
+    //   Fare Validate       POST oms/v1/air/book/fare-validate        same traveller/SSR shape as Book
+    //   Book (Instant/Hold) POST oms/v1/air/book                      { bookingId, paymentInfos?[{amount}], deliveryInfo, travellerInfo[] }
+    //   Confirm Fare        POST oms/v1/air/fare-validate             (hold -> validate before ticketing)
+    //   Confirm-Book        POST oms/v1/air/confirm-book              { bookingId, paymentInfos[{amount}], ... }
+    //   Booking Details     POST oms/v1/booking-details               call ~5s after Book/Confirm-Book, not immediately
+    //   Release PNR (Hold)  POST oms/v1/air/unhold                    { bookingId } (unconfirmed field name)
+    //   Get Amendment Charges POST oms/v1/air/amendment/amendment-charges  (quote — cancellation has a charge, not a flat call)
+    //   Submit Amendment    POST oms/v1/air/amendment/submit-amendment    (commit — two-step cancellation, structurally
+    //                                                                      different from Flyshop's single Air_TicketCancellation)
+    //
+    // CreateTempBookingAsync/CreateBlockTicketAsync/AddPaymentAsync/BookTicketAsync/
+    // CancelBookingAsync/ReleaseHoldAsync/GetFareRulesAsync/GetSeatMapAsync/
+    // GetAncillariesAsync all still throw NotSupportedException in TripjackClient
+    // until these are implemented and live-verified the same way Search/Review were.
 }

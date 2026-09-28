@@ -132,16 +132,32 @@ public class Program
         builder.Services.AddMemoryCache();
         builder.Services.AddSingleton<IFlightSearchSessionStore, InMemoryFlightSearchSessionStore>();
 
-        // Multiple IFlightSupplierClient implementations can be registered here — the
-        // app resolves the right one per booking/offer via IFlightSupplierClientResolver
-        // (single supplier already chosen) or fans out to all of them at once in
-        // SearchFlightsQueryHandler (IEnumerable<IFlightSupplierClient> injected there
-        // directly). Tripjack's own wire layer (TripjackClient) still needs its real
-        // API contract implemented (search/review/book/cancel — see its own doc
-        // comments) before it's registered here too; until then Flyshop is the only
-        // active supplier, but everything downstream already resolves by SupplierCode
-        // rather than assuming a single client.
+        // Tripjack is still switched off for live traffic — its Search/Review are
+        // implemented and verified live against apitest.tripjack.com, but every step
+        // past Review (Book/Confirm-Book/cancellation/etc.) still throws
+        // NotSupportedException (see TripjackClient's own doc comments). Registering
+        // it against IFlightSupplierClient now would let a real user's search surface
+        // a Tripjack offer they then can't actually book — a hard 500, not a graceful
+        // error. The commented registration below is the one-line flip once Book/
+        // Confirm-Book exist; until then only Flyshop is bound to IFlightSupplierClient.
         builder.Services.Configure<TripjackOptions>(builder.Configuration.GetSection("TripjackSettings"));
+        // builder.Services.AddHttpClient<IFlightSupplierClient, TripjackClient>((sp, client) =>
+        // {
+        //     var tripjackOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<TripjackOptions>>().Value;
+        //     if (!string.IsNullOrWhiteSpace(tripjackOptions.BaseUrl))
+        //     {
+        //         client.BaseAddress = new Uri(tripjackOptions.BaseUrl);
+        //     }
+        //     // Tripjack authenticates with a single apikey header on every call (both
+        //     // FMS and OMS endpoints) rather than a per-request body field.
+        //     if (!string.IsNullOrWhiteSpace(tripjackOptions.ApiKey))
+        //     {
+        //         client.DefaultRequestHeaders.Add("apikey", tripjackOptions.ApiKey);
+        //     }
+        //     client.DefaultRequestHeaders.Accept.Add(
+        //         new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+        //     client.Timeout = TimeSpan.FromSeconds(60);
+        // });
 
         builder.Services.Configure<FlyshopOptions>(builder.Configuration.GetSection("FlyshopSettings"));
         builder.Services.AddHttpClient<IFlightSupplierClient, FlyshopClient>((sp, client) =>
