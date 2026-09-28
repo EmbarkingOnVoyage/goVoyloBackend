@@ -7,14 +7,14 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetFareRules
 {
     public class GetFareRulesQueryHandler : IRequestHandler<GetFareRulesQuery, FareRulesResponseDto>
     {
-        private readonly IFlightSupplierClient _supplierClient;
+        private readonly IFlightSupplierClientResolver _supplierClientResolver;
         private readonly IFlightSearchSessionStore _sessionStore;
 
         public GetFareRulesQueryHandler(
-            IFlightSupplierClient supplierClient,
+            IFlightSupplierClientResolver supplierClientResolver,
             IFlightSearchSessionStore sessionStore)
         {
-            _supplierClient = supplierClient;
+            _supplierClientResolver = supplierClientResolver;
             _sessionStore = sessionStore;
         }
 
@@ -32,9 +32,11 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetFareRules
                     throw new NotFoundException("Flight offer not found or has expired. Please search again.");
                 }
 
+                var supplierClient = _supplierClientResolver.Resolve(session.SupplierCode);
+
                 // Same reasoning as the other post-search Flyshop calls: reprice first
                 // for a fresh Flight_Key/Fare_Id rather than trust the search-time one.
-                var repriceResult = await _supplierClient.RepriceAsync(
+                var repriceResult = await supplierClient.RepriceAsync(
                     new SupplierRepriceRequestDto(session.SearchKey, session.FlightKey, session.FareId),
                     cancellationToken);
 
@@ -45,7 +47,7 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetFareRules
                 };
                 await _sessionStore.UpdateAsync(offerId, updatedSession, cancellationToken);
 
-                var result = await _supplierClient.GetFareRulesAsync(
+                var result = await supplierClient.GetFareRulesAsync(
                     new SupplierFareRuleRequestDto(session.SearchKey, updatedSession.FlightKey, updatedSession.FareId),
                     cancellationToken);
 

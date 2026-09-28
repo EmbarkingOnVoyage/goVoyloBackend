@@ -8,14 +8,14 @@ namespace GoVoylo.Application.Features.Flights.Queries.RepriceFlightOffer
     public class RepriceFlightOfferQueryHandler
         : IRequestHandler<RepriceFlightOfferQuery, FlightRepriceResponseDto>
     {
-        private readonly IFlightSupplierClient _supplierClient;
+        private readonly IFlightSupplierClientResolver _supplierClientResolver;
         private readonly IFlightSearchSessionStore _sessionStore;
 
         public RepriceFlightOfferQueryHandler(
-            IFlightSupplierClient supplierClient,
+            IFlightSupplierClientResolver supplierClientResolver,
             IFlightSearchSessionStore sessionStore)
         {
-            _supplierClient = supplierClient;
+            _supplierClientResolver = supplierClientResolver;
             _sessionStore = sessionStore;
         }
 
@@ -29,10 +29,12 @@ namespace GoVoylo.Application.Features.Flights.Queries.RepriceFlightOffer
                 throw new NotFoundException("Flight offer not found or has expired. Please search again.");
             }
 
+            var supplierClient = _supplierClientResolver.Resolve(session.SupplierCode);
+
             var repriceRequest = new SupplierRepriceRequestDto(
                 session.SearchKey, session.FlightKey, session.FareId);
 
-            var result = await _supplierClient.RepriceAsync(repriceRequest, cancellationToken);
+            var result = await supplierClient.RepriceAsync(repriceRequest, cancellationToken);
 
             var updatedSession = session with { FlightKey = result.FlightKey, FareId = result.FareId };
             await _sessionStore.UpdateAsync(request.OfferId, updatedSession, cancellationToken);

@@ -7,14 +7,14 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetSeatMap
 {
     public class GetSeatMapQueryHandler : IRequestHandler<GetSeatMapQuery, SeatMapResponseDto>
     {
-        private readonly IFlightSupplierClient _supplierClient;
+        private readonly IFlightSupplierClientResolver _supplierClientResolver;
         private readonly IFlightSearchSessionStore _sessionStore;
 
         public GetSeatMapQueryHandler(
-            IFlightSupplierClient supplierClient,
+            IFlightSupplierClientResolver supplierClientResolver,
             IFlightSearchSessionStore sessionStore)
         {
-            _supplierClient = supplierClient;
+            _supplierClientResolver = supplierClientResolver;
             _sessionStore = sessionStore;
         }
 
@@ -27,9 +27,11 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetSeatMap
                 throw new NotFoundException("Flight offer not found or has expired. Please search again.");
             }
 
+            var supplierClient = _supplierClientResolver.Resolve(session.SupplierCode);
+
             // Same reasoning as GetFlightAncillariesQueryHandler: Air_GetSeatMap's docs
             // specify the Flight_Key from an Air_Reprice response.
-            var repriceResult = await _supplierClient.RepriceAsync(
+            var repriceResult = await supplierClient.RepriceAsync(
                 new SupplierRepriceRequestDto(session.SearchKey, session.FlightKey, session.FareId),
                 cancellationToken);
 
@@ -50,7 +52,7 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetSeatMap
                     MapGender(t.Gender)))
                 .ToList();
 
-            var result = await _supplierClient.GetSeatMapAsync(
+            var result = await supplierClient.GetSeatMapAsync(
                 new SupplierSeatMapRequestDto(session.SearchKey, updatedSession.FlightKey, travelers),
                 cancellationToken);
 

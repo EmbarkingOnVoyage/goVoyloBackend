@@ -22,6 +22,7 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetMyTripBookings
             return bookings
                 .Select(b => new TripBookingDto(
                     b.Id,
+                    b.SupplierCode,
                     b.BookingRefNo,
                     b.AirlinePnr,
                     b.CrsPnr,

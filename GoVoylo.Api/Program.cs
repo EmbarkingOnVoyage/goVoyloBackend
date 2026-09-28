@@ -8,6 +8,7 @@ using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Interfaces;
 using GoVoylo.Infrastructure;
 using GoVoylo.Infrastructure.Caching;
+using GoVoylo.Infrastructure.ExternalServices;
 using GoVoylo.Infrastructure.ExternalServices.Flyshop;
 using GoVoylo.Infrastructure.ExternalServices.Holidays;
 using GoVoylo.Infrastructure.ExternalServices.Razorpay;
@@ -131,9 +132,15 @@ public class Program
         builder.Services.AddMemoryCache();
         builder.Services.AddSingleton<IFlightSearchSessionStore, InMemoryFlightSearchSessionStore>();
 
-        // Tripjack is switched off for now in favor of Flyshop — kept registered as
-        // options-only (not bound to IFlightSupplierClient) so it's a one-line swap to
-        // bring back.
+        // Multiple IFlightSupplierClient implementations can be registered here — the
+        // app resolves the right one per booking/offer via IFlightSupplierClientResolver
+        // (single supplier already chosen) or fans out to all of them at once in
+        // SearchFlightsQueryHandler (IEnumerable<IFlightSupplierClient> injected there
+        // directly). Tripjack's own wire layer (TripjackClient) still needs its real
+        // API contract implemented (search/review/book/cancel — see its own doc
+        // comments) before it's registered here too; until then Flyshop is the only
+        // active supplier, but everything downstream already resolves by SupplierCode
+        // rather than assuming a single client.
         builder.Services.Configure<TripjackOptions>(builder.Configuration.GetSection("TripjackSettings"));
 
         builder.Services.Configure<FlyshopOptions>(builder.Configuration.GetSection("FlyshopSettings"));
@@ -151,6 +158,8 @@ public class Program
             // room without leaving a genuinely broken request to hang indefinitely.
             client.Timeout = TimeSpan.FromSeconds(60);
         });
+
+        builder.Services.AddScoped<IFlightSupplierClientResolver, FlightSupplierClientResolver>();
 
         builder.Services.AddHttpClient<IHolidayCalendarService, GoogleHolidayCalendarClient>();
 

@@ -1,22 +1,30 @@
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
+using GoVoylo.Domain.Common;
 using MediatR;
 
 namespace GoVoylo.Application.Features.Flights.Commands.CancelBooking
 {
+    // No live caller today (the app's own cancel flow goes through
+    // CancelTripBookingCommand / "My Trips" instead, which resolves its supplier from
+    // the stored TripBooking) — this raw RefNo+PNR endpoint predates that and has no
+    // booking to look a supplier up from, so it's pinned to Flyshop rather than
+    // redesigned for a caller that doesn't exist yet.
     public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand, CancelBookingResponseDto>
     {
-        private readonly IFlightSupplierClient _supplierClient;
+        private readonly IFlightSupplierClientResolver _supplierClientResolver;
 
-        public CancelBookingCommandHandler(IFlightSupplierClient supplierClient)
+        public CancelBookingCommandHandler(IFlightSupplierClientResolver supplierClientResolver)
         {
-            _supplierClient = supplierClient;
+            _supplierClientResolver = supplierClientResolver;
         }
 
         public async Task<CancelBookingResponseDto> Handle(
             CancelBookingCommand request, CancellationToken cancellationToken)
         {
-            await _supplierClient.CancelBookingAsync(
+            var supplierClient = _supplierClientResolver.Resolve(FlightSupplierCodes.Flyshop);
+
+            await supplierClient.CancelBookingAsync(
                 new SupplierCancellationRequestDto(
                     request.RefNo,
                     request.AirlinePnr,

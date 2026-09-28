@@ -154,6 +154,7 @@ namespace GoVoylo.Application.Features.Flights.Dtos
 
     public record TripBookingDto(
         Guid Id,
+        string SupplierCode,
         string BookingRefNo,
         string? AirlinePnr,
         string? CrsPnr,
