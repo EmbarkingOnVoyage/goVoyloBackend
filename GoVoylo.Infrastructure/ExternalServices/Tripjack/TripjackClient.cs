@@ -3,19 +3,16 @@ using System.Net.Http.Json;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Common;
-using Microsoft.Extensions.Options;
 
 namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 {
     public class TripjackClient : IFlightSupplierClient
     {
         private readonly HttpClient _httpClient;
-        private readonly TripjackOptions _options;
 
-        public TripjackClient(HttpClient httpClient, IOptions<TripjackOptions> options)
+        public TripjackClient(HttpClient httpClient)
         {
             _httpClient = httpClient;
-            _options = options.Value;
         }
 
         public string SupplierCode => FlightSupplierCodes.Tripjack;
@@ -23,208 +20,224 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         public async Task<SupplierFlightSearchResultDto> SearchAsync(
             FlightSearchRequestDto request, CancellationToken cancellationToken)
         {
-            var wireRequest = new AirSearchRequestWire
+            var wireRequest = new TripjackSearchRequestWire
             {
-                AuthHeader = BuildAuthHeader(),
-                TravelType = 0,
-                BookingType = MapBookingType(request.TripType),
-                TripInfo = request.Segments
-                    .Select((s, index) => new TripInfoWire
+                SearchQuery = new TripjackSearchQueryWire
+                {
+                    CabinClass = MapCabinClass(request.CabinClass),
+                    PaxInfo = new TripjackPaxInfoWire
                     {
-                        Origin = s.Origin,
-                        Destination = s.Destination,
-                        TravelDate = s.TravelDate.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
-                        TripId = index
-                    })
-                    .ToList(),
-                AdultCount = request.AdultCount.ToString(CultureInfo.InvariantCulture),
-                ChildCount = request.ChildCount.ToString(CultureInfo.InvariantCulture),
-                InfantCount = request.InfantCount.ToString(CultureInfo.InvariantCulture),
-                ClassOfTravel = MapClassOfTravel(request.CabinClass),
-                InventoryType = 0,
-                SourceType = 0,
-                FilteredAirline = new List<FilteredAirlineWire> { new() { AirlineCode = string.Empty } }
+                        Adult = request.AdultCount,
+                        Child = request.ChildCount,
+                        Infant = request.InfantCount
+                    },
+                    RouteInfos = request.Segments
+                        .Select(s => new TripjackRouteInfoWire
+                        {
+                            FromCityOrAirport = new TripjackAirportCodeWire { Code = s.Origin },
+                            ToCityOrAirport = new TripjackAirportCodeWire { Code = s.Destination },
+                            TravelDate = s.TravelDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+                        })
+                        .ToList()
+                }
             };
 
-            //var wireResponse = await PostAsync<AirSearchRequestWire, AirSearchResponseWire>(
-            //    "Air_Search", wireRequest, cancellationToken);
-            var wireResponse = await PostAsync<AirSearchRequestWire, AirSearchResponseWire>(
-    "fms/v1/air-search-all", wireRequest, cancellationToken);
+            var wireResponse = await PostAsync<TripjackSearchRequestWire, TripjackSearchResponseWire>(
+                "fms/v1/air-search-all", wireRequest, cancellationToken);
 
-            var flights = wireResponse.TripDetails
-                .SelectMany(t => t.Flights.Select(f => MapFlight(f, ParseInt(t.TripId))))
+            var tripInfos = wireResponse.SearchResult?.TripInfos ?? new Dictionary<string, List<TripjackTripOptionWire>>();
+
+            // Dictionary insertion order follows the JSON's own key order (ONWARD
+            // first, then RETURN for a domestic return) — same TripLegIndex meaning
+            // Flyshop's TripDetails[].Trip_Id already carries for a multi-leg search.
+            var flights = tripInfos.Values
+                .SelectMany((tripOptions, legIndex) => tripOptions.Select(option => MapFlight(option, legIndex)))
                 .ToList();
 
-            return new SupplierFlightSearchResultDto(wireResponse.SearchKey, flights);
+            // Tripjack has no equivalent of Flyshop's Search_Key — Review only ever
+            // needs the priceId (carried as FlightKey/FareId below), so this is left
+            // empty and never read back for a Tripjack offer.
+            return new SupplierFlightSearchResultDto(string.Empty, flights);
         }
 
         public async Task<SupplierRepriceResultDto> RepriceAsync(
             SupplierRepriceRequestDto request, CancellationToken cancellationToken)
         {
-            var wireRequest = new AirRepriceRequestWire
+            // Tripjack's Review is both "reprice" and "start a booking session" in one
+            // call — there's no separate Flight_Key vs Fare_Id the way Flyshop has, so
+            // FareId is ignored here and FlightKey (the priceId from search) is the
+            // only thing Review needs.
+            var wireRequest = new TripjackReviewRequestWire
             {
-                AuthHeader = BuildAuthHeader(),
-                SearchKey = request.SearchKey,
-                AirRepriceRequests = new List<AirRepriceRequestItemWire>
-                {
-                    new() { FlightKey = request.FlightKey, FareId = request.FareId }
-                },
-                GstInput = false,
-                SinglePricing = true
+                PriceIds = new List<string> { request.FlightKey }
             };
 
-            var wireResponse = await PostAsync<AirRepriceRequestWire, AirRepriceResponseWire>(
-                "Air_Reprice", wireRequest, cancellationToken);
+            var wireResponse = await PostAsync<TripjackReviewRequestWire, TripjackReviewResponseWire>(
+                "fms/v1/review", wireRequest, cancellationToken);
 
-            var repriced = wireResponse.AirRepriceResponses.FirstOrDefault();
+            var totalFare = wireResponse.TotalPriceInfo?.TotalFareDetail?.TotalFare ?? 0m;
 
-            if (repriced == null)
-            {
-                throw new InvalidOperationException("Tripjack Air_Reprice returned no repriced flight.");
-            }
-
-            var mapped = MapFlight(repriced);
-
+            // Every later Tripjack call (Seat Map, Book, Confirm-Book, Fare Rules,
+            // Booking Details) needs this bookingId, not the original priceId — it's
+            // carried forward as FlightKey since that's the field every caller of
+            // RepriceAsync already threads through to the next step.
             return new SupplierRepriceResultDto(
-                mapped.FlightKey,
-                mapped.FareId,
-                mapped.TotalAmount,
-                mapped.CurrencyCode,
-                repriced.Repriced,
-                repriced.IsFareChange);
+                wireResponse.BookingId,
+                request.FareId,
+                totalFare,
+                "INR",
+                Repriced: true,
+                IsFareChange: false);
         }
 
         public Task<SupplierLowFareResultDto> GetLowFareCalendarAsync(
             SupplierLowFareRequestDto request, CancellationToken cancellationToken)
         {
-            // This integration never had a fare-calendar/low-fare capability — confirmed
-            // by exhaustive search of the Tripjack docs this client was built against.
+            // Confirmed absent from Tripjack's Flights API v2.0 docs — no fare
+            // calendar endpoint exists for this supplier at all.
             throw new NotSupportedException("Tripjack does not support a low-fare calendar.");
         }
 
         public Task<SupplierAncillaryResultDto> GetAncillariesAsync(
             SupplierAncillaryRequestDto request, CancellationToken cancellationToken)
         {
-            // Tripjack is switched off in favor of Flyshop (see Program.cs) and its
-            // ancillary/SSR endpoints were never mapped for this client.
+            // Real endpoint exists (Review's own sI[].ssrInfo already returns MEAL/
+            // BAGGAGE options inline — confirmed live), but nothing here maps that
+            // response into SupplierAncillaryResultDto yet.
             throw new NotSupportedException("Tripjack ancillary services are not implemented.");
         }
 
         public Task<SupplierSeatMapResultDto> GetSeatMapAsync(
             SupplierSeatMapRequestDto request, CancellationToken cancellationToken)
         {
+            // Real endpoint: POST fms/v1/seat, { bookingId }. See
+            // TripjackWireModels.cs's own notes — not yet implemented/verified.
             throw new NotSupportedException("Tripjack seat map is not implemented.");
         }
 
         public Task<SupplierTempBookingResultDto> CreateTempBookingAsync(
             SupplierTempBookingRequestDto request, CancellationToken cancellationToken)
         {
+            // Tripjack has no separate "temp booking" step distinct from Review
+            // (already called via RepriceAsync above) — this would need to become a
+            // thin pass-through once Book/Confirm-Book exist, not its own HTTP call.
             throw new NotSupportedException("Tripjack booking is not implemented.");
         }
 
         public Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
             string bookingRefNo, CancellationToken cancellationToken)
         {
+            // Real endpoint: POST oms/v1/air/book WITHOUT paymentInfos (Hold mode) —
+            // only valid when Review's own conditions.isBA was true.
             throw new NotSupportedException("Tripjack ticketing is not implemented.");
         }
 
         public Task CancelBookingAsync(
             SupplierCancellationRequestDto request, CancellationToken cancellationToken)
         {
+            // Real flow is two calls, not one: POST
+            // oms/v1/air/amendment/amendment-charges to quote what the customer owes,
+            // then POST oms/v1/air/amendment/submit-amendment to commit — Flyshop's
+            // single Air_TicketCancellation call has no equivalent here, so
+            // CancelBookingAsync's own single-call contract may need to change (or
+            // internally do both calls) once this is implemented.
             throw new NotSupportedException("Tripjack cancellation is not implemented.");
         }
 
         public Task ReleaseHoldAsync(
             SupplierReleaseHoldRequestDto request, CancellationToken cancellationToken)
         {
+            // Real endpoint: POST oms/v1/air/unhold. Exact request field name(s) not
+            // yet confirmed against a live response.
             throw new NotSupportedException("Tripjack hold release is not implemented.");
         }
 
         public Task<SupplierPaymentResultDto> AddPaymentAsync(
             string bookingRefNo, string clientRefNo, CancellationToken cancellationToken)
         {
+            // Tripjack has no separate wallet-debit call the way Flyshop's AddPayment
+            // is — Confirm-Book (see BookTicketAsync) takes paymentInfos.amount
+            // directly, committing payment and ticketing together in one call. This
+            // method likely becomes a no-op or a Fare-Validate check rather than a
+            // real charge once BookTicketAsync is implemented.
             throw new NotSupportedException("Tripjack payment is not implemented.");
         }
 
         public Task<SupplierTicketingResultDto> BookTicketAsync(
             string bookingRefNo, CancellationToken cancellationToken)
         {
+            // Real endpoint: POST oms/v1/air/confirm-book, { bookingId,
+            // paymentInfos: [{ amount }], ... } — this is where Tripjack actually
+            // commits payment AND ticketing in a single call, unlike Flyshop's
+            // separate AddPayment + Book_Ticket steps.
             throw new NotSupportedException("Tripjack ticketing is not implemented.");
         }
 
         public Task<SupplierFareRuleResultDto> GetFareRulesAsync(
             SupplierFareRuleRequestDto request, CancellationToken cancellationToken)
         {
+            // Real endpoint: POST fms/v2/farerule, { flowType: "REVIEW", id: bookingId }.
             throw new NotSupportedException("Tripjack fare rules are not implemented.");
         }
 
-        private AuthHeaderWire BuildAuthHeader() => new()
+        private static SupplierFlightOptionDto MapFlight(TripjackTripOptionWire tripOption, int tripLegIndex)
         {
-            UserId = _options.UserId,
-            Password = _options.Password,
-            IpAddress = _options.IpAddress,
-            RequestId = Guid.NewGuid().ToString("N"),
-            ImeiNumber = _options.ImeiNumber
-        };
+            var primaryPrice = tripOption.TotalPriceList.FirstOrDefault();
+            var adultFare = GetAdultFareDetail(primaryPrice);
 
-        private static SupplierFlightOptionDto MapFlight(FlightWire flight, int tripLegIndex = 0)
-        {
-            var primaryFare = flight.Fares.FirstOrDefault();
+            var fares = tripOption.TotalPriceList
+                .Select(price =>
+                {
+                    var fareDetail = GetAdultFareDetail(price);
+                    return new SupplierFareOptionDto(
+                        price.Id,
+                        fareDetail?.RefundableType != 0,
+                        fareDetail?.FareComponent.TotalFare ?? 0m,
+                        "INR",
+                        fareDetail?.BaggageInfo?.CheckInBaggage,
+                        fareDetail?.BaggageInfo?.CabinBaggage);
+                })
+                .ToList();
 
-            var adultFareDetail = primaryFare?.FareDetails.FirstOrDefault(f => f.PaxType == "0")
-                ?? primaryFare?.FareDetails.FirstOrDefault();
+            var firstSegment = tripOption.SegmentInfos.FirstOrDefault();
 
             return new SupplierFlightOptionDto(
-                flight.FlightKey,
-                primaryFare?.FareId ?? string.Empty,
-                flight.AirlineCode ?? flight.Segments.FirstOrDefault()?.AirlineCode ?? string.Empty,
-                flight.Segments.FirstOrDefault()?.AirlineName ?? string.Empty,
-                ParseBool(primaryFare?.Refundable),
-                flight.IsLcc,
-                flight.Segments.Select(MapSegment).ToList(),
-                adultFareDetail?.TotalAmount ?? 0m,
-                adultFareDetail?.CurrencyCode ?? "INR",
-                ParseInt(primaryFare?.SeatsAvailable),
-                // Tripjack is switched off in favor of Flyshop (see Program.cs) and its wire
-                // format hasn't been mapped to per-fare-tier detail yet — empty rather than
-                // guessing at a shape this supplier's response doesn't confirm.
-                Array.Empty<SupplierFareOptionDto>(),
+                // No separate Flight_Key/Fare_Id split for Tripjack — the priceId
+                // covers both (see TripjackPriceWire.Id's own doc comment).
+                primaryPrice?.Id ?? string.Empty,
+                primaryPrice?.Id ?? string.Empty,
+                firstSegment?.FlightDesignator.AirlineInfo.Code ?? string.Empty,
+                firstSegment?.FlightDesignator.AirlineInfo.Name ?? string.Empty,
+                adultFare?.RefundableType != 0,
+                firstSegment?.FlightDesignator.AirlineInfo.IsLcc ?? false,
+                tripOption.SegmentInfos.Select(MapSegment).ToList(),
+                adultFare?.FareComponent.TotalFare ?? 0m,
+                "INR",
+                adultFare?.SeatsRemaining ?? 0,
+                fares,
                 tripLegIndex);
         }
 
-        private static SupplierFlightSegmentDto MapSegment(SegmentWire segment) => new(
-            segment.Origin,
-            segment.Destination,
-            segment.AirlineCode,
-            segment.AirlineName,
-            segment.FlightNumber,
+        private static TripjackFareDetailWire? GetAdultFareDetail(TripjackPriceWire? price) =>
+            price?.FareDetailsByPaxType.TryGetValue("ADULT", out var detail) == true ? detail : null;
+
+        private static SupplierFlightSegmentDto MapSegment(TripjackSegmentInfoWire segment) => new(
+            segment.Departure.Code,
+            segment.Arrival.Code,
+            segment.FlightDesignator.AirlineInfo.Code,
+            segment.FlightDesignator.AirlineInfo.Name,
+            segment.FlightDesignator.FlightNumber,
             ParseDateTime(segment.DepartureDateTime),
             ParseDateTime(segment.ArrivalDateTime),
-            segment.Duration);
+            segment.DurationMinutes.ToString(CultureInfo.InvariantCulture));
 
-        private static int MapBookingType(string tripType) => tripType switch
+        private static string MapCabinClass(string cabinClass) => cabinClass switch
         {
-            "OneWay" => 0,
-            "RoundTrip" => 1,
-            "MultiCity" => 3,
-            _ => 0
+            "Business" => "BUSINESS",
+            "First" => "FIRST",
+            "PremiumEconomy" => "PREMIUM_ECONOMY",
+            _ => "ECONOMY"
         };
-
-        private static string MapClassOfTravel(string cabinClass) => cabinClass switch
-        {
-            "Business" => "1",
-            "First" => "2",
-            "PremiumEconomy" => "3",
-            _ => "0"
-        };
-
-        private static bool ParseBool(string? value) =>
-            value is not null && (value.Equals("Y", StringComparison.OrdinalIgnoreCase)
-                || value.Equals("true", StringComparison.OrdinalIgnoreCase)
-                || value == "1");
-
-        private static int ParseInt(string? value) =>
-            int.TryParse(value, out var parsed) ? parsed : 0;
 
         private static DateTime ParseDateTime(string? value) =>
             DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)

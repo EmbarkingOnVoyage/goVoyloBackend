@@ -1,6 +1,5 @@
-using GoVoylo.Application.Interfaces; 
+using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Interfaces;
-using GoVoylo.Infrastructure.ExternalServices.Tripjack;
 using GoVoylo.Infrastructure.Persistence.EntityFramework;
 using GoVoylo.Infrastructure.Persistence.Repositories;
 using GoVoylo.Infrastructure.Services.B2b.TripJack;
@@ -8,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
-using Microsoft.Extensions.Options;
 
 namespace GoVoylo.Infrastructure;
 
@@ -77,10 +75,13 @@ public static class DependencyInjection
         else
         {
             // If UseMock is false, we register the real HTTP client service for TripJack.
+            // No hardcoded key fallback: a missing B2bSettings:TripJack:ApiKey now
+            // fails loudly (an empty apikey header) rather than silently authenticating
+            // as whoever that baked-in key belonged to.
             services.AddHttpClient<ITripJackTestService, TripJackTestService>(client =>
             {
                 var baseUrl = configuration["B2bSettings:TripJack:BaseUrl"] ?? "https://apitest.tripjack.com/";
-                var apiKey = configuration["B2bSettings:TripJack:ApiKey"] ?? "717512708b4ba99-786c-46c9-a801-37891e3a8bab";
+                var apiKey = configuration["B2bSettings:TripJack:ApiKey"] ?? string.Empty;
 
                 client.BaseAddress = new Uri(baseUrl);
                 client.DefaultRequestHeaders.Add("apikey", apiKey);
@@ -88,18 +89,11 @@ public static class DependencyInjection
             });
         }
 
-        services.Configure<TripjackOptions>(
-            configuration.GetSection("Tripjack"));
-
-        services.AddHttpClient<TripjackClient>((serviceProvider, client) =>
-        {
-            var options = serviceProvider
-                .GetRequiredService<IOptions<TripjackOptions>>()
-                .Value;
-
-            client.BaseAddress = new Uri(options.BaseUrl);
-            client.Timeout = TimeSpan.FromSeconds(60);
-        });
+        // Tripjack's real IFlightSupplierClient registration (options binding +
+        // AddHttpClient<IFlightSupplierClient, TripjackClient>) lives in Program.cs
+        // alongside Flyshop's — this used to also register a second, differently-
+        // configured TripjackClient here bound to a "Tripjack" config section that no
+        // appsettings file actually defines (always empty BaseUrl), which is removed.
         return services;
     }
 }

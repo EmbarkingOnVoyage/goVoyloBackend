@@ -1,11 +1,16 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using GoVoylo.Application.Features.B2bIntegrations.Queries.TestTripJackSearch;
 
 namespace GoVoylo.Api.Controllers;
 
+// Proxies straight through to Tripjack's own search (or a mock) with no booking/
+// payment surface of its own, but it was reachable by anyone with no auth at all —
+// locked down like every other real endpoint in this API rather than left open.
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class B2bTestController : ControllerBase
 {
     private readonly IMediator _mediator;
