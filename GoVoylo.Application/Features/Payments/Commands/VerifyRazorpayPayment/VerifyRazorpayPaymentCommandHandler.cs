@@ -1,3 +1,4 @@
+using System.Linq;
 using MediatR;
 using GoVoylo.Domain.Interfaces;
 using GoVoylo.Application.Interfaces;
@@ -67,6 +68,22 @@ public class VerifyRazorpayPaymentCommandHandler : IRequestHandler<VerifyRazorpa
             var ticket = await _supplierClient.BookTicketAsync(booking.BookingRefNo, cancellationToken);
 
             booking.MarkTicketed(ticket.StatusId, ticket.AirlinePnr, ticket.CrsPnr, ticket.RecordLocator);
+
+            // A roundtrip's two legs can come back with different Airline_PNR values
+            // (Air_Ticketing returns one AirlinePNRDetails entry per Flight_Id) — the
+            // booking-level fields above only ever hold the first leg's values, so each
+            // leg needs its own PNR recorded for a later leg-specific cancellation to
+            // send the right one. Matched by FlightId since that's the one identifier
+            // both sides share.
+            var legResultsByFlightId = ticket.Legs.ToDictionary(l => l.FlightId);
+            foreach (var leg in booking.Legs)
+            {
+                if (legResultsByFlightId.TryGetValue(leg.FlightId, out var legResult))
+                {
+                    leg.MarkTicketed(legResult.AirlinePnr, legResult.CrsPnr, legResult.RecordLocator);
+                }
+            }
+
             await _tripBookingRepository.UpdateAsync(booking, cancellationToken);
         }
 

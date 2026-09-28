@@ -62,6 +62,18 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasMaxLength(64)
                 .IsRequired();
 
+            builder.Property(x => x.AirlinePnr)
+                .HasColumnName("airline_pnr")
+                .HasMaxLength(32);
+
+            builder.Property(x => x.CrsPnr)
+                .HasColumnName("crs_pnr")
+                .HasMaxLength(32);
+
+            builder.Property(x => x.RecordLocator)
+                .HasColumnName("record_locator")
+                .HasMaxLength(32);
+
             builder.Property(x => x.IsCancelled)
                 .HasColumnName("is_cancelled")
                 .HasDefaultValue(false)
