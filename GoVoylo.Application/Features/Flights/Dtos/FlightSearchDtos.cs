@@ -143,6 +143,11 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string AirlineCode,
         string AirlineName,
         string FlightNumber,
+        // Only set once Air_Ticketing succeeds — a roundtrip's two legs can be
+        // ticketed under different Airline_PNR/CRS_PNR values. See
+        // VerifyRazorpayPaymentCommandHandler and TripBookingLeg.MarkTicketed.
+        string? AirlinePnr,
+        string? CrsPnr,
         // True once this leg was cancelled on its own (e.g. return-leg-only
         // cancellation) rather than via the whole booking — see TripBooking.MarkLegCancelled.
         bool IsCancelled);

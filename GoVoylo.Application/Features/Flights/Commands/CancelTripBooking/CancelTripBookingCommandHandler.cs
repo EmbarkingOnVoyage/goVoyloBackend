@@ -97,6 +97,13 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
                     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
                 var legsToCancel = booking.Legs.AsEnumerable();
+                // Defaults to the booking-level PNR (correct for a oneway, and for a
+                // roundtrip whose legs share one PNR). Overridden below for a
+                // leg-specific cancel, since a roundtrip's two legs can legitimately
+                // have been ticketed under different Airline_PNRs (see
+                // VerifyRazorpayPaymentCommandHandler) — sending the wrong leg's PNR
+                // would cancel (or fail to cancel) the wrong reservation at Flyshop.
+                var airlinePnr = booking.AirlinePnr;
                 if (request.LegIndex.HasValue)
                 {
                     var targetLeg = booking.Legs.FirstOrDefault(l => l.LegIndex == request.LegIndex.Value);
@@ -111,6 +118,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
                             "leg_already_cancelled", "This leg has already been cancelled.");
                     }
                     legsToCancel = new[] { targetLeg };
+                    airlinePnr = targetLeg.AirlinePnr ?? booking.AirlinePnr;
                 }
 
                 var segments = legsToCancel
@@ -121,7 +129,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
                 await _supplierClient.CancelBookingAsync(
                     new SupplierCancellationRequestDto(
                         booking.BookingRefNo,
-                        booking.AirlinePnr,
+                        airlinePnr,
                         cancellationType,
                         cancelCode,
                         "Cancelled by customer via GoVoylo app",

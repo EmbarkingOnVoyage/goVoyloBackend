@@ -18,6 +18,15 @@ namespace GoVoylo.Domain.Entities
         public string FlightNumber { get; private set; } = null!;
         public string FlightId { get; private set; } = null!;
 
+        // Set once Air_Ticketing succeeds — a roundtrip's two legs can come back with
+        // different Airline_PNR values (Air_Ticketing's response has one
+        // AirlinePNRDetails entry per Flight_Id), so cancelling one leg on its own
+        // must use ITS OWN PNR here, not the booking-level TripBooking.AirlinePnr
+        // (which only ever holds the first leg's value — see MarkLegTicketed).
+        public string? AirlinePnr { get; private set; }
+        public string? CrsPnr { get; private set; }
+        public string? RecordLocator { get; private set; }
+
         // Set when this leg is cancelled on its own via Air_TicketCancellation
         // (e.g. cancelling only the return leg of a roundtrip) rather than the whole
         // booking. TripBooking.LocalStatus only flips to Cancelled once every leg here
@@ -53,6 +62,13 @@ namespace GoVoylo.Domain.Entities
         // Required by EF Core
         private TripBookingLeg()
         {
+        }
+
+        public void MarkTicketed(string? airlinePnr, string? crsPnr, string? recordLocator)
+        {
+            AirlinePnr = airlinePnr;
+            CrsPnr = crsPnr;
+            RecordLocator = recordLocator;
         }
 
         public void MarkCancelled(int cancellationType, string cancelCode)
