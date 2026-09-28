@@ -9,6 +9,14 @@ namespace GoVoylo.Domain.Entities
     public class TripBooking : BaseEntity
     {
         public Guid UserId { get; private set; }
+
+        // Which IFlightSupplierClient this booking was made through (see
+        // GoVoylo.Domain.Common.FlightSupplierCodes) — every leg belongs to the same
+        // supplier; a mixed-supplier itinerary isn't supported. Needed to resolve the
+        // right client again later for cancellation, release, or payment/ticketing,
+        // since the app can have more than one supplier registered.
+        public string SupplierCode { get; private set; } = null!;
+
         public string BookingRefNo { get; private set; } = null!;
         public string? AirlinePnr { get; private set; }
         public string? CrsPnr { get; private set; }
@@ -50,6 +58,7 @@ namespace GoVoylo.Domain.Entities
 
         public TripBooking(
             Guid userId,
+            string supplierCode,
             string bookingRefNo,
             string? airlinePnr,
             string? crsPnr,
@@ -61,6 +70,7 @@ namespace GoVoylo.Domain.Entities
             string paxIds)
         {
             UserId = userId;
+            SupplierCode = supplierCode;
             BookingRefNo = bookingRefNo;
             AirlinePnr = airlinePnr;
             CrsPnr = crsPnr;

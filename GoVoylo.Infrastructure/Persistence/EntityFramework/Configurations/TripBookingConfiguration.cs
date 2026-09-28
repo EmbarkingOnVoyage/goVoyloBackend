@@ -1,3 +1,4 @@
+using GoVoylo.Domain.Common;
 using GoVoylo.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -18,6 +19,14 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
 
             builder.Property(x => x.UserId)
                 .HasColumnName("user_id")
+                .IsRequired();
+
+            // Defaults every pre-existing row (all made before multi-supplier support)
+            // to Flyshop, since that was the only supplier ever wired up until now.
+            builder.Property(x => x.SupplierCode)
+                .HasColumnName("supplier_code")
+                .HasMaxLength(32)
+                .HasDefaultValue(FlightSupplierCodes.Flyshop)
                 .IsRequired();
 
             builder.Property(x => x.BookingRefNo)

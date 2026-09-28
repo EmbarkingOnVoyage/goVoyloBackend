@@ -17,18 +17,18 @@ public class VerifyRazorpayPaymentCommandHandler : IRequestHandler<VerifyRazorpa
     private readonly IPaymentRepository _paymentRepository;
     private readonly IRazorpayClient _razorpayClient;
     private readonly ITripBookingRepository _tripBookingRepository;
-    private readonly IFlightSupplierClient _supplierClient;
+    private readonly IFlightSupplierClientResolver _supplierClientResolver;
 
     public VerifyRazorpayPaymentCommandHandler(
         IPaymentRepository paymentRepository,
         IRazorpayClient razorpayClient,
         ITripBookingRepository tripBookingRepository,
-        IFlightSupplierClient supplierClient)
+        IFlightSupplierClientResolver supplierClientResolver)
     {
         _paymentRepository = paymentRepository;
         _razorpayClient = razorpayClient;
         _tripBookingRepository = tripBookingRepository;
-        _supplierClient = supplierClient;
+        _supplierClientResolver = supplierClientResolver;
     }
 
     public async Task<PaymentResponseDto> Handle(VerifyRazorpayPaymentCommand request, CancellationToken cancellationToken)
@@ -63,9 +63,11 @@ public class VerifyRazorpayPaymentCommandHandler : IRequestHandler<VerifyRazorpa
             // already been charged by this point, so a Flyshop failure here must
             // surface as a real error (needing manual follow-up — refund or retry)
             // rather than being swallowed into a false "booking confirmed" response.
-            await _supplierClient.AddPaymentAsync(booking.BookingRefNo, payment.Id.ToString(), cancellationToken);
+            var supplierClient = _supplierClientResolver.Resolve(booking.SupplierCode);
 
-            var ticket = await _supplierClient.BookTicketAsync(booking.BookingRefNo, cancellationToken);
+            await supplierClient.AddPaymentAsync(booking.BookingRefNo, payment.Id.ToString(), cancellationToken);
+
+            var ticket = await supplierClient.BookTicketAsync(booking.BookingRefNo, cancellationToken);
 
             booking.MarkTicketed(ticket.StatusId, ticket.AirlinePnr, ticket.CrsPnr, ticket.RecordLocator);
 

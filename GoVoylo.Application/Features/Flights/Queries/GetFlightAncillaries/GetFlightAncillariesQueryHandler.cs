@@ -8,14 +8,14 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetFlightAncillaries
     public class GetFlightAncillariesQueryHandler
         : IRequestHandler<GetFlightAncillariesQuery, FlightAncillariesResponseDto>
     {
-        private readonly IFlightSupplierClient _supplierClient;
+        private readonly IFlightSupplierClientResolver _supplierClientResolver;
         private readonly IFlightSearchSessionStore _sessionStore;
 
         public GetFlightAncillariesQueryHandler(
-            IFlightSupplierClient supplierClient,
+            IFlightSupplierClientResolver supplierClientResolver,
             IFlightSearchSessionStore sessionStore)
         {
-            _supplierClient = supplierClient;
+            _supplierClientResolver = supplierClientResolver;
             _sessionStore = sessionStore;
         }
 
@@ -29,10 +29,12 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetFlightAncillaries
                 throw new NotFoundException("Flight offer not found or has expired. Please search again.");
             }
 
+            var supplierClient = _supplierClientResolver.Resolve(session.SupplierCode);
+
             // Air_GetSSR's own docs specify using the Flight_Key from an Air_Reprice
             // response, not the one from Air_Search — reprice here rather than assume
             // the search-time key is still valid, same as RepriceFlightOfferQueryHandler.
-            var repriceResult = await _supplierClient.RepriceAsync(
+            var repriceResult = await supplierClient.RepriceAsync(
                 new SupplierRepriceRequestDto(session.SearchKey, session.FlightKey, session.FareId),
                 cancellationToken);
 
@@ -43,7 +45,7 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetFlightAncillaries
             };
             await _sessionStore.UpdateAsync(request.OfferId, updatedSession, cancellationToken);
 
-            var result = await _supplierClient.GetAncillariesAsync(
+            var result = await supplierClient.GetAncillariesAsync(
                 new SupplierAncillaryRequestDto(session.SearchKey, updatedSession.FlightKey),
                 cancellationToken);
 

@@ -30,14 +30,14 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
         private const string DirectFlightSegmentId = "0";
 
         private readonly ITripBookingRepository _tripBookingRepository;
-        private readonly IFlightSupplierClient _supplierClient;
+        private readonly IFlightSupplierClientResolver _supplierClientResolver;
 
         public CancelTripBookingCommandHandler(
             ITripBookingRepository tripBookingRepository,
-            IFlightSupplierClient supplierClient)
+            IFlightSupplierClientResolver supplierClientResolver)
         {
             _tripBookingRepository = tripBookingRepository;
-            _supplierClient = supplierClient;
+            _supplierClientResolver = supplierClientResolver;
         }
 
         public async Task<CancelTripBookingResponseDto> Handle(
@@ -80,9 +80,11 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
                     "A held (un-ticketed) booking must be released as a whole, not by leg.");
             }
 
+            var supplierClient = _supplierClientResolver.Resolve(booking.SupplierCode);
+
             if (booking.StatusId == StatusBlocked)
             {
-                await _supplierClient.ReleaseHoldAsync(
+                await supplierClient.ReleaseHoldAsync(
                     new SupplierReleaseHoldRequestDto(booking.BookingRefNo, booking.AirlinePnr),
                     cancellationToken);
 
@@ -126,7 +128,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
                         .Select(paxId => new SupplierCancelSegmentDto(leg.FlightId, paxId, DirectFlightSegmentId)))
                     .ToList();
 
-                await _supplierClient.CancelBookingAsync(
+                await supplierClient.CancelBookingAsync(
                     new SupplierCancellationRequestDto(
                         booking.BookingRefNo,
                         airlinePnr,

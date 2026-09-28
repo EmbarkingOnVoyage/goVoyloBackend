@@ -18,20 +18,20 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
         // everything else (11-Success, 33-Block) means the hold/ticket went through.
         private const string TicketingFailedStatusId = "22";
 
-        private readonly IFlightSupplierClient _supplierClient;
+        private readonly IFlightSupplierClientResolver _supplierClientResolver;
         private readonly IFlightSearchSessionStore _sessionStore;
         private readonly IUserRepository _userRepository;
         private readonly IEmailService _emailService;
         private readonly ITripBookingRepository _tripBookingRepository;
 
         public CreateBookingCommandHandler(
-            IFlightSupplierClient supplierClient,
+            IFlightSupplierClientResolver supplierClientResolver,
             IFlightSearchSessionStore sessionStore,
             IUserRepository userRepository,
             IEmailService emailService,
             ITripBookingRepository tripBookingRepository)
         {
-            _supplierClient = supplierClient;
+            _supplierClientResolver = supplierClientResolver;
             _sessionStore = sessionStore;
             _userRepository = userRepository;
             _emailService = emailService;
@@ -83,7 +83,8 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                 }
                 else
                 {
-                    var repriceResult = await _supplierClient.RepriceAsync(
+                    var legSupplierClient = _supplierClientResolver.Resolve(session.SupplierCode);
+                    var repriceResult = await legSupplierClient.RepriceAsync(
                         new SupplierRepriceRequestDto(session.SearchKey, session.FlightKey, session.FareId),
                         cancellationToken);
 
@@ -118,7 +119,20 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
 
             var hasGst = !string.IsNullOrWhiteSpace(request.GstNumber);
 
-            var tempBooking = await _supplierClient.CreateTempBookingAsync(
+            // Every leg has to come from the same supplier — a mixed-supplier
+            // itinerary (one leg via Flyshop, another via Tripjack) isn't something
+            // any single Book_Ticket-style call can commit atomically.
+            var supplierCode = legSummaries[0].SupplierCode;
+            if (legSummaries.Any(s => s.SupplierCode != supplierCode))
+            {
+                throw new BusinessRuleException(
+                    "mixed_supplier_booking",
+                    "All legs of a booking must come from the same supplier.");
+            }
+
+            var supplierClient = _supplierClientResolver.Resolve(supplierCode);
+
+            var tempBooking = await supplierClient.CreateTempBookingAsync(
                 new SupplierTempBookingRequestDto(
                     request.PassengerMobile,
                     request.PassengerEmail,
@@ -130,7 +144,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                     GstAddress: request.GstAddress ?? string.Empty),
                 cancellationToken);
 
-            var ticket = await _supplierClient.CreateBlockTicketAsync(tempBooking.BookingRefNo, cancellationToken);
+            var ticket = await supplierClient.CreateBlockTicketAsync(tempBooking.BookingRefNo, cancellationToken);
 
             // Best-effort: the hold itself already succeeded on Flyshop's side by this
             // point, so a failed/missing email shouldn't turn a successful booking
@@ -171,6 +185,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
 
                 var tripBooking = new TripBooking(
                     request.UserId,
+                    supplierCode,
                     ticket.BookingRefNo,
                     ticket.AirlinePnr,
                     ticket.CrsPnr,
