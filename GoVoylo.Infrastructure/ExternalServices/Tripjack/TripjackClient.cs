@@ -75,6 +75,11 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             var wireResponse = await PostAsync<TripjackReviewRequestWire, TripjackReviewResponseWire>(
                 "fms/v1/review", wireRequest, cancellationToken);
 
+            if (wireResponse.Status?.Success != true || string.IsNullOrEmpty(wireResponse.BookingId))
+            {
+                throw new InvalidOperationException("Tripjack Review returned no bookingId.");
+            }
+
             var totalFare = wireResponse.TotalPriceInfo?.TotalFareDetail?.TotalFare ?? 0m;
 
             // Every later Tripjack call (Seat Map, Book, Confirm-Book, Fare Rules,
@@ -115,21 +120,92 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             throw new NotSupportedException("Tripjack seat map is not implemented.");
         }
 
-        public Task<SupplierTempBookingResultDto> CreateTempBookingAsync(
+        public async Task<SupplierTempBookingResultDto> CreateTempBookingAsync(
             SupplierTempBookingRequestDto request, CancellationToken cancellationToken)
         {
-            // Tripjack has no separate "temp booking" step distinct from Review
-            // (already called via RepriceAsync above) — this would need to become a
-            // thin pass-through once Book/Confirm-Book exist, not its own HTTP call.
-            throw new NotSupportedException("Tripjack booking is not implemented.");
+            if (request.Flights.Count != 1)
+            {
+                // Each leg goes through its own separate Review call today (one
+                // RepriceAsync call per leg — see CreateBookingCommandHandler), each
+                // producing its own bookingId. Tripjack's own model expects every
+                // leg's priceId submitted together in ONE Review call to get a single
+                // bookingId covering a multi-leg itinerary, so a roundtrip/multi-city
+                // Tripjack booking isn't safe to attempt until that's reworked.
+                throw new NotSupportedException(
+                    "Tripjack booking only supports oneway itineraries today — a multi-leg itinerary needs every " +
+                    "leg's priceId submitted together in one Review call, which the current per-leg reprice flow doesn't do.");
+            }
+
+            // RepriceAsync (Review) already ran for this leg and its bookingId is
+            // carried here as FlightKey — see RepriceAsync's own doc comment.
+            var bookingId = request.Flights[0].FlightKey;
+
+            var wireRequest = new TripjackBookRequestWire
+            {
+                BookingId = bookingId,
+                DeliveryInfo = new TripjackDeliveryInfoWire
+                {
+                    Emails = new List<string> { request.PassengerEmail },
+                    Contacts = new List<string> { NormalizeMobile(request.PassengerMobile) }
+                },
+                TravellerInfo = request.Travelers.Select(MapTraveller).ToList()
+                // PaymentInfos intentionally omitted — this is what makes it a Hold
+                // rather than an Instant Book.
+            };
+
+            var wireResponse = await PostAsync<TripjackBookRequestWire, TripjackBookResponseWire>(
+                "oms/v1/air/book", wireRequest, cancellationToken);
+
+            EnsureSuccess(wireResponse.Status, wireResponse.Errors, "Book");
+
+            return new SupplierTempBookingResultDto(wireResponse.BookingId ?? bookingId);
         }
 
-        public Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
+        public async Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
             string bookingRefNo, CancellationToken cancellationToken)
         {
-            // Real endpoint: POST oms/v1/air/book WITHOUT paymentInfos (Hold mode) —
-            // only valid when Review's own conditions.isBA was true.
-            throw new NotSupportedException("Tripjack ticketing is not implemented.");
+            // Tripjack's own integration guide: Booking Details has to be called
+            // "after 5 seconds elapsed" — the PNR/ticket data isn't populated in the
+            // Book response itself, confirmed live (Book's own response is just an
+            // echo of bookingId + status).
+            await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+
+            var wireResponse = await PostAsync<TripjackBookingDetailsRequestWire, TripjackBookingDetailsResponseWire>(
+                "oms/v1/booking-details",
+                new TripjackBookingDetailsRequestWire { BookingId = bookingRefNo },
+                cancellationToken);
+
+            var order = wireResponse.Order;
+            var airInfo = wireResponse.ItemInfos?.Air;
+            var traveller = airInfo?.TravellerInfos.FirstOrDefault();
+            var pnr = traveller?.PnrDetails.Values.FirstOrDefault();
+            var statusId = MapOrderStatus(order?.Status);
+
+            var legs = (airInfo?.TripInfos ?? new List<TripjackTripOptionWire>())
+                .SelectMany(t => t.SegmentInfos)
+                .Select(seg => new SupplierTicketingLegResultDto(
+                    // No single stable per-segment id the way Flyshop's Flight_Id is
+                    // (Booking Details' own segment id changes between Search/Review/
+                    // Book, confirmed live) — the route itself is the one identifier
+                    // that stays meaningful across calls.
+                    $"{seg.Departure.Code}-{seg.Arrival.Code}",
+                    statusId,
+                    seg.FlightDesignator.AirlineInfo.Code,
+                    pnr,
+                    null,
+                    null,
+                    null))
+                .ToList();
+
+            return new SupplierTicketingResultDto(
+                order?.BookingId ?? bookingRefNo,
+                statusId,
+                legs.FirstOrDefault()?.AirlineCode,
+                pnr,
+                null,
+                null,
+                null,
+                legs);
         }
 
         public Task CancelBookingAsync(
@@ -144,12 +220,21 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             throw new NotSupportedException("Tripjack cancellation is not implemented.");
         }
 
-        public Task ReleaseHoldAsync(
+        public async Task ReleaseHoldAsync(
             SupplierReleaseHoldRequestDto request, CancellationToken cancellationToken)
         {
-            // Real endpoint: POST oms/v1/air/unhold. Exact request field name(s) not
-            // yet confirmed against a live response.
-            throw new NotSupportedException("Tripjack hold release is not implemented.");
+            // Confirmed live: bookingId alone is rejected (errCode 1072,
+            // "Cancellation not available for PNR") — the pnrs array is required too.
+            var wireResponse = await PostAsync<TripjackUnholdRequestWire, TripjackStatusOnlyResponseWire>(
+                "oms/v1/air/unhold",
+                new TripjackUnholdRequestWire
+                {
+                    BookingId = request.BookingRefNo,
+                    Pnrs = new List<string> { request.AirlinePnr }
+                },
+                cancellationToken);
+
+            EnsureSuccess(wireResponse.Status, wireResponse.Errors, "Unhold");
         }
 
         public Task<SupplierPaymentResultDto> AddPaymentAsync(
@@ -230,6 +315,70 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             ParseDateTime(segment.DepartureDateTime),
             ParseDateTime(segment.ArrivalDateTime),
             segment.DurationMinutes.ToString(CultureInfo.InvariantCulture));
+
+        // Tripjack's own Order Status values, mapped onto the same "11-Success/
+        // 22-Failed/33-Block" string convention Flyshop's Status_Id already uses —
+        // every existing handler (CancelTripBookingCommandHandler,
+        // VerifyRazorpayPaymentCommandHandler, etc.) branches on those literal
+        // strings, so reusing them here means a Tripjack booking works with that
+        // logic unchanged rather than needing every call site to become
+        // supplier-aware about status semantics too.
+        private static string MapOrderStatus(string? status) => status switch
+        {
+            "SUCCESS" => "11",
+            "ON_HOLD" => "33",
+            "PENDING" => "33",
+            _ => "22"
+        };
+
+        private static TripjackTravellerInfoWire MapTraveller(SupplierTempBookingPaxDto pax) => new()
+        {
+            Title = MapTitle(pax.PaxType, pax.Gender),
+            PaxType = MapPaxType(pax.PaxType),
+            FirstName = pax.FirstName,
+            LastName = pax.LastName,
+            DateOfBirth = pax.DateOfBirth?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+        };
+
+        // 0-ADT/1-CHD/2-INF, the same convention SupplierTempBookingPaxDto's own
+        // callers already use for Flyshop.
+        private static string MapPaxType(int paxType) => paxType switch
+        {
+            1 => "CHILD",
+            2 => "INFANT",
+            _ => "ADULT"
+        };
+
+        // Tripjack's own docs: Adult titles are Mr/Mrs/Ms, Child/Infant titles are
+        // Ms/Master — Gender (0-Male/1-Female) is all SupplierTempBookingPaxDto
+        // carries, so a female adult maps to Mrs rather than distinguishing Ms.
+        private static string MapTitle(int paxType, int gender)
+        {
+            var isFemale = gender == 1;
+            return paxType switch
+            {
+                1 or 2 => isFemale ? "Ms" : "Master",
+                _ => isFemale ? "Mrs" : "Mr"
+            };
+        }
+
+        // Tripjack's docs: "contact numbers with country code e.g. +919500112233".
+        private static string NormalizeMobile(string mobile) =>
+            mobile.StartsWith('+') ? mobile : $"+91{mobile}";
+
+        private static void EnsureSuccess(TripjackStatusWire? status, List<TripjackErrorWire>? errors, string method)
+        {
+            if (status?.Success == true)
+            {
+                return;
+            }
+
+            var detail = errors == null || errors.Count == 0
+                ? string.Empty
+                : $" ({string.Join("; ", errors.Select(e => $"{e.ErrorCode}: {e.Message}"))})";
+
+            throw new InvalidOperationException($"Tripjack {method} failed{detail}");
+        }
 
         private static string MapCabinClass(string cabinClass) => cabinClass switch
         {

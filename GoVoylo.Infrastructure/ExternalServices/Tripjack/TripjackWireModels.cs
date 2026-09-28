@@ -271,26 +271,223 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         public int SessionTimeSeconds { get; set; }
     }
 
-    // ===== Everything past Review is still NOT implemented =====
+    // ===== Book (POST oms/v1/air/book) =====
     //
-    // Real endpoints and shapes (confirmed from Tripjack's own docs, NOT yet
-    // verified against a live response the way Search/Review above are — treat the
-    // field names below as a starting point to confirm, not ground truth):
+    // Same request shape for both Instant Book and Hold — omitting paymentInfos is
+    // what makes it a Hold (only valid when Review's conditions.isBA was true).
+    // Confirm-Book (POST oms/v1/air/confirm-book, ticketing a held booking) reuses
+    // this exact same wire shape with paymentInfos populated — see
+    // TripjackConfirmBookRequestWire below, a thin alias for that reason.
+
+    public class TripjackBookRequestWire
+    {
+        [JsonPropertyName("bookingId")]
+        public string BookingId { get; set; } = string.Empty;
+
+        [JsonPropertyName("deliveryInfo")]
+        public TripjackDeliveryInfoWire DeliveryInfo { get; set; } = new();
+
+        [JsonPropertyName("travellerInfo")]
+        public List<TripjackTravellerInfoWire> TravellerInfo { get; set; } = new();
+
+        // Omit entirely for Hold. Present (with Amount = Review's Total Fare) for
+        // Instant Book or Confirm-Book — Tripjack determines the payment medium
+        // itself; nothing else about how the agent pays goes in this request.
+        [JsonPropertyName("paymentInfos")]
+        public List<TripjackPaymentInfoWire>? PaymentInfos { get; set; }
+    }
+
+    public class TripjackPaymentInfoWire
+    {
+        [JsonPropertyName("amount")]
+        public decimal Amount { get; set; }
+    }
+
+    public class TripjackDeliveryInfoWire
+    {
+        [JsonPropertyName("emails")]
+        public List<string> Emails { get; set; } = new();
+
+        [JsonPropertyName("contacts")]
+        public List<string> Contacts { get; set; } = new();
+    }
+
+    public class TripjackTravellerInfoWire
+    {
+        // Adult: Mr/Mrs/Ms. Child/Infant: Ms/Master.
+        [JsonPropertyName("ti")]
+        public string Title { get; set; } = string.Empty;
+
+        [JsonPropertyName("pt")]
+        public string PaxType { get; set; } = string.Empty;
+
+        [JsonPropertyName("fN")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [JsonPropertyName("lN")]
+        public string LastName { get; set; } = string.Empty;
+
+        // YYYY-MM-DD — mandatory for INFANT.
+        [JsonPropertyName("dob")]
+        public string? DateOfBirth { get; set; }
+    }
+
+    // The live response is minimal — just an echo of bookingId and status; the real
+    // PNR/ticket/fare detail only shows up from Booking Details, called ~5s later.
+    public class TripjackBookResponseWire
+    {
+        [JsonPropertyName("bookingId")]
+        public string? BookingId { get; set; }
+
+        [JsonPropertyName("status")]
+        public TripjackStatusWire? Status { get; set; }
+
+        [JsonPropertyName("errors")]
+        public List<TripjackErrorWire>? Errors { get; set; }
+    }
+
+    public class TripjackErrorWire
+    {
+        [JsonPropertyName("errCode")]
+        public string? ErrorCode { get; set; }
+
+        [JsonPropertyName("message")]
+        public string? Message { get; set; }
+    }
+
+    // ===== Confirm-Book (POST oms/v1/air/confirm-book) =====
+    // Same wire shape as Book, just always carrying paymentInfos — tickets an
+    // already-held booking (call Fare Validate first to confirm the fare still
+    // stands). Kept as a separate type alias for readability at call sites even
+    // though the JSON shape is identical to TripjackBookRequestWire.
+    public class TripjackConfirmBookRequestWire : TripjackBookRequestWire
+    {
+    }
+
+    // ===== Booking Details (POST oms/v1/booking-details) =====
+
+    public class TripjackBookingDetailsRequestWire
+    {
+        [JsonPropertyName("bookingId")]
+        public string BookingId { get; set; } = string.Empty;
+    }
+
+    public class TripjackBookingDetailsResponseWire
+    {
+        [JsonPropertyName("order")]
+        public TripjackOrderWire? Order { get; set; }
+
+        [JsonPropertyName("itemInfos")]
+        public TripjackItemInfosWire? ItemInfos { get; set; }
+
+        [JsonPropertyName("status")]
+        public TripjackStatusWire? Status { get; set; }
+    }
+
+    public class TripjackOrderWire
+    {
+        [JsonPropertyName("bookingId")]
+        public string BookingId { get; set; } = string.Empty;
+
+        [JsonPropertyName("amount")]
+        public decimal Amount { get; set; }
+
+        // SUCCESS (ticketed, paid) / ON_HOLD / CANCELLED / FAILED / PENDING (poll
+        // again) / ABORTED / UNCONFIRMED (a hold that was released via unhold).
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = string.Empty;
+    }
+
+    public class TripjackItemInfosWire
+    {
+        [JsonPropertyName("AIR")]
+        public TripjackAirItemInfoWire? Air { get; set; }
+    }
+
+    public class TripjackAirItemInfoWire
+    {
+        [JsonPropertyName("tripInfos")]
+        public List<TripjackTripOptionWire> TripInfos { get; set; } = new();
+
+        [JsonPropertyName("travellerInfos")]
+        public List<TripjackBookingTravellerInfoWire> TravellerInfos { get; set; } = new();
+    }
+
+    public class TripjackBookingTravellerInfoWire
+    {
+        // Keyed by "ORIGIN-DEST" (e.g. "DEL-BOM") -> the real Airline PNR for that
+        // route. A oneway has exactly one entry; a roundtrip/multi-city would have
+        // one per route (which may differ, same reasoning already applied to
+        // Flyshop's own per-leg AirlinePnr — see TripBookingLeg.MarkTicketed).
+        [JsonPropertyName("pnrDetails")]
+        public Dictionary<string, string> PnrDetails { get; set; } = new();
+
+        [JsonPropertyName("ti")]
+        public string? Title { get; set; }
+
+        [JsonPropertyName("pt")]
+        public string? PaxType { get; set; }
+
+        [JsonPropertyName("fN")]
+        public string? FirstName { get; set; }
+
+        [JsonPropertyName("lN")]
+        public string? LastName { get; set; }
+    }
+
+    // ===== Release PNR / Unhold (POST oms/v1/air/unhold) =====
     //
-    //   Seat Map            POST fms/v1/seat                          { bookingId }
-    //   Fare Rule           POST fms/v2/farerule                      { flowType: SEARCH|REVIEW|BOOKING_DETAIL, id }
-    //   Fare Validate       POST oms/v1/air/book/fare-validate        same traveller/SSR shape as Book
-    //   Book (Instant/Hold) POST oms/v1/air/book                      { bookingId, paymentInfos?[{amount}], deliveryInfo, travellerInfo[] }
-    //   Confirm Fare        POST oms/v1/air/fare-validate             (hold -> validate before ticketing)
-    //   Confirm-Book        POST oms/v1/air/confirm-book              { bookingId, paymentInfos[{amount}], ... }
-    //   Booking Details     POST oms/v1/booking-details               call ~5s after Book/Confirm-Book, not immediately
-    //   Release PNR (Hold)  POST oms/v1/air/unhold                    { bookingId } (unconfirmed field name)
-    //   Get Amendment Charges POST oms/v1/air/amendment/amendment-charges  (quote — cancellation has a charge, not a flat call)
-    //   Submit Amendment    POST oms/v1/air/amendment/submit-amendment    (commit — two-step cancellation, structurally
-    //                                                                      different from Flyshop's single Air_TicketCancellation)
+    // Requires BOTH bookingId and the PNR(s) to release — a bookingId alone is
+    // rejected with errCode 1072 "Cancellation not available for PNR" (confirmed
+    // live). The PNR(s) come from Booking Details' own travellerInfos[].pnrDetails.
+
+    public class TripjackUnholdRequestWire
+    {
+        [JsonPropertyName("bookingId")]
+        public string BookingId { get; set; } = string.Empty;
+
+        [JsonPropertyName("pnrs")]
+        public List<string> Pnrs { get; set; } = new();
+    }
+
+    // Shared shape for any Tripjack response whose only interesting fields are the
+    // status/error envelope (Unhold's own response has nothing else in it).
+    public class TripjackStatusOnlyResponseWire
+    {
+        [JsonPropertyName("status")]
+        public TripjackStatusWire? Status { get; set; }
+
+        [JsonPropertyName("errors")]
+        public List<TripjackErrorWire>? Errors { get; set; }
+    }
+
+    // ===== Cancellation — a three-call amendment flow, not a single call =====
     //
-    // CreateTempBookingAsync/CreateBlockTicketAsync/AddPaymentAsync/BookTicketAsync/
-    // CancelBookingAsync/ReleaseHoldAsync/GetFareRulesAsync/GetSeatMapAsync/
-    // GetAncillariesAsync all still throw NotSupportedException in TripjackClient
-    // until these are implemented and live-verified the same way Search/Review were.
+    // Prerequisite: the booking must be in Order Status SUCCESS (genuinely ticketed)
+    // before any amendment can be raised — same constraint Flyshop has (a hold uses
+    // Release PNR/unhold instead, never this).
+    //
+    //   1. POST oms/v1/air/amendment/amendment-charges (optional) — quotes the fee/
+    //      refund without applying anything. { bookingId, type: "CANCELLATION",
+    //      remarks, trips[]? } — omit trips[] to price the whole booking.
+    //   2. POST oms/v1/air/amendment/submit-amendment — same request shape, commits
+    //      the cancellation. Returns an amendmentId.
+    //   3. POST oms/v1/air/amendment/amendment-details — { amendmentId }, poll (4-5x
+    //      / 10s apart) until status is SUCCESS or REJECTED, not REQUESTED/PENDING.
+    //
+    // This has no Flyshop-shaped equivalent (single Air_TicketCancellation call with
+    // a CancellationType/CancelCode) — IFlightSupplierClient.CancelBookingAsync's
+    // single-call, fire-and-forget contract doesn't fit a charge-then-poll flow, so
+    // implementing this for real will need that interface (or at least this method)
+    // to change shape, not just a TripjackClient method body. Not yet implemented.
+    //
+    // Still entirely unverified against a live response (unlike everything above):
+    //   Seat Map        POST fms/v1/seat                    { bookingId }
+    //   Fare Rule       POST fms/v2/farerule                { flowType, id }
+    //   Fare Validate   POST oms/v1/air/book/fare-validate  same shape as Book, no paymentInfos
+    //
+    // CreateBlockTicketAsync currently only implements the Hold half of Book (no
+    // paymentInfos) — AddPaymentAsync/BookTicketAsync (Confirm-Book, real payment)
+    // and CancelBookingAsync/GetFareRulesAsync/GetSeatMapAsync/GetAncillariesAsync
+    // all still throw NotSupportedException in TripjackClient.
 }
