@@ -80,7 +80,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 throw new InvalidOperationException("Tripjack Review returned no bookingId.");
             }
 
-            var totalFare = wireResponse.TotalPriceInfo?.TotalFareDetail?.TotalFare ?? 0m;
+            var totalFare = wireResponse.TotalPriceInfo?.TotalFareDetail?.FareComponent.TotalFare ?? 0m;
 
             // Every later Tripjack call (Seat Map, Book, Confirm-Book, Fare Rules,
             // Booking Details) needs this bookingId, not the original priceId — it's
@@ -170,42 +170,9 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // echo of bookingId + status).
             await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
 
-            var wireResponse = await PostAsync<TripjackBookingDetailsRequestWire, TripjackBookingDetailsResponseWire>(
-                "oms/v1/booking-details",
-                new TripjackBookingDetailsRequestWire { BookingId = bookingRefNo },
-                cancellationToken);
+            var wireResponse = await FetchBookingDetailsAsync(bookingRefNo, cancellationToken);
 
-            var order = wireResponse.Order;
-            var airInfo = wireResponse.ItemInfos?.Air;
-            var traveller = airInfo?.TravellerInfos.FirstOrDefault();
-            var pnr = traveller?.PnrDetails.Values.FirstOrDefault();
-            var statusId = MapOrderStatus(order?.Status);
-
-            var legs = (airInfo?.TripInfos ?? new List<TripjackTripOptionWire>())
-                .SelectMany(t => t.SegmentInfos)
-                .Select(seg => new SupplierTicketingLegResultDto(
-                    // No single stable per-segment id the way Flyshop's Flight_Id is
-                    // (Booking Details' own segment id changes between Search/Review/
-                    // Book, confirmed live) — the route itself is the one identifier
-                    // that stays meaningful across calls.
-                    $"{seg.Departure.Code}-{seg.Arrival.Code}",
-                    statusId,
-                    seg.FlightDesignator.AirlineInfo.Code,
-                    pnr,
-                    null,
-                    null,
-                    null))
-                .ToList();
-
-            return new SupplierTicketingResultDto(
-                order?.BookingId ?? bookingRefNo,
-                statusId,
-                legs.FirstOrDefault()?.AirlineCode,
-                pnr,
-                null,
-                null,
-                null,
-                legs);
+            return MapTicketingResult(bookingRefNo, wireResponse);
         }
 
         public Task CancelBookingAsync(
@@ -237,25 +204,78 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             EnsureSuccess(wireResponse.Status, wireResponse.Errors, "Unhold");
         }
 
-        public Task<SupplierPaymentResultDto> AddPaymentAsync(
+        public async Task<SupplierPaymentResultDto> AddPaymentAsync(
             string bookingRefNo, string clientRefNo, CancellationToken cancellationToken)
         {
             // Tripjack has no separate wallet-debit call the way Flyshop's AddPayment
             // is — Confirm-Book (see BookTicketAsync) takes paymentInfos.amount
-            // directly, committing payment and ticketing together in one call. This
-            // method likely becomes a no-op or a Fare-Validate check rather than a
-            // real charge once BookTicketAsync is implemented.
-            throw new NotSupportedException("Tripjack payment is not implemented.");
+            // directly and commits payment and ticketing together in one call, so no
+            // money moves here. What this call CAN and must still do is fail loudly
+            // before the caller treats payment as cleared: VerifyRazorpayPaymentCommand
+            // Handler calls AddPaymentAsync then BookTicketAsync with no rollback in
+            // between, so a hold that's already expired/cancelled on Tripjack's side
+            // needs to surface here, not as a confusing Confirm-Book failure after the
+            // customer's Razorpay charge is already marked succeeded.
+            var details = await FetchBookingDetailsAsync(bookingRefNo, cancellationToken);
+            var status = details.Order?.Status;
+
+            if (status != "ON_HOLD" && status != "PENDING")
+            {
+                throw new InvalidOperationException(
+                    $"Tripjack booking '{bookingRefNo}' is not payable (order status: {status ?? "unknown"}).");
+            }
+
+            return new SupplierPaymentResultDto(details.Order?.Amount ?? 0m, clientRefNo, "11");
         }
 
-        public Task<SupplierTicketingResultDto> BookTicketAsync(
+        public async Task<SupplierTicketingResultDto> BookTicketAsync(
             string bookingRefNo, CancellationToken cancellationToken)
         {
-            // Real endpoint: POST oms/v1/air/confirm-book, { bookingId,
-            // paymentInfos: [{ amount }], ... } — this is where Tripjack actually
-            // commits payment AND ticketing in a single call, unlike Flyshop's
-            // separate AddPayment + Book_Ticket steps.
-            throw new NotSupportedException("Tripjack ticketing is not implemented.");
+            // Built from Tripjack's documented Confirm-Book contract (same request
+            // shape as Book, always carrying paymentInfos — see
+            // TripjackConfirmBookRequestWire's own doc comment) and a real Hold +
+            // Booking Details response, but this specific call was never itself run
+            // live: it commits real payment+ticketing even against the UAT sandbox,
+            // which automated testing in this environment isn't allowed to trigger.
+            // deliveryInfo/travellerInfo are re-read from Booking Details rather than
+            // threaded through this method's bookingRefNo-only signature — confirmed
+            // live that Booking Details echoes both back from the original Book call.
+            var details = await FetchBookingDetailsAsync(bookingRefNo, cancellationToken);
+            var order = details.Order
+                ?? throw new InvalidOperationException($"Tripjack booking '{bookingRefNo}' has no order details.");
+
+            var travellerInfo = (details.ItemInfos?.Air?.TravellerInfos ?? new List<TripjackBookingTravellerInfoWire>())
+                .Select(t => new TripjackTravellerInfoWire
+                {
+                    Title = t.Title ?? string.Empty,
+                    PaxType = t.PaxType ?? "ADULT",
+                    FirstName = t.FirstName ?? string.Empty,
+                    LastName = t.LastName ?? string.Empty,
+                    DateOfBirth = t.DateOfBirth
+                })
+                .ToList();
+
+            var confirmRequest = new TripjackConfirmBookRequestWire
+            {
+                BookingId = bookingRefNo,
+                DeliveryInfo = order.DeliveryInfo ?? new TripjackDeliveryInfoWire(),
+                TravellerInfo = travellerInfo,
+                PaymentInfos = new List<TripjackPaymentInfoWire> { new() { Amount = order.Amount } }
+            };
+
+            var confirmResponse = await PostAsync<TripjackConfirmBookRequestWire, TripjackBookResponseWire>(
+                "oms/v1/air/confirm-book", confirmRequest, cancellationToken);
+
+            EnsureSuccess(confirmResponse.Status, confirmResponse.Errors, "Confirm-Book");
+
+            // Same reasoning as CreateBlockTicketAsync's own delay — the ticketed
+            // PNR/status only shows up in Booking Details, not Confirm-Book's own
+            // response.
+            await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+
+            var finalDetails = await FetchBookingDetailsAsync(bookingRefNo, cancellationToken);
+
+            return MapTicketingResult(bookingRefNo, finalDetails);
         }
 
         public Task<SupplierFareRuleResultDto> GetFareRulesAsync(
@@ -315,6 +335,52 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             ParseDateTime(segment.DepartureDateTime),
             ParseDateTime(segment.ArrivalDateTime),
             segment.DurationMinutes.ToString(CultureInfo.InvariantCulture));
+
+        private Task<TripjackBookingDetailsResponseWire> FetchBookingDetailsAsync(
+            string bookingRefNo, CancellationToken cancellationToken) =>
+            PostAsync<TripjackBookingDetailsRequestWire, TripjackBookingDetailsResponseWire>(
+                "oms/v1/booking-details",
+                new TripjackBookingDetailsRequestWire { BookingId = bookingRefNo },
+                cancellationToken);
+
+        // Shared by CreateBlockTicketAsync (after Book) and BookTicketAsync (after
+        // Confirm-Book) — both end with the same "read back whatever Booking Details
+        // now shows" step, just at different points in the hold -> pay -> ticket flow.
+        private static SupplierTicketingResultDto MapTicketingResult(
+            string bookingRefNo, TripjackBookingDetailsResponseWire wireResponse)
+        {
+            var order = wireResponse.Order;
+            var airInfo = wireResponse.ItemInfos?.Air;
+            var traveller = airInfo?.TravellerInfos.FirstOrDefault();
+            var pnr = traveller?.PnrDetails.Values.FirstOrDefault();
+            var statusId = MapOrderStatus(order?.Status);
+
+            var legs = (airInfo?.TripInfos ?? new List<TripjackTripOptionWire>())
+                .SelectMany(t => t.SegmentInfos)
+                .Select(seg => new SupplierTicketingLegResultDto(
+                    // No single stable per-segment id the way Flyshop's Flight_Id is
+                    // (Booking Details' own segment id changes between Search/Review/
+                    // Book, confirmed live) — the route itself is the one identifier
+                    // that stays meaningful across calls.
+                    $"{seg.Departure.Code}-{seg.Arrival.Code}",
+                    statusId,
+                    seg.FlightDesignator.AirlineInfo.Code,
+                    pnr,
+                    null,
+                    null,
+                    null))
+                .ToList();
+
+            return new SupplierTicketingResultDto(
+                order?.BookingId ?? bookingRefNo,
+                statusId,
+                legs.FirstOrDefault()?.AirlineCode,
+                pnr,
+                null,
+                null,
+                null,
+                legs);
+        }
 
         // Tripjack's own Order Status values, mapped onto the same "11-Success/
         // 22-Failed/33-Block" string convention Flyshop's Status_Id already uses —
