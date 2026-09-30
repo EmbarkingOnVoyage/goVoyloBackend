@@ -4,7 +4,6 @@ using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Entities;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
 {
@@ -24,35 +23,24 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
         private readonly IUserRepository _userRepository;
         private readonly IEmailService _emailService;
         private readonly ITripBookingRepository _tripBookingRepository;
-        private readonly ILogger<CreateBookingCommandHandler> _logger;
 
         public CreateBookingCommandHandler(
             IFlightSupplierClientResolver supplierClientResolver,
             IFlightSearchSessionStore sessionStore,
             IUserRepository userRepository,
             IEmailService emailService,
-            ITripBookingRepository tripBookingRepository,
-            ILogger<CreateBookingCommandHandler> logger)
+            ITripBookingRepository tripBookingRepository)
         {
             _supplierClientResolver = supplierClientResolver;
             _sessionStore = sessionStore;
             _userRepository = userRepository;
             _emailService = emailService;
             _tripBookingRepository = tripBookingRepository;
-            _logger = logger;
         }
 
         public async Task<CreateBookingResponseDto> Handle(
             CreateBookingCommand request, CancellationToken cancellationToken)
         {
-            // Temporary diagnostic — chasing a live "Number of Adults requested in
-            // search does not match with the booking request" error from Flyshop.
-            // Remove once resolved.
-            _logger.LogWarning(
-                "CreateBooking request: {LegCount} legs [{OfferIds}], {TravelerCount} travelers [{PaxTypes}]",
-                request.Legs.Count, string.Join(",", request.Legs.Select(l => l.OfferId)),
-                request.Travelers.Count, string.Join(",", request.Travelers.Select(t => t.PaxType)));
-
             // Route/price display data for each leg, captured from the original search
             // session (Reprice only ever changes FlightKey/FareId) — kept around purely
             // to persist a TripBooking once ticketing succeeds, below.
