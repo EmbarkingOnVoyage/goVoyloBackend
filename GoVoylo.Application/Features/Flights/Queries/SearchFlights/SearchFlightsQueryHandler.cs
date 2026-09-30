@@ -92,7 +92,8 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                         flight.AirlineName,
                         firstSegment?.FlightNumber ?? string.Empty,
                         flight.TotalAmount,
-                        flight.CurrencyCode);
+                        flight.CurrencyCode,
+                        flight.Segments);
 
                     var offerId = await _sessionStore.SaveAsync(session, cancellationToken);
 
@@ -120,7 +121,8 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                             .Select(f => new FareOptionDto(
                                 f.FareId, f.Refundable, f.TotalAmount, f.CurrencyCode, f.CheckInBaggage, f.HandBaggage))
                             .ToList(),
-                        flight.TripLegIndex));
+                        flight.TripLegIndex,
+                        client.SupplierCode));
                 }
             }
 

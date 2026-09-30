@@ -41,7 +41,12 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         IReadOnlyList<FareOptionDto> Fares,
         // See SupplierFlightOptionDto.TripLegIndex — passed through unchanged so
         // the client can split a round-trip/multi-city response by leg.
-        int TripLegIndex = 0);
+        int TripLegIndex = 0,
+        // "flyshop" / "tripjack" — see FlightSupplierCodes. Previously only kept
+        // server-side in FlightOfferSession; surfaced here so the client can show
+        // which supplier an offer comes from (both suppliers' prices are merged into
+        // one result set, so nothing else distinguishes them visually).
+        string SupplierCode = "");
 
     public record FlightSearchResponseDto(IReadOnlyList<FlightOfferDto> Offers);
 
