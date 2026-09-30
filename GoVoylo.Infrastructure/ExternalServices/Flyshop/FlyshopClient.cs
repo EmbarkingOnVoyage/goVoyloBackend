@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Common;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
@@ -31,11 +32,13 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
 
         private readonly HttpClient _httpClient;
         private readonly FlyshopOptions _options;
+        private readonly ILogger<FlyshopClient> _logger;
 
-        public FlyshopClient(HttpClient httpClient, IOptions<FlyshopOptions> options)
+        public FlyshopClient(HttpClient httpClient, IOptions<FlyshopOptions> options, ILogger<FlyshopClient> logger)
         {
             _httpClient = httpClient;
             _options = options.Value;
+            _logger = logger;
         }
 
         public string SupplierCode => FlightSupplierCodes.Flyshop;
@@ -65,6 +68,14 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 SourceType = 0,
                 FilteredAirline = new List<FilteredAirlineWire> { new() { AirlineCode = string.Empty } }
             };
+
+            // Temporary diagnostic — chasing a live "Number of Adults requested in
+            // search does not match with the booking request" error from Flyshop.
+            // Remove once resolved.
+            _logger.LogWarning(
+                "Air_Search request: BookingType={BookingType} Adults={Adults} Children={Children} Infants={Infants} Segments={Segments}",
+                wireRequest.BookingType, wireRequest.AdultCount, wireRequest.ChildCount, wireRequest.InfantCount,
+                string.Join(",", request.Segments.Select(s => $"{s.Origin}-{s.Destination}")));
 
             var wireResponse = await PostAsync<AirSearchRequestWire, AirSearchResponseWire>(
                 "Air_Search", wireRequest, cancellationToken);
