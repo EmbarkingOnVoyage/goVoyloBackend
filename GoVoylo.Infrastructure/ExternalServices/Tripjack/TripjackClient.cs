@@ -251,6 +251,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             "BAGGAGE" => 1,
             "MEAL" => 2,
             "EXTRASERVICES" => 3,
+            "SEAT" => 4,
             _ => 0
         };
 
@@ -266,13 +267,73 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
         private static string SsrCacheKey(string bookingId) => $"tripjack-ssr:{bookingId}";
 
-        public Task<SupplierSeatMapResultDto> GetSeatMapAsync(
+        public async Task<SupplierSeatMapResultDto> GetSeatMapAsync(
             SupplierSeatMapRequestDto request, CancellationToken cancellationToken)
         {
-            // Real endpoint: POST fms/v1/seat, { bookingId }. See
-            // TripjackWireModels.cs's own notes — not yet implemented/verified.
-            throw new NotSupportedException("Tripjack seat map is not implemented.");
+            // request.FlightKey is a bookingId by this point — GetSeatMapQueryHandler
+            // always calls RepriceAsync immediately before this, same as
+            // GetAncillariesAsync's own doc comment explains.
+            var wireResponse = await PostAsync<TripjackSeatMapRequestWire, TripjackSeatMapResponseWire>(
+                "fms/v1/seat",
+                new TripjackSeatMapRequestWire { BookingId = request.FlightKey },
+                cancellationToken);
+
+            EnsureSuccess(wireResponse.Status, wireResponse.Errors, "Seat Map");
+
+            // Seat Map's own response has no leg/trip grouping of its own — just a
+            // flat dictionary keyed by segment id. The cached Review tripInfos
+            // (populated by the RepriceAsync call that always precedes this one — see
+            // GetAncillariesAsync's own SsrCacheKey doc comment) is reused purely to
+            // look up which leg each segment id belongs to.
+            _cache.TryGetValue(SsrCacheKey(request.FlightKey), out List<TripjackTripOptionWire>? tripInfos);
+            var legIndexBySegmentId = (tripInfos ?? new List<TripjackTripOptionWire>())
+                .SelectMany((trip, legIndex) => trip.SegmentInfos.Select(seg => (seg.Id, legIndex)))
+                .Where(x => x.Id != null)
+                .ToDictionary(x => x.Id!, x => x.legIndex);
+
+            var segments = (wireResponse.TripSeatMap?.TripSeat ?? new Dictionary<string, TripjackSegmentSeatMapWire>())
+                .Select(kvp =>
+                {
+                    var legIndex = legIndexBySegmentId.GetValueOrDefault(kvp.Key, 0);
+
+                    // Response is a flat sInfo list with seatPosition.row/column —
+                    // unlike Flyshop's own Air_GetSeatMap, which already comes
+                    // pre-grouped into rows — so the grouping happens here.
+                    var rows = (kvp.Value.Seats ?? new List<TripjackSeatWire>())
+                        .GroupBy(s => s.SeatPosition.Row)
+                        .OrderBy(g => g.Key)
+                        .Select(g => new SupplierSeatRowDto(
+                            g.OrderBy(s => s.SeatPosition.Column)
+                                .Select(s => MapSeat(s, kvp.Key, legIndex))
+                                .ToList()))
+                        .ToList();
+
+                    return new SupplierSeatSegmentDto(legIndex, rows);
+                })
+                .ToList();
+
+            return new SupplierSeatMapResultDto(segments);
         }
+
+        private static SupplierAncillaryOptionDto MapSeat(TripjackSeatWire seat, string segmentId, int legIndex) => new(
+            MapSsrCategoryType("SEAT"),
+            "SEAT",
+            seat.SeatNo,
+            seat.Code,
+            // Decoded by MapTraveller into ssrSeatInfos at Book time, same
+            // "category:segmentId:code" scheme as GetAncillariesAsync's own
+            // MapSsrCategory.
+            $"SEAT:{segmentId}:{seat.Code}",
+            // 0-ISLE/1-AVAILABLE/2-BLOCKED/3-BOOKED, Flyshop's own convention (see
+            // SupplierAncillaryOptionDto's own doc comment) — Tripjack only
+            // distinguishes booked/available, so this collapses to those two.
+            seat.IsBooked ? 3 : 1,
+            legIndex,
+            int.TryParse(segmentId, out var segmentIdInt) ? segmentIdInt : 0,
+            SegmentWise: true,
+            seat.Amount,
+            "INR",
+            Array.Empty<int>());
 
         public async Task<SupplierTempBookingResultDto> CreateTempBookingAsync(
             SupplierTempBookingRequestDto request, CancellationToken cancellationToken)
@@ -732,6 +793,9 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                         break;
                     case "EXTRASERVICES":
                         (wire.SsrExtraServiceInfos ??= new List<TripjackSsrSelectionWire>()).Add(entry);
+                        break;
+                    case "SEAT":
+                        (wire.SsrSeatInfos ??= new List<TripjackSsrSelectionWire>()).Add(entry);
                         break;
                 }
             }
