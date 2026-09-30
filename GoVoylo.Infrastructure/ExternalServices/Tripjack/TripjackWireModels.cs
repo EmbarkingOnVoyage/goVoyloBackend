@@ -297,6 +297,14 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         [JsonPropertyName("deliveryInfo")]
         public TripjackDeliveryInfoWire DeliveryInfo { get; set; } = new();
 
+        // Required whenever Review's own conditions.iecr was true (mandatory for
+        // certain international fares) — sent unconditionally, populated from the
+        // same contact details as deliveryInfo, since nothing upstream of this client
+        // collects a genuinely separate "emergency contact" today. Harmless to send
+        // when iecr is false; Tripjack docs don't say it's rejected in that case.
+        [JsonPropertyName("contactInfo")]
+        public TripjackContactInfoWire? ContactInfo { get; set; }
+
         [JsonPropertyName("travellerInfo")]
         public List<TripjackTravellerInfoWire> TravellerInfo { get; set; } = new();
 
@@ -305,6 +313,45 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         // itself; nothing else about how the agent pays goes in this request.
         [JsonPropertyName("paymentInfos")]
         public List<TripjackPaymentInfoWire>? PaymentInfos { get; set; }
+
+        // Required whenever Review's own conditions.igm was true, optional (but
+        // still accepted) whenever conditions.gstappl was true.
+        [JsonPropertyName("gstInfo")]
+        public TripjackGstInfoWire? GstInfo { get; set; }
+    }
+
+    public class TripjackContactInfoWire
+    {
+        [JsonPropertyName("emails")]
+        public List<string> Emails { get; set; } = new();
+
+        [JsonPropertyName("contacts")]
+        public List<string> Contacts { get; set; } = new();
+
+        // Emergency contact name.
+        [JsonPropertyName("ecn")]
+        public string Ecn { get; set; } = string.Empty;
+    }
+
+    public class TripjackGstInfoWire
+    {
+        // 15-digit GSTIN.
+        [JsonPropertyName("gstNumber")]
+        public string GstNumber { get; set; } = string.Empty;
+
+        // Max 35 chars, IATA standard.
+        [JsonPropertyName("registeredName")]
+        public string RegisteredName { get; set; } = string.Empty;
+
+        [JsonPropertyName("email")]
+        public string? Email { get; set; }
+
+        [JsonPropertyName("mobile")]
+        public string? Mobile { get; set; }
+
+        // Max 70 chars, IATA standard.
+        [JsonPropertyName("address")]
+        public string? Address { get; set; }
     }
 
     public class TripjackPaymentInfoWire
@@ -340,6 +387,33 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         // YYYY-MM-DD — mandatory for INFANT.
         [JsonPropertyName("dob")]
         public string? DateOfBirth { get; set; }
+
+        // Required when Review's own conditions.pm was true (passport-mandatory
+        // fares, typically international).
+        [JsonPropertyName("pNum")]
+        public string? PassportNumber { get; set; }
+
+        // YYYY-MM-DD. Required when conditions.pped was true — Tripjack itself
+        // additionally rejects a passport expiring within 6 months of travel
+        // (errCode 1067).
+        [JsonPropertyName("eD")]
+        public string? PassportExpiry { get; set; }
+
+        // 2-letter IATA country code.
+        [JsonPropertyName("pNat")]
+        public string? PassportNationality { get; set; }
+
+        // YYYY-MM-DD.
+        [JsonPropertyName("pid")]
+        public string? PassportIssueDate { get; set; }
+
+        // Required when conditions.ipa was true.
+        [JsonPropertyName("pan")]
+        public string? PanNumber { get; set; }
+
+        // Student/senior-citizen fares — required when conditions.idm was true.
+        [JsonPropertyName("di")]
+        public string? DocumentId { get; set; }
     }
 
     // The live response is minimal — just an echo of bookingId and status; the real
@@ -411,6 +485,22 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         [JsonPropertyName("deliveryInfo")]
         public TripjackDeliveryInfoWire? DeliveryInfo { get; set; }
 
+        // Confirmed live: unlike deliveryInfo, Booking Details does NOT echo gstInfo
+        // back — a Hold booked with a real gstInfo (verified against Tripjack's own
+        // GSTIN validator) still comes back with no gstInfo key in `order` at all.
+        // This field will therefore always be null in practice, so
+        // BookTicketAsync's resend at Confirm-Book time is currently a guaranteed
+        // no-op: whatever GST invoice was registered at Hold time either already
+        // stuck server-side without needing a resend, or is silently lost — which of
+        // the two is true is NOT verified (would need a live Confirm-Book run to
+        // check the final ticket's own GST invoice, which automated testing here
+        // can't trigger). If it turns out GST needs to survive to the final ticket
+        // and isn't retained server-side, this needs GstInfo persisted on our own
+        // TripBooking record instead and threaded into BookTicketAsync some other
+        // way — bookingRefNo alone can't recover it.
+        [JsonPropertyName("gstInfo")]
+        public TripjackGstInfoWire? GstInfo { get; set; }
+
         // SUCCESS (ticketed, paid) / ON_HOLD / CANCELLED / FAILED / PENDING (poll
         // again) / ABORTED / UNCONFIRMED (a hold that was released via unhold).
         [JsonPropertyName("status")]
@@ -458,6 +548,31 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         // than re-derived, same reasoning as DeliveryInfo above.
         [JsonPropertyName("dob")]
         public string? DateOfBirth { get; set; }
+
+        // Passport/PAN/document-id — confirmed live (international Book request with
+        // pNum/eD/pNat/pid all present) that Booking Details DOES echo these back
+        // under travellerInfos[], unlike gstInfo (see TripjackOrderWire.GstInfo's own
+        // doc comment) — so BookTicketAsync's resend of these at Confirm-Book time is
+        // sound. PAN (pan) and document-id (di) specifically weren't exercised in
+        // that same test (no PAN/student-senior fare test case run), but share the
+        // same wire shape as the confirmed fields.
+        [JsonPropertyName("pNum")]
+        public string? PassportNumber { get; set; }
+
+        [JsonPropertyName("eD")]
+        public string? PassportExpiry { get; set; }
+
+        [JsonPropertyName("pNat")]
+        public string? PassportNationality { get; set; }
+
+        [JsonPropertyName("pid")]
+        public string? PassportIssueDate { get; set; }
+
+        [JsonPropertyName("pan")]
+        public string? PanNumber { get; set; }
+
+        [JsonPropertyName("di")]
+        public string? DocumentId { get; set; }
     }
 
     // ===== Release PNR / Unhold (POST oms/v1/air/unhold) =====
@@ -500,22 +615,113 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
     //   3. POST oms/v1/air/amendment/amendment-details — { amendmentId }, poll (4-5x
     //      / 10s apart) until status is SUCCESS or REJECTED, not REQUESTED/PENDING.
     //
-    // This has no Flyshop-shaped equivalent (single Air_TicketCancellation call with
-    // a CancellationType/CancelCode) — IFlightSupplierClient.CancelBookingAsync's
-    // single-call, fire-and-forget contract doesn't fit a charge-then-poll flow, so
-    // implementing this for real will need that interface (or at least this method)
-    // to change shape, not just a TripjackClient method body. Not yet implemented.
-    //
-    // Still entirely unverified against a live response (unlike everything above):
-    //   Seat Map        POST fms/v1/seat                    { bookingId }
-    //   Fare Rule       POST fms/v2/farerule                { flowType, id }
-    //   Fare Validate   POST oms/v1/air/book/fare-validate  same shape as Book, no paymentInfos
-    //
-    // AddPaymentAsync/BookTicketAsync (Confirm-Book) are implemented against
-    // Tripjack's documented contract, built from a real Hold + Booking Details
-    // response but NOT live-verified against Confirm-Book itself (that specific
-    // call commits real payment+ticketing even on the UAT sandbox and was withheld
-    // from automated testing) — see TripjackClient's own doc comments on those two
-    // methods. CancelBookingAsync/GetFareRulesAsync/GetSeatMapAsync/
-    // GetAncillariesAsync still throw NotSupportedException in TripjackClient.
+    // Doesn't need IFlightSupplierClient.CancelBookingAsync's contract to change
+    // shape after all — the 3 calls run sequentially inside one method body, the
+    // same "await a delay, then poll" pattern already used for Book/Confirm-Book,
+    // just longer (up to ~40-50s worst case across 4-5 polls). Only full-booking
+    // cancellation is supported (trips[]/travellers[] scoping is omitted) since
+    // Tripjack addresses a partial cancel by src/dest/departureDate/traveller name,
+    // not by the Flyshop-shaped Flight_Id/Segment_Id our own
+    // SupplierCancellationRequestDto.Segments carries — acceptable today since
+    // Tripjack bookings are oneway-only anyway (see CreateTempBookingAsync's own
+    // guard), so "cancel this booking's one leg" and "cancel the whole booking" are
+    // the same operation.
+
+    public class TripjackAmendmentRequestWire
+    {
+        [JsonPropertyName("bookingId")]
+        public string BookingId { get; set; } = string.Empty;
+
+        // CANCELLATION / VOIDED / FULL_REFUND.
+        [JsonPropertyName("type")]
+        public string Type { get; set; } = string.Empty;
+
+        [JsonPropertyName("remarks")]
+        public string Remarks { get; set; } = string.Empty;
+    }
+
+    public class TripjackAmendmentChargesResponseWire
+    {
+        [JsonPropertyName("amendmentCharges")]
+        public decimal AmendmentCharges { get; set; }
+
+        [JsonPropertyName("refundableAmount")]
+        public decimal RefundableAmount { get; set; }
+
+        [JsonPropertyName("totalFare")]
+        public decimal TotalFare { get; set; }
+
+        [JsonPropertyName("status")]
+        public TripjackStatusWire? Status { get; set; }
+
+        [JsonPropertyName("errors")]
+        public List<TripjackErrorWire>? Errors { get; set; }
+    }
+
+    public class TripjackSubmitAmendmentResponseWire
+    {
+        [JsonPropertyName("bookingId")]
+        public string? BookingId { get; set; }
+
+        [JsonPropertyName("amendmentId")]
+        public string? AmendmentId { get; set; }
+
+        [JsonPropertyName("status")]
+        public TripjackStatusWire? Status { get; set; }
+
+        [JsonPropertyName("errors")]
+        public List<TripjackErrorWire>? Errors { get; set; }
+    }
+
+    public class TripjackAmendmentDetailsRequestWire
+    {
+        [JsonPropertyName("amendmentId")]
+        public string AmendmentId { get; set; } = string.Empty;
+    }
+
+    public class TripjackAmendmentDetailsResponseWire
+    {
+        [JsonPropertyName("bookingId")]
+        public string? BookingId { get; set; }
+
+        [JsonPropertyName("amendmentId")]
+        public string? AmendmentId { get; set; }
+
+        // REQUESTED (still processing — keep polling) / SUCCESS / REJECTED / PENDING.
+        [JsonPropertyName("amendmentStatus")]
+        public string AmendmentStatus { get; set; } = string.Empty;
+
+        [JsonPropertyName("refundableAmount")]
+        public decimal RefundableAmount { get; set; }
+
+        [JsonPropertyName("status")]
+        public TripjackStatusWire? Status { get; set; }
+
+        [JsonPropertyName("errors")]
+        public List<TripjackErrorWire>? Errors { get; set; }
+    }
+
+    // Live-verification status as of this pass (see each method's own doc comment
+    // in TripjackClient for specifics):
+    //   Confirmed live: Search/Review/Book(Hold)/Booking-Details/Unhold (earlier
+    //     pass), multi-priceId Review batching (domestic return, one bookingId,
+    //     correctly summed combined fare), Confirm-Fare-Before-Ticket
+    //     (oms/v1/air/fare-validate), GST field acceptance at Book time (against
+    //     Tripjack's own GSTIN validator), passport field acceptance AND echo-back
+    //     through Booking Details (international Book + Booking Details).
+    //   Confirmed live as a real gap: Booking Details does NOT echo gstInfo back
+    //     the way it does deliveryInfo/travellerInfo — see TripjackOrderWire's own
+    //     doc comment. BookTicketAsync's GST resend at Confirm-Book time is
+    //     currently always a no-op as a result.
+    //   NOT live-verified: AddPaymentAsync/BookTicketAsync's own Confirm-Book call,
+    //     and CancelBookingAsync's amendment flow — both commit a real
+    //     payment+ticketing or cancellation+refund even on the UAT sandbox, which
+    //     automated testing in this environment isn't allowed to trigger.
+    //   Still entirely unverified against a live response (docs-only, no field
+    //   table given):
+    //     Seat Map        POST fms/v1/seat                    { bookingId }
+    //     Fare Rule       POST fms/v2/farerule                { flowType, id }
+    //     Fare Validate (Instant)  POST oms/v1/air/book/fare-validate  same shape as Book, no paymentInfos
+    // GetFareRulesAsync/GetSeatMapAsync/GetAncillariesAsync still throw
+    // NotSupportedException in TripjackClient.
 }
