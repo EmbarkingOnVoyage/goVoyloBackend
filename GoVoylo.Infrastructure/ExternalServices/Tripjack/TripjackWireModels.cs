@@ -485,12 +485,19 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         [JsonPropertyName("deliveryInfo")]
         public TripjackDeliveryInfoWire? DeliveryInfo { get; set; }
 
-        // NOT live-verified whether Booking Details actually echoes gstInfo back the
-        // way it does deliveryInfo (Tripjack's UAT sandbox started rate-limiting
-        // this account mid-session before this could be confirmed) — assumed
-        // consistent with the deliveryInfo behavior above. If it turns out absent,
-        // BookTicketAsync's own resend of GstInfo at Confirm-Book time silently
-        // becomes a no-op (null-propagated), not a hard failure.
+        // Confirmed live: unlike deliveryInfo, Booking Details does NOT echo gstInfo
+        // back — a Hold booked with a real gstInfo (verified against Tripjack's own
+        // GSTIN validator) still comes back with no gstInfo key in `order` at all.
+        // This field will therefore always be null in practice, so
+        // BookTicketAsync's resend at Confirm-Book time is currently a guaranteed
+        // no-op: whatever GST invoice was registered at Hold time either already
+        // stuck server-side without needing a resend, or is silently lost — which of
+        // the two is true is NOT verified (would need a live Confirm-Book run to
+        // check the final ticket's own GST invoice, which automated testing here
+        // can't trigger). If it turns out GST needs to survive to the final ticket
+        // and isn't retained server-side, this needs GstInfo persisted on our own
+        // TripBooking record instead and threaded into BookTicketAsync some other
+        // way — bookingRefNo alone can't recover it.
         [JsonPropertyName("gstInfo")]
         public TripjackGstInfoWire? GstInfo { get; set; }
 
@@ -542,9 +549,13 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         [JsonPropertyName("dob")]
         public string? DateOfBirth { get; set; }
 
-        // Passport/PAN/document-id — same "echoed back from Book, resent verbatim at
-        // Confirm-Book" reasoning as DateOfBirth above. NOT live-verified (see
-        // TripjackOrderWire.GstInfo's own doc comment for why).
+        // Passport/PAN/document-id — confirmed live (international Book request with
+        // pNum/eD/pNat/pid all present) that Booking Details DOES echo these back
+        // under travellerInfos[], unlike gstInfo (see TripjackOrderWire.GstInfo's own
+        // doc comment) — so BookTicketAsync's resend of these at Confirm-Book time is
+        // sound. PAN (pan) and document-id (di) specifically weren't exercised in
+        // that same test (no PAN/student-senior fare test case run), but share the
+        // same wire shape as the confirmed fields.
         [JsonPropertyName("pNum")]
         public string? PassportNumber { get; set; }
 
@@ -690,17 +701,27 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         public List<TripjackErrorWire>? Errors { get; set; }
     }
 
-    // AddPaymentAsync/BookTicketAsync (Confirm-Book) and CancelBookingAsync (the
-    // amendment flow) are all implemented against Tripjack's documented contract —
-    // none of the three were live-verified end to end, since each commits a real
-    // payment, ticketing, or cancellation+refund even on the UAT sandbox, which
-    // automated testing in this environment isn't allowed to trigger. See each
-    // method's own doc comment in TripjackClient for specifics. Still entirely
-    // unverified against a live response (docs-only, no field table given):
-    //   Seat Map        POST fms/v1/seat                    { bookingId }
-    //   Fare Rule       POST fms/v2/farerule                { flowType, id }
-    //   Fare Validate (Instant)  POST oms/v1/air/book/fare-validate  same shape as Book, no paymentInfos
+    // Live-verification status as of this pass (see each method's own doc comment
+    // in TripjackClient for specifics):
+    //   Confirmed live: Search/Review/Book(Hold)/Booking-Details/Unhold (earlier
+    //     pass), multi-priceId Review batching (domestic return, one bookingId,
+    //     correctly summed combined fare), Confirm-Fare-Before-Ticket
+    //     (oms/v1/air/fare-validate), GST field acceptance at Book time (against
+    //     Tripjack's own GSTIN validator), passport field acceptance AND echo-back
+    //     through Booking Details (international Book + Booking Details).
+    //   Confirmed live as a real gap: Booking Details does NOT echo gstInfo back
+    //     the way it does deliveryInfo/travellerInfo — see TripjackOrderWire's own
+    //     doc comment. BookTicketAsync's GST resend at Confirm-Book time is
+    //     currently always a no-op as a result.
+    //   NOT live-verified: AddPaymentAsync/BookTicketAsync's own Confirm-Book call,
+    //     and CancelBookingAsync's amendment flow — both commit a real
+    //     payment+ticketing or cancellation+refund even on the UAT sandbox, which
+    //     automated testing in this environment isn't allowed to trigger.
+    //   Still entirely unverified against a live response (docs-only, no field
+    //   table given):
+    //     Seat Map        POST fms/v1/seat                    { bookingId }
+    //     Fare Rule       POST fms/v2/farerule                { flowType, id }
+    //     Fare Validate (Instant)  POST oms/v1/air/book/fare-validate  same shape as Book, no paymentInfos
     // GetFareRulesAsync/GetSeatMapAsync/GetAncillariesAsync still throw
-    // NotSupportedException in TripjackClient. Multi-leg (roundtrip/multi-city)
-    // itineraries remain unsupported — see CreateTempBookingAsync's own guard.
+    // NotSupportedException in TripjackClient.
 }

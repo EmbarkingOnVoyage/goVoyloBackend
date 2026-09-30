@@ -132,15 +132,16 @@ public class Program
         builder.Services.AddMemoryCache();
         builder.Services.AddSingleton<IFlightSearchSessionStore, InMemoryFlightSearchSessionStore>();
 
-        // Tripjack is now live for oneway itineraries: Search/Review/Book(Hold)/
-        // Booking-Details/Unhold are all implemented and verified end-to-end through
-        // this app's own real endpoints, and AddPayment/BookTicket (Confirm-Book) are
+        // Tripjack is now live, including multi-leg (roundtrip/multi-city)
+        // itineraries and cancellation: Search/Review/Book(Hold)/Booking-Details/
+        // Unhold are implemented and verified end-to-end through this app's own real
+        // endpoints, RepriceBatchAsync batches every leg's priceId into one Review
+        // call the way Tripjack's own multi-leg model requires, and AddPayment/
+        // BookTicket (Confirm-Book) and CancelBookingAsync (the amendment flow) are
         // implemented against Tripjack's documented contract — see TripjackClient's
-        // own doc comments for what's live-verified vs docs-only. Cancellation
-        // (the amendment flow) and multi-leg/roundtrip itineraries still throw
-        // NotSupportedException, so a roundtrip/multi-city search still only offers
-        // Flyshop results (CreateTempBookingAsync's own guard rejects a multi-leg
-        // Tripjack booking before it reaches the airline).
+        // own doc comments for what's live-verified vs docs-only (Confirm-Book and
+        // the amendment flow specifically are not, since each commits a real
+        // payment/ticketing or cancellation+refund even on the UAT sandbox).
         //
         // Each concrete client needs its OWN typed HttpClient, keyed by the CONCRETE
         // type (AddHttpClient<TripjackClient>, not

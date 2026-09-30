@@ -47,11 +47,15 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
             var tripInfos = wireResponse.SearchResult?.TripInfos ?? new Dictionary<string, List<TripjackTripOptionWire>>();
 
-            // Dictionary insertion order follows the JSON's own key order (ONWARD
-            // first, then RETURN for a domestic return) — same TripLegIndex meaning
-            // Flyshop's TripDetails[].Trip_Id already carries for a multi-leg search.
-            var flights = tripInfos.Values
-                .SelectMany((tripOptions, legIndex) => tripOptions.Select(option => MapFlight(option, legIndex)))
+            // NOT dictionary/JSON insertion order — confirmed live that a domestic
+            // return can come back with "RETURN" before "ONWARD" in the raw JSON, so
+            // relying on Values' enumeration order (as this used to) silently swaps
+            // leg 0 and leg 1 for exactly the itineraries this matters most for.
+            // Each key is mapped to its real leg index explicitly instead — same
+            // TripLegIndex meaning Flyshop's TripDetails[].Trip_Id already carries for
+            // a multi-leg search.
+            var flights = tripInfos
+                .SelectMany(kvp => kvp.Value.Select(option => MapFlight(option, GetTripLegIndex(kvp.Key))))
                 .ToList();
 
             // Tripjack has no equivalent of Flyshop's Search_Key — Review only ever
@@ -109,9 +113,13 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // total fare is attached to the FIRST result only (0 on the rest) since
             // CreateBookingCommandHandler sums every leg's TotalAmount into the
             // booking's stored total — reporting the full combined fare on every leg
-            // would multiply it by the leg count. NOT live-verified: Tripjack's UAT
-            // sandbox started rate-limiting this account (403/Access Denied) before a
-            // real multi-priceId Review call could be exercised.
+            // would multiply it by the leg count. Confirmed live: a real 2-priceId
+            // domestic-return Review call returned one bookingId with
+            // totalPriceInfo.totalFareDetail.fC.TF exactly equal to the sum of both
+            // legs' individual fares (8824.5 + 9074.5 = 17899.0). Booking (Hold) with
+            // that combined bookingId was not itself re-tested here, but reuses the
+            // same oneway Book path unchanged (see CreateTempBookingAsync's own
+            // comment) which is independently verified.
             if (requests.Count == 1)
             {
                 return new List<SupplierRepriceResultDto> { await RepriceAsync(requests[0], cancellationToken) };
@@ -317,12 +325,10 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // (their integration guide's own booking-flow diagram: Hold -> Confirm
             // Fare Before Ticketing -> [fare available?] -> Confirm-Book), a real
             // supplier-side revalidation rather than just re-reading our own cached
-            // order status. NOT live-verified — Tripjack's UAT sandbox started
-            // rate-limiting this account (403/Access Denied) mid-session before this
-            // could be exercised, and the response shape beyond the shared
-            // status/errors envelope every other endpoint uses isn't documented in a
-            // field table, so a genuinely malformed response here would surface as an
-            // EnsureSuccess failure rather than a silent false-positive.
+            // order status. Confirmed live against a real Hold: POST with just
+            // { bookingId } returns the same shared status/errors envelope every
+            // other endpoint uses (no extra fields), matching
+            // TripjackStatusOnlyResponseWire exactly.
             var validateResponse = await PostAsync<TripjackBookingDetailsRequestWire, TripjackStatusOnlyResponseWire>(
                 "oms/v1/air/fare-validate",
                 new TripjackBookingDetailsRequestWire { BookingId = bookingRefNo },
@@ -415,6 +421,19 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // Real endpoint: POST fms/v2/farerule, { flowType: "REVIEW", id: bookingId }.
             throw new NotSupportedException("Tripjack fare rules are not implemented.");
         }
+
+        // Confirmed live: "ONWARD"/"RETURN" (domestic return), "COMBO" (international
+        // return/multi-city, a single already-combined key), and plain numeric string
+        // keys "0".."5" (domestic multi-city, 2-6 legs, confirmed already in
+        // ascending order in the one live sample seen) — never assume dictionary/JSON
+        // order reflects leg order.
+        private static int GetTripLegIndex(string tripInfoKey) => tripInfoKey switch
+        {
+            "ONWARD" => 0,
+            "RETURN" => 1,
+            "COMBO" => 0,
+            _ => int.TryParse(tripInfoKey, out var index) ? index : 0
+        };
 
         private static SupplierFlightOptionDto MapFlight(TripjackTripOptionWire tripOption, int tripLegIndex)
         {
