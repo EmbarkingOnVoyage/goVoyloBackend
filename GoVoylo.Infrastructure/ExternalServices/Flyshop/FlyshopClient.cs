@@ -125,6 +125,22 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 repriced.IsFareChange);
         }
 
+        // No batching of Flyshop's own — each leg is independent, so this just runs
+        // the existing single-leg RepriceAsync for every request in order. Identical
+        // behavior/result to the caller looping over RepriceAsync itself.
+        public async Task<IReadOnlyList<SupplierRepriceResultDto>> RepriceBatchAsync(
+            IReadOnlyList<SupplierRepriceRequestDto> requests, CancellationToken cancellationToken)
+        {
+            var results = new List<SupplierRepriceResultDto>(requests.Count);
+
+            foreach (var request in requests)
+            {
+                results.Add(await RepriceAsync(request, cancellationToken));
+            }
+
+            return results;
+        }
+
         public async Task<SupplierLowFareResultDto> GetLowFareCalendarAsync(
             SupplierLowFareRequestDto request, CancellationToken cancellationToken)
         {
@@ -237,7 +253,14 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                         FirstName = t.FirstName,
                         LastName = t.LastName,
                         Gender = t.Gender,
-                        Dob = t.DateOfBirth?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture)
+                        Dob = t.DateOfBirth?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
+                        PassportNumber = t.PassportNumber,
+                        // Nationality doubles as issuing country — see
+                        // BookingTravelerRequestDto's own doc comment for why.
+                        PassportIssuingCountry = t.PassportNationality,
+                        PassportExpiry = t.PassportExpiry?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
+                        Nationality = t.PassportNationality,
+                        PancardNumber = t.PanNumber
                     })
                     .ToList(),
                 Gst = request.Gst,

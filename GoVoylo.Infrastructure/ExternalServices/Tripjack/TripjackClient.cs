@@ -95,6 +95,54 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 IsFareChange: false);
         }
 
+        public async Task<IReadOnlyList<SupplierRepriceResultDto>> RepriceBatchAsync(
+            IReadOnlyList<SupplierRepriceRequestDto> requests, CancellationToken cancellationToken)
+        {
+            // Per Tripjack's own docs: a Domestic Return needs 2 priceIds at Review,
+            // a Domestic Multi-City needs N (up to 6), and either way Review returns
+            // ONE bookingId covering every leg together — not one bookingId per leg
+            // the way RepriceAsync's single-priceId call works for a oneway. That
+            // single bookingId is returned here as EVERY result's FlightKey, so
+            // CreateTempBookingAsync (which only ever reads Flights[0].FlightKey) and
+            // CreateBookingCommandHandler's per-leg bookkeeping both keep working
+            // unmodified — they just all happen to see the same value. The combined
+            // total fare is attached to the FIRST result only (0 on the rest) since
+            // CreateBookingCommandHandler sums every leg's TotalAmount into the
+            // booking's stored total — reporting the full combined fare on every leg
+            // would multiply it by the leg count. NOT live-verified: Tripjack's UAT
+            // sandbox started rate-limiting this account (403/Access Denied) before a
+            // real multi-priceId Review call could be exercised.
+            if (requests.Count == 1)
+            {
+                return new List<SupplierRepriceResultDto> { await RepriceAsync(requests[0], cancellationToken) };
+            }
+
+            var wireRequest = new TripjackReviewRequestWire
+            {
+                PriceIds = requests.Select(r => r.FlightKey).ToList()
+            };
+
+            var wireResponse = await PostAsync<TripjackReviewRequestWire, TripjackReviewResponseWire>(
+                "fms/v1/review", wireRequest, cancellationToken);
+
+            if (wireResponse.Status?.Success != true || string.IsNullOrEmpty(wireResponse.BookingId))
+            {
+                throw new InvalidOperationException("Tripjack Review returned no bookingId.");
+            }
+
+            var totalFare = wireResponse.TotalPriceInfo?.TotalFareDetail?.FareComponent.TotalFare ?? 0m;
+
+            return requests
+                .Select((r, index) => new SupplierRepriceResultDto(
+                    wireResponse.BookingId,
+                    r.FareId,
+                    index == 0 ? totalFare : 0m,
+                    "INR",
+                    Repriced: true,
+                    IsFareChange: false))
+                .ToList();
+        }
+
         public Task<SupplierLowFareResultDto> GetLowFareCalendarAsync(
             SupplierLowFareRequestDto request, CancellationToken cancellationToken)
         {
@@ -123,18 +171,11 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         public async Task<SupplierTempBookingResultDto> CreateTempBookingAsync(
             SupplierTempBookingRequestDto request, CancellationToken cancellationToken)
         {
-            if (request.Flights.Count != 1)
-            {
-                // Each leg goes through its own separate Review call today (one
-                // RepriceAsync call per leg — see CreateBookingCommandHandler), each
-                // producing its own bookingId. Tripjack's own model expects every
-                // leg's priceId submitted together in ONE Review call to get a single
-                // bookingId covering a multi-leg itinerary, so a roundtrip/multi-city
-                // Tripjack booking isn't safe to attempt until that's reworked.
-                throw new NotSupportedException(
-                    "Tripjack booking only supports oneway itineraries today — a multi-leg itinerary needs every " +
-                    "leg's priceId submitted together in one Review call, which the current per-leg reprice flow doesn't do.");
-            }
+            // Every leg carries the SAME bookingId here — CreateBookingCommandHandler
+            // reprices multi-leg itineraries through RepriceBatchAsync (one Review
+            // call, one combined bookingId returned for every leg; see its own doc
+            // comment), so Flights[0].FlightKey already covers the whole itinerary
+            // regardless of leg count. No multi-leg guard needed here any more.
 
             // RepriceAsync (Review) already ran for this leg and its bookingId is
             // carried here as FlightKey — see RepriceAsync's own doc comment.
@@ -148,7 +189,17 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                     Emails = new List<string> { request.PassengerEmail },
                     Contacts = new List<string> { NormalizeMobile(request.PassengerMobile) }
                 },
-                TravellerInfo = request.Travelers.Select(MapTraveller).ToList()
+                // Sent unconditionally — see TripjackContactInfoWire's own doc
+                // comment for why (nothing upstream collects a genuinely separate
+                // emergency contact yet, so this doubles as the passenger's own).
+                ContactInfo = new TripjackContactInfoWire
+                {
+                    Emails = new List<string> { request.PassengerEmail },
+                    Contacts = new List<string> { NormalizeMobile(request.PassengerMobile) },
+                    Ecn = $"{request.Travelers.FirstOrDefault()?.FirstName} {request.Travelers.FirstOrDefault()?.LastName}".Trim()
+                },
+                TravellerInfo = request.Travelers.Select(MapTraveller).ToList(),
+                GstInfo = MapGstInfo(request)
                 // PaymentInfos intentionally omitted — this is what makes it a Hold
                 // rather than an Instant Book.
             };
@@ -175,16 +226,61 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             return MapTicketingResult(bookingRefNo, wireResponse);
         }
 
-        public Task CancelBookingAsync(
+        public async Task CancelBookingAsync(
             SupplierCancellationRequestDto request, CancellationToken cancellationToken)
         {
-            // Real flow is two calls, not one: POST
-            // oms/v1/air/amendment/amendment-charges to quote what the customer owes,
-            // then POST oms/v1/air/amendment/submit-amendment to commit — Flyshop's
-            // single Air_TicketCancellation call has no equivalent here, so
-            // CancelBookingAsync's own single-call contract may need to change (or
-            // internally do both calls) once this is implemented.
-            throw new NotSupportedException("Tripjack cancellation is not implemented.");
+            // Built from Tripjack's documented 3-step amendment flow (submit ->
+            // poll), NOT live-verified — this commits a real cancellation+refund even
+            // on the UAT sandbox, which automated testing in this environment isn't
+            // allowed to trigger. Full-booking cancel only — see this file's own
+            // "Cancellation — a three-call amendment flow" comment block for why
+            // trips[]/travellers[] scoping is intentionally left out.
+            var submitResponse = await PostAsync<TripjackAmendmentRequestWire, TripjackSubmitAmendmentResponseWire>(
+                "oms/v1/air/amendment/submit-amendment",
+                new TripjackAmendmentRequestWire
+                {
+                    BookingId = request.RefNo,
+                    Type = "CANCELLATION",
+                    Remarks = request.ReqRemarks
+                },
+                cancellationToken);
+
+            EnsureSuccess(submitResponse.Status, submitResponse.Errors, "Submit-Amendment");
+
+            var amendmentId = submitResponse.AmendmentId
+                ?? throw new InvalidOperationException(
+                    $"Tripjack Submit-Amendment for booking '{request.RefNo}' returned no amendmentId.");
+
+            // Tripjack's own docs: poll 4-5x, 10s apart, until the status leaves
+            // REQUESTED/PENDING — contact their support if it never does.
+            for (var attempt = 1; attempt <= 5; attempt++)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
+
+                var detailsResponse = await PostAsync<TripjackAmendmentDetailsRequestWire, TripjackAmendmentDetailsResponseWire>(
+                    "oms/v1/air/amendment/amendment-details",
+                    new TripjackAmendmentDetailsRequestWire { AmendmentId = amendmentId },
+                    cancellationToken);
+
+                EnsureSuccess(detailsResponse.Status, detailsResponse.Errors, "Amendment-Details");
+
+                if (detailsResponse.AmendmentStatus == "SUCCESS")
+                {
+                    return;
+                }
+
+                if (detailsResponse.AmendmentStatus == "REJECTED")
+                {
+                    throw new InvalidOperationException(
+                        $"Tripjack rejected the cancellation for booking '{request.RefNo}' (amendmentId: {amendmentId}).");
+                }
+
+                // REQUESTED / PENDING — keep polling.
+            }
+
+            throw new InvalidOperationException(
+                $"Tripjack cancellation for booking '{request.RefNo}' (amendmentId: {amendmentId}) is still processing " +
+                "after 5 polls — contact Tripjack support per their own docs rather than retrying automatically.");
         }
 
         public async Task ReleaseHoldAsync(
@@ -216,6 +312,24 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // between, so a hold that's already expired/cancelled on Tripjack's side
             // needs to surface here, not as a confusing Confirm-Book failure after the
             // customer's Razorpay charge is already marked succeeded.
+            //
+            // This maps onto Tripjack's own "Confirm Fare Before Ticketing" step
+            // (their integration guide's own booking-flow diagram: Hold -> Confirm
+            // Fare Before Ticketing -> [fare available?] -> Confirm-Book), a real
+            // supplier-side revalidation rather than just re-reading our own cached
+            // order status. NOT live-verified — Tripjack's UAT sandbox started
+            // rate-limiting this account (403/Access Denied) mid-session before this
+            // could be exercised, and the response shape beyond the shared
+            // status/errors envelope every other endpoint uses isn't documented in a
+            // field table, so a genuinely malformed response here would surface as an
+            // EnsureSuccess failure rather than a silent false-positive.
+            var validateResponse = await PostAsync<TripjackBookingDetailsRequestWire, TripjackStatusOnlyResponseWire>(
+                "oms/v1/air/fare-validate",
+                new TripjackBookingDetailsRequestWire { BookingId = bookingRefNo },
+                cancellationToken);
+
+            EnsureSuccess(validateResponse.Status, validateResponse.Errors, "Fare-Validate");
+
             var details = await FetchBookingDetailsAsync(bookingRefNo, cancellationToken);
             var status = details.Order?.Status;
 
@@ -251,16 +365,33 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                     PaxType = t.PaxType ?? "ADULT",
                     FirstName = t.FirstName ?? string.Empty,
                     LastName = t.LastName ?? string.Empty,
-                    DateOfBirth = t.DateOfBirth
+                    DateOfBirth = t.DateOfBirth,
+                    PassportNumber = t.PassportNumber,
+                    PassportExpiry = t.PassportExpiry,
+                    PassportNationality = t.PassportNationality,
+                    PassportIssueDate = t.PassportIssueDate,
+                    PanNumber = t.PanNumber,
+                    DocumentId = t.DocumentId
                 })
                 .ToList();
+
+            var deliveryInfo = order.DeliveryInfo ?? new TripjackDeliveryInfoWire();
 
             var confirmRequest = new TripjackConfirmBookRequestWire
             {
                 BookingId = bookingRefNo,
-                DeliveryInfo = order.DeliveryInfo ?? new TripjackDeliveryInfoWire(),
+                DeliveryInfo = deliveryInfo,
+                ContactInfo = new TripjackContactInfoWire
+                {
+                    Emails = deliveryInfo.Emails,
+                    Contacts = deliveryInfo.Contacts,
+                    Ecn = $"{travellerInfo.FirstOrDefault()?.FirstName} {travellerInfo.FirstOrDefault()?.LastName}".Trim()
+                },
                 TravellerInfo = travellerInfo,
-                PaymentInfos = new List<TripjackPaymentInfoWire> { new() { Amount = order.Amount } }
+                PaymentInfos = new List<TripjackPaymentInfoWire> { new() { Amount = order.Amount } },
+                // Best-effort resend — see TripjackOrderWire.GstInfo's own doc
+                // comment on why this isn't confirmed to actually round-trip.
+                GstInfo = order.GstInfo
             };
 
             var confirmResponse = await PostAsync<TripjackConfirmBookRequestWire, TripjackBookResponseWire>(
@@ -352,30 +483,44 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             var order = wireResponse.Order;
             var airInfo = wireResponse.ItemInfos?.Air;
             var traveller = airInfo?.TravellerInfos.FirstOrDefault();
-            var pnr = traveller?.PnrDetails.Values.FirstOrDefault();
+            var pnrDetails = traveller?.PnrDetails ?? new Dictionary<string, string>();
             var statusId = MapOrderStatus(order?.Status);
 
             var legs = (airInfo?.TripInfos ?? new List<TripjackTripOptionWire>())
                 .SelectMany(t => t.SegmentInfos)
-                .Select(seg => new SupplierTicketingLegResultDto(
+                .Select(seg =>
+                {
                     // No single stable per-segment id the way Flyshop's Flight_Id is
                     // (Booking Details' own segment id changes between Search/Review/
                     // Book, confirmed live) — the route itself is the one identifier
-                    // that stays meaningful across calls.
-                    $"{seg.Departure.Code}-{seg.Arrival.Code}",
-                    statusId,
-                    seg.FlightDesignator.AirlineInfo.Code,
-                    pnr,
-                    null,
-                    null,
-                    null))
+                    // that stays meaningful across calls, and it's also exactly how
+                    // pnrDetails keys its entries ("DEP-ARR"), so it doubles as the
+                    // lookup key for that route's own PNR. A oneway has one entry; a
+                    // roundtrip/multi-city can have a different PNR per route (same
+                    // reasoning already applied to Flyshop's own per-leg AirlinePnr).
+                    var flightId = $"{seg.Departure.Code}-{seg.Arrival.Code}";
+                    pnrDetails.TryGetValue(flightId, out var legPnr);
+
+                    return new SupplierTicketingLegResultDto(
+                        flightId,
+                        statusId,
+                        seg.FlightDesignator.AirlineInfo.Code,
+                        legPnr,
+                        null,
+                        null,
+                        null);
+                })
                 .ToList();
+
+            // First leg's PNR, kept for existing single-leg callers — see
+            // SupplierTicketingResultDto's own doc comment.
+            var firstPnr = legs.FirstOrDefault()?.AirlinePnr;
 
             return new SupplierTicketingResultDto(
                 order?.BookingId ?? bookingRefNo,
                 statusId,
                 legs.FirstOrDefault()?.AirlineCode,
-                pnr,
+                firstPnr,
                 null,
                 null,
                 null,
@@ -403,8 +548,30 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             PaxType = MapPaxType(pax.PaxType),
             FirstName = pax.FirstName,
             LastName = pax.LastName,
-            DateOfBirth = pax.DateOfBirth?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            DateOfBirth = pax.DateOfBirth?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            PassportNumber = pax.PassportNumber,
+            PassportExpiry = pax.PassportExpiry?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            PassportNationality = pax.PassportNationality,
+            PassportIssueDate = pax.PassportIssueDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            PanNumber = pax.PanNumber,
+            DocumentId = pax.DocumentId
         };
+
+        // GstInfo is booking-level (one invoice per booking), not per-traveler — see
+        // SupplierTempBookingRequestDto.Gst*. RegisteredName/Address fall back to
+        // empty rather than null since Tripjack's own field table marks them
+        // required whenever gstInfo itself is sent.
+        private static TripjackGstInfoWire? MapGstInfo(SupplierTempBookingRequestDto request) =>
+            request.Gst
+                ? new TripjackGstInfoWire
+                {
+                    GstNumber = request.GstNumber,
+                    RegisteredName = request.GstHolderName,
+                    Address = request.GstAddress,
+                    Email = request.PassengerEmail,
+                    Mobile = NormalizeMobile(request.PassengerMobile)
+                }
+                : null;
 
         // 0-ADT/1-CHD/2-INF, the same convention SupplierTempBookingPaxDto's own
         // callers already use for Flyshop.

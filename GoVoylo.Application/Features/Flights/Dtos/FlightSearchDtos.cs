@@ -92,6 +92,15 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     // DateOfBirth is optional for adults/children but required by Flyshop for
     // infants (Air_Reprice's own Required_PAX_Details marks DOB mandatory only for
     // Pax_Type 2-INF) — omitting it for an infant traveler will fail Air_TempBooking.
+    //
+    // Passport/PAN/document-id fields are all optional here and only required by a
+    // given supplier for specific fares (Tripjack's own Review response says so per
+    // booking via conditions.pm/pped/ipa/ida/idm — Flyshop's own PaxDetailWire has
+    // had matching fields for a while, just never populated). PassportNationality is
+    // reused as both "nationality" (Tripjack's pNat) and "issuing country" (Flyshop's
+    // Passport_Issuing_Country) — a deliberate simplification, since the two are the
+    // same for the overwhelming majority of travelers and neither supplier's own
+    // sample requests distinguish them further.
     public record BookingTravelerRequestDto(
         int PaxId,
         string Title,
@@ -99,7 +108,13 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string LastName,
         string Gender,
         string PaxType,
-        DateTime? DateOfBirth = null);
+        DateTime? DateOfBirth = null,
+        string? PassportNumber = null,
+        string? PassportNationality = null,
+        DateTime? PassportExpiry = null,
+        DateTime? PassportIssueDate = null,
+        string? PanNumber = null,
+        string? DocumentId = null);
 
     // GST fields are optional — omit all three for a booking with no GST invoice.
     // Air_TempBooking's own GST flag is derived from whether GstNumber is present,

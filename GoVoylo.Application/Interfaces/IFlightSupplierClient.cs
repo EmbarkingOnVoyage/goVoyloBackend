@@ -12,6 +12,17 @@ namespace GoVoylo.Application.Interfaces
         Task<SupplierRepriceResultDto> RepriceAsync(
             SupplierRepriceRequestDto request, CancellationToken cancellationToken);
 
+        // Reprices every leg of a multi-leg (roundtrip/multi-city) itinerary together.
+        // Flyshop has no batching of its own — its implementation just runs the
+        // existing per-leg RepriceAsync for each request and returns the results in
+        // the same order, identical behavior to calling RepriceAsync in a loop.
+        // Tripjack's Review needs every leg's priceId submitted in ONE call to get a
+        // single bookingId covering the whole itinerary — see TripjackClient's own
+        // doc comment on this method for how that single bookingId is represented
+        // across multiple result entries.
+        Task<IReadOnlyList<SupplierRepriceResultDto>> RepriceBatchAsync(
+            IReadOnlyList<SupplierRepriceRequestDto> requests, CancellationToken cancellationToken);
+
         Task<SupplierLowFareResultDto> GetLowFareCalendarAsync(
             SupplierLowFareRequestDto request, CancellationToken cancellationToken);
 

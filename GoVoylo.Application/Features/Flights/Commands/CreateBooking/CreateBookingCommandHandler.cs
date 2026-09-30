@@ -41,7 +41,6 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
         public async Task<CreateBookingResponseDto> Handle(
             CreateBookingCommand request, CancellationToken cancellationToken)
         {
-            var bookingFlights = new List<SupplierBookingFlightDto>();
             // Route/price display data for each leg, captured from the original search
             // session (Reprice only ever changes FlightKey/FareId) — kept around purely
             // to persist a TripBooking once ticketing succeeds, below.
@@ -57,71 +56,14 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                 }
 
                 legSummaries.Add(session);
-
-                // A seat/meal/baggage SSR_Key returned by Air_GetSeatMap or Air_GetSSR is
-                // only valid against the exact Flight_Key that request was repriced
-                // against (both handlers persist their reprice back into the session).
-                // Repricing again here — as this used to do unconditionally — hands
-                // Air_TempBooking a *different* Flight_Key than the one the SSR_Key was
-                // issued for, and the seat lock in particular doesn't carry over: the
-                // booking still creates a Ref_No, but Air_Ticketing then fails at the
-                // airline host (confirmed live: "Err002: This transaction is already
-                // Rejected/Deleted"). A plain meal SSR tolerated the mismatch in testing,
-                // but seat selection consistently did not, so any selection is treated
-                // the same way here — when the caller already selected SSRs for this leg,
-                // trust the session's current Flight_Key/Fare_Id (already fresh from
-                // whichever ancillaries/seatmap call produced those keys) instead of
-                // repricing again. A leg with no SSR selections still reprices as before,
-                // since its Flight_Key may still be the original, un-repriced search
-                // result (Air_TempBooking's own docs require a Reprice-sourced Flight_Key).
-                string flightKeyToBook;
-                string searchKeyToBook = session.SearchKey;
-
-                if (leg.SelectedSsrs.Count > 0)
-                {
-                    flightKeyToBook = session.FlightKey;
-                }
-                else
-                {
-                    var legSupplierClient = _supplierClientResolver.Resolve(session.SupplierCode);
-                    var repriceResult = await legSupplierClient.RepriceAsync(
-                        new SupplierRepriceRequestDto(session.SearchKey, session.FlightKey, session.FareId),
-                        cancellationToken);
-
-                    var updatedSession = session with
-                    {
-                        FlightKey = repriceResult.FlightKey,
-                        FareId = repriceResult.FareId
-                    };
-                    await _sessionStore.UpdateAsync(leg.OfferId, updatedSession, cancellationToken);
-
-                    flightKeyToBook = updatedSession.FlightKey;
-                }
-
-                bookingFlights.Add(new SupplierBookingFlightDto(
-                    searchKeyToBook,
-                    flightKeyToBook,
-                    leg.SelectedSsrs
-                        .Select(s => new SupplierBookingSsrDto(s.PaxId, s.SsrKey))
-                        .ToList()));
             }
-
-            var travelers = request.Travelers
-                .Select(t => new SupplierTempBookingPaxDto(
-                    t.PaxId,
-                    MapPaxType(t.PaxType),
-                    t.Title,
-                    t.FirstName,
-                    t.LastName,
-                    MapGender(t.Gender),
-                    t.DateOfBirth))
-                .ToList();
-
-            var hasGst = !string.IsNullOrWhiteSpace(request.GstNumber);
 
             // Every leg has to come from the same supplier — a mixed-supplier
             // itinerary (one leg via Flyshop, another via Tripjack) isn't something
-            // any single Book_Ticket-style call can commit atomically.
+            // any single Book_Ticket-style call can commit atomically. Checked before
+            // repricing (not just before CreateTempBookingAsync, as this used to)
+            // since a batched reprice call below is itself only valid for one
+            // supplier at a time.
             var supplierCode = legSummaries[0].SupplierCode;
             if (legSummaries.Any(s => s.SupplierCode != supplierCode))
             {
@@ -131,6 +73,88 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
             }
 
             var supplierClient = _supplierClientResolver.Resolve(supplierCode);
+
+            // A seat/meal/baggage SSR_Key returned by Air_GetSeatMap or Air_GetSSR is
+            // only valid against the exact Flight_Key that request was repriced
+            // against (both handlers persist their reprice back into the session).
+            // Repricing again here — as this used to do unconditionally — hands
+            // Air_TempBooking a *different* Flight_Key than the one the SSR_Key was
+            // issued for, and the seat lock in particular doesn't carry over: the
+            // booking still creates a Ref_No, but Air_Ticketing then fails at the
+            // airline host (confirmed live: "Err002: This transaction is already
+            // Rejected/Deleted"). A plain meal SSR tolerated the mismatch in testing,
+            // but seat selection consistently did not, so any selection is treated
+            // the same way here — when the caller already selected SSRs for this leg,
+            // trust the session's current Flight_Key/Fare_Id (already fresh from
+            // whichever ancillaries/seatmap call produced those keys) instead of
+            // repricing again. A leg with no SSR selections still reprices as before,
+            // since its Flight_Key may still be the original, un-repriced search
+            // result (Air_TempBooking's own docs require a Reprice-sourced Flight_Key).
+            //
+            // Every leg needing reprice goes through ONE RepriceBatchAsync call rather
+            // than one RepriceAsync call each — Flyshop's own implementation just runs
+            // them in a loop internally (identical behavior/result to before), but
+            // Tripjack's Review needs every leg's priceId submitted together to get a
+            // single bookingId covering the whole itinerary (see
+            // IFlightSupplierClient.RepriceBatchAsync's own doc comment) — a
+            // roundtrip/multi-city Tripjack booking isn't possible without this.
+            var legsNeedingReprice = request.Legs
+                .Select((leg, index) => (leg, index))
+                .Where(x => x.leg.SelectedSsrs.Count == 0)
+                .ToList();
+
+            if (legsNeedingReprice.Count > 0)
+            {
+                var repriceRequests = legsNeedingReprice
+                    .Select(x => new SupplierRepriceRequestDto(
+                        legSummaries[x.index].SearchKey, legSummaries[x.index].FlightKey, legSummaries[x.index].FareId))
+                    .ToList();
+
+                var repriceResults = await supplierClient.RepriceBatchAsync(repriceRequests, cancellationToken);
+
+                for (var i = 0; i < legsNeedingReprice.Count; i++)
+                {
+                    var index = legsNeedingReprice[i].index;
+                    var result = repriceResults[i];
+
+                    var updatedSession = legSummaries[index] with
+                    {
+                        FlightKey = result.FlightKey,
+                        FareId = result.FareId
+                    };
+                    await _sessionStore.UpdateAsync(request.Legs[index].OfferId, updatedSession, cancellationToken);
+
+                    legSummaries[index] = updatedSession;
+                }
+            }
+
+            var bookingFlights = request.Legs
+                .Select((leg, index) => new SupplierBookingFlightDto(
+                    legSummaries[index].SearchKey,
+                    legSummaries[index].FlightKey,
+                    leg.SelectedSsrs
+                        .Select(s => new SupplierBookingSsrDto(s.PaxId, s.SsrKey))
+                        .ToList()))
+                .ToList();
+
+            var travelers = request.Travelers
+                .Select(t => new SupplierTempBookingPaxDto(
+                    t.PaxId,
+                    MapPaxType(t.PaxType),
+                    t.Title,
+                    t.FirstName,
+                    t.LastName,
+                    MapGender(t.Gender),
+                    t.DateOfBirth,
+                    t.PassportNumber,
+                    t.PassportNationality,
+                    t.PassportExpiry,
+                    t.PassportIssueDate,
+                    t.PanNumber,
+                    t.DocumentId))
+                .ToList();
+
+            var hasGst = !string.IsNullOrWhiteSpace(request.GstNumber);
 
             var tempBooking = await supplierClient.CreateTempBookingAsync(
                 new SupplierTempBookingRequestDto(

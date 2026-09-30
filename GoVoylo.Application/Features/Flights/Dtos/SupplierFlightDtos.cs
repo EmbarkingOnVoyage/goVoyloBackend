@@ -120,6 +120,9 @@ namespace GoVoylo.Application.Features.Flights.Dtos
 
     public record SupplierSeatMapResultDto(IReadOnlyList<SupplierSeatSegmentDto> Segments);
 
+    // Passport/PAN/document-id fields — see BookingTravelerRequestDto's own doc
+    // comment for why PassportNationality covers both "nationality" and "issuing
+    // country".
     public record SupplierTempBookingPaxDto(
         int PaxId,
         int PaxType,
@@ -127,7 +130,13 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string FirstName,
         string LastName,
         int Gender,
-        DateTime? DateOfBirth = null);
+        DateTime? DateOfBirth = null,
+        string? PassportNumber = null,
+        string? PassportNationality = null,
+        DateTime? PassportExpiry = null,
+        DateTime? PassportIssueDate = null,
+        string? PanNumber = null,
+        string? DocumentId = null);
 
     public record SupplierBookingSsrDto(int PaxId, string SsrKey);
 
