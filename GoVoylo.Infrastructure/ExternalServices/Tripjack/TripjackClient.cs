@@ -607,11 +607,59 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             return MapTicketingResult(bookingRefNo, finalDetails);
         }
 
-        public Task<SupplierFareRuleResultDto> GetFareRulesAsync(
+        public async Task<SupplierFareRuleResultDto> GetFareRulesAsync(
             SupplierFareRuleRequestDto request, CancellationToken cancellationToken)
         {
-            // Real endpoint: POST fms/v2/farerule, { flowType: "REVIEW", id: bookingId }.
-            throw new NotSupportedException("Tripjack fare rules are not implemented.");
+            // request.FlightKey is a bookingId by this point — GetFareRulesQueryHandler
+            // always calls RepriceAsync immediately before this, same reasoning as
+            // GetAncillariesAsync/GetSeatMapAsync's own doc comments — so this always
+            // sends flowType REVIEW rather than SEARCH.
+            var wireResponse = await PostAsync<TripjackFareRuleRequestWire, TripjackFareRuleResponseWire>(
+                "fms/v2/farerule",
+                new TripjackFareRuleRequestWire { FlowType = "REVIEW", Id = request.FlightKey },
+                cancellationToken);
+
+            EnsureSuccess(wireResponse.Status, wireResponse.Errors, "Fare Rule");
+
+            var rules = (wireResponse.FareRule ?? new Dictionary<string, TripjackRouteFareRuleWire>())
+                .SelectMany(routeEntry => (routeEntry.Value.TimedFareRule ?? new Dictionary<string, List<TripjackFareRulePolicyWire>>())
+                    .Select(policyEntry => new SupplierFareRuleDto(
+                        routeEntry.Key,
+                        policyEntry.Key,
+                        FormatFareRulePolicies(policyEntry.Value))))
+                .ToList();
+
+            return new SupplierFareRuleResultDto(rules);
+        }
+
+        // Tripjack returns structured time-banded policy data (amount/additionalFee/
+        // st/et per band), not the free-text description SupplierFareRuleDto.
+        // FareRuleDesc otherwise carries (Flyshop returns a full XHTML fare-rule
+        // document, already stripped to plain text elsewhere) — this flattens each
+        // policy type's bands into one readable summary instead of exposing the
+        // structured data through this shared shape.
+        private static string FormatFareRulePolicies(List<TripjackFareRulePolicyWire> policies)
+        {
+            var lines = policies.Select(p =>
+            {
+                var window = p.StartTimeHours != null && p.EndTimeHours != null
+                    ? $"{p.StartTimeHours}-{p.EndTimeHours} hrs before departure: "
+                    : !string.IsNullOrEmpty(p.PolicyPeriod)
+                        ? $"{p.PolicyPeriod}: "
+                        : string.Empty;
+
+                var fee = p.Amount is > 0 or null && p.AdditionalFee is > 0
+                    ? $"Airline fee {p.Amount ?? 0:0.##}, Tripjack fee {p.AdditionalFee ?? 0:0.##}. "
+                    : p.Amount is > 0
+                        ? $"Fee {p.Amount:0.##}. "
+                        : string.Empty;
+
+                var info = p.PolicyInfo ?? string.Empty;
+
+                return $"{window}{fee}{info}".Trim();
+            });
+
+            return string.Join(" | ", lines.Where(l => l.Length > 0));
         }
 
         // Confirmed live: "ONWARD"/"RETURN" (domestic return), "COMBO" (international

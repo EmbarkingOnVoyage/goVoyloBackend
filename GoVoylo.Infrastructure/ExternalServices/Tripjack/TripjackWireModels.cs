@@ -255,6 +255,109 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         public string? CabinBaggage { get; set; }
     }
 
+    // ===== Fare Rule (POST fms/v2/farerule) =====
+    //
+    // flowType SEARCH (id = priceId) and REVIEW (id = bookingId) both confirmed
+    // live to return the same shape. GetFareRulesAsync is always called right after
+    // a reprice (same pattern as GetAncillariesAsync/GetSeatMapAsync's own doc
+    // comments), so this client always sends REVIEW with a bookingId.
+
+    public class TripjackFareRuleRequestWire
+    {
+        [JsonPropertyName("flowType")]
+        public string FlowType { get; set; } = "REVIEW";
+
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = string.Empty;
+    }
+
+    public class TripjackFareRuleResponseWire
+    {
+        // Keyed by route ("DEP-ARR") — confirmed live. The docs' own field table
+        // reads as if tfr sat flat at the response root; it's actually nested one
+        // level deeper, per route.
+        [JsonPropertyName("fareRule")]
+        public Dictionary<string, TripjackRouteFareRuleWire>? FareRule { get; set; }
+
+        [JsonPropertyName("status")]
+        public TripjackStatusWire? Status { get; set; }
+
+        [JsonPropertyName("errors")]
+        public List<TripjackErrorWire>? Errors { get; set; }
+    }
+
+    public class TripjackRouteFareRuleWire
+    {
+        // Cat 16 plain-text rule for when no structured mini-rule is available (per
+        // the docs' own note) — always seen empty ({}) in the one live route checked
+        // (a structured tfr was present instead), so its populated shape is
+        // unverified. Left untyped since neither its presence nor its shape when
+        // non-empty has been confirmed.
+        [JsonPropertyName("fr")]
+        public object? PlainTextRule { get; set; }
+
+        // Keyed by policy type: CANCELLATION / DATECHANGE / NO_SHOW /
+        // SEAT_CHARGEABLE — confirmed live, all four present for a real route.
+        [JsonPropertyName("tfr")]
+        public Dictionary<string, List<TripjackFareRulePolicyWire>>? TimedFareRule { get; set; }
+    }
+
+    public class TripjackFareRulePolicyWire
+    {
+        [JsonPropertyName("amount")]
+        public decimal? Amount { get; set; }
+
+        [JsonPropertyName("additionalFee")]
+        public decimal? AdditionalFee { get; set; }
+
+        // Confirmed live: these come back as STRINGS ("0", "4"), not integers the
+        // way the docs' own field table describes them.
+        [JsonPropertyName("st")]
+        public string? StartTimeHours { get; set; }
+
+        [JsonPropertyName("et")]
+        public string? EndTimeHours { get; set; }
+
+        // BEFORE_DEPARTURE / AFTER_DEPARTURE / DEFAULT — docs say the API returns
+        // either st/et OR pp, never both; not seen live (every policy in the one
+        // response checked used st/et).
+        [JsonPropertyName("pp")]
+        public string? PolicyPeriod { get; set; }
+
+        [JsonPropertyName("policyInfo")]
+        public string? PolicyInfo { get; set; }
+
+        [JsonPropertyName("fcs")]
+        public TripjackFareRuleChargesWire? Charges { get; set; }
+    }
+
+    public class TripjackFareRuleChargesWire
+    {
+        [JsonPropertyName("ARF")]
+        public decimal? AirlineRescheduleFee { get; set; }
+
+        [JsonPropertyName("ARFT")]
+        public decimal? AirlineRescheduleFeeTax { get; set; }
+
+        [JsonPropertyName("CRF")]
+        public decimal? TripjackRescheduleFee { get; set; }
+
+        [JsonPropertyName("CRFT")]
+        public decimal? TripjackRescheduleFeeTax { get; set; }
+
+        [JsonPropertyName("ACF")]
+        public decimal? AirlineCancellationFee { get; set; }
+
+        [JsonPropertyName("ACFT")]
+        public decimal? AirlineCancellationFeeTax { get; set; }
+
+        [JsonPropertyName("CCF")]
+        public decimal? TripjackCancellationFee { get; set; }
+
+        [JsonPropertyName("CCFT")]
+        public decimal? TripjackCancellationFeeTax { get; set; }
+    }
+
     // ===== Review (POST fms/v1/review) =====
     //
     // Tripjack's booking flow has no separate "reprice" step the way Flyshop does —
@@ -903,13 +1006,24 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
     //     field is "isLegroom" (lowercase r), not "isLegRoom". isExitRow itself
     //     wasn't seen in the one response checked (no exit-row seats on that
     //     route/aircraft) — unverified whether that field name/casing is right.
+    //   GetFareRulesAsync is implemented (POST fms/v2/farerule, flowType REVIEW) and
+    //     flattens Tripjack's structured per-policy-type time bands into the same
+    //     free-text FareRuleDesc shape Flyshop's own fare rules use — see
+    //     TripjackClient.FormatFareRulePolicies. The real live response shape
+    //     differs from the docs' own field table in two ways: tfr is nested under
+    //     fareRule.{route} (keyed by "DEP-ARR"), not flat at the response root, and
+    //     st/et come back as strings ("0", "4"), not integers. Structurally
+    //     confirmed against a real response (all four policy types — CANCELLATION/
+    //     DATECHANGE/NO_SHOW/SEAT_CHARGEABLE — present and correctly shaped) but not
+    //     run through this app's own endpoint end to end the way SSR/seat map were,
+    //     since fare rules aren't applied to a booking the way a price is, so there's
+    //     no equivalent "did it actually take effect" check available.
     //   NOT live-verified: AddPaymentAsync/BookTicketAsync's own Confirm-Book call,
     //     and CancelBookingAsync's amendment flow — both commit a real
     //     payment+ticketing or cancellation+refund even on the UAT sandbox, which
     //     automated testing in this environment isn't allowed to trigger.
     //   Still entirely unverified against a live response (docs-only, no field
     //   table given):
-    //     Fare Rule       POST fms/v2/farerule                { flowType, id }
     //     Fare Validate (Instant)  POST oms/v1/air/book/fare-validate  same shape as Book, no paymentInfos
-    // GetFareRulesAsync still throws NotSupportedException in TripjackClient.
+    // Every IFlightSupplierClient method is now implemented for Tripjack.
 }
