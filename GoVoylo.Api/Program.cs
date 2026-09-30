@@ -132,49 +132,49 @@ public class Program
         builder.Services.AddMemoryCache();
         builder.Services.AddSingleton<IFlightSearchSessionStore, InMemoryFlightSearchSessionStore>();
 
-        // Tripjack is still switched off for live traffic — its Search/Review/Book
-        // (Hold)/Booking-Details/Unhold are all implemented and verified end-to-end
-        // through this app's own real endpoints (search -> create booking -> My
-        // Trips -> release), but Confirm-Book (real payment/ticketing) and
-        // cancellation still throw NotSupportedException (see TripjackClient's own
-        // doc comments). Registering it against IFlightSupplierClient now would let
-        // a real user pay for a Tripjack offer they then can't get ticketed — a hard
-        // 500 after being charged, not a graceful error. The registration below
-        // (commented out) is the one-line flip once those exist.
+        // Tripjack is now live for oneway itineraries: Search/Review/Book(Hold)/
+        // Booking-Details/Unhold are all implemented and verified end-to-end through
+        // this app's own real endpoints, and AddPayment/BookTicket (Confirm-Book) are
+        // implemented against Tripjack's documented contract — see TripjackClient's
+        // own doc comments for what's live-verified vs docs-only. Cancellation
+        // (the amendment flow) and multi-leg/roundtrip itineraries still throw
+        // NotSupportedException, so a roundtrip/multi-city search still only offers
+        // Flyshop results (CreateTempBookingAsync's own guard rejects a multi-leg
+        // Tripjack booking before it reaches the airline).
         //
-        // IMPORTANT if re-enabling: each concrete client needs its OWN typed
-        // HttpClient, keyed by the CONCRETE type (AddHttpClient<TripjackClient>, not
+        // Each concrete client needs its OWN typed HttpClient, keyed by the CONCRETE
+        // type (AddHttpClient<TripjackClient>, not
         // AddHttpClient<IFlightSupplierClient, TripjackClient>) — .NET's
         // HttpClientFactory names a typed client after its first generic argument,
         // so registering two different implementations both against
         // TClient=IFlightSupplierClient makes them share ONE named HttpClient slot,
         // and whichever configuration callback runs last silently overwrites the
-        // other's BaseAddress. Confirmed live during this verification: Tripjack's
-        // client ended up calling Flyshop's host with Tripjack's own path (a 404
-        // that SearchFlightsQueryHandler's per-supplier try/catch swallowed into a
-        // silently Tripjack-less search, not a visible error) until each client got
-        // its own AddHttpClient<TConcrete> registration below, with
+        // other's BaseAddress. Confirmed live during an earlier verification pass:
+        // Tripjack's client ended up calling Flyshop's host with Tripjack's own path
+        // (a 404 that SearchFlightsQueryHandler's per-supplier try/catch swallowed
+        // into a silently Tripjack-less search, not a visible error) until each
+        // client got its own AddHttpClient<TConcrete> registration below, with
         // IFlightSupplierClient resolved as a thin alias for the already-configured
         // concrete instance.
         builder.Services.Configure<TripjackOptions>(builder.Configuration.GetSection("TripjackSettings"));
-        // builder.Services.AddHttpClient<TripjackClient>((sp, client) =>
-        // {
-        //     var tripjackOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<TripjackOptions>>().Value;
-        //     if (!string.IsNullOrWhiteSpace(tripjackOptions.BaseUrl))
-        //     {
-        //         client.BaseAddress = new Uri(tripjackOptions.BaseUrl);
-        //     }
-        //     // Tripjack authenticates with a single apikey header on every call (both
-        //     // FMS and OMS endpoints) rather than a per-request body field.
-        //     if (!string.IsNullOrWhiteSpace(tripjackOptions.ApiKey))
-        //     {
-        //         client.DefaultRequestHeaders.Add("apikey", tripjackOptions.ApiKey);
-        //     }
-        //     client.DefaultRequestHeaders.Accept.Add(
-        //         new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-        //     client.Timeout = TimeSpan.FromSeconds(60);
-        // });
-        // builder.Services.AddTransient<IFlightSupplierClient>(sp => sp.GetRequiredService<TripjackClient>());
+        builder.Services.AddHttpClient<TripjackClient>((sp, client) =>
+        {
+            var tripjackOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<TripjackOptions>>().Value;
+            if (!string.IsNullOrWhiteSpace(tripjackOptions.BaseUrl))
+            {
+                client.BaseAddress = new Uri(tripjackOptions.BaseUrl);
+            }
+            // Tripjack authenticates with a single apikey header on every call (both
+            // FMS and OMS endpoints) rather than a per-request body field.
+            if (!string.IsNullOrWhiteSpace(tripjackOptions.ApiKey))
+            {
+                client.DefaultRequestHeaders.Add("apikey", tripjackOptions.ApiKey);
+            }
+            client.DefaultRequestHeaders.Accept.Add(
+                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            client.Timeout = TimeSpan.FromSeconds(60);
+        });
+        builder.Services.AddTransient<IFlightSupplierClient>(sp => sp.GetRequiredService<TripjackClient>());
 
         builder.Services.Configure<FlyshopOptions>(builder.Configuration.GetSection("FlyshopSettings"));
         builder.Services.AddHttpClient<FlyshopClient>((sp, client) =>
