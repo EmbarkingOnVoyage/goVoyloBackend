@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Common;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
@@ -32,13 +31,11 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
 
         private readonly HttpClient _httpClient;
         private readonly FlyshopOptions _options;
-        private readonly ILogger<FlyshopClient> _logger;
 
-        public FlyshopClient(HttpClient httpClient, IOptions<FlyshopOptions> options, ILogger<FlyshopClient> logger)
+        public FlyshopClient(HttpClient httpClient, IOptions<FlyshopOptions> options)
         {
             _httpClient = httpClient;
             _options = options.Value;
-            _logger = logger;
         }
 
         public string SupplierCode => FlightSupplierCodes.Flyshop;
@@ -317,15 +314,6 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 "Air_Ticketing", wireRequest, cancellationToken);
 
             EnsureSuccess(wireResponse.ResponseHeader, "Air_Ticketing");
-
-            // Temporary diagnostic — how many per-flight entries Air_Ticketing
-            // actually returns for a combined-itinerary (SPECIALROUNDTRIP/
-            // Booking_Type 2) booking is still unverified for TicketingType "0"
-            // (Block_Ticket hold) vs "1" (real ticket). Remove once that's settled.
-            _logger.LogWarning(
-                "Air_Ticketing ({TicketingType}) for {BookingRefNo} returned {Count} AirlinePnrDetails: {FlightIds}",
-                ticketingType, bookingRefNo, wireResponse.AirlinePnrDetails.Count,
-                string.Join(",", wireResponse.AirlinePnrDetails.Select(d => d.FlightId)));
 
             var legs = wireResponse.AirlinePnrDetails
                 .Select(d =>

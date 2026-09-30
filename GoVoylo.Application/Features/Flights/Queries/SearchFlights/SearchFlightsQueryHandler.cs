@@ -92,8 +92,7 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                         flight.AirlineName,
                         firstSegment?.FlightNumber ?? string.Empty,
                         flight.TotalAmount,
-                        flight.CurrencyCode,
-                        flight.Segments);
+                        flight.CurrencyCode);
 
                     var offerId = await _sessionStore.SaveAsync(session, cancellationToken);
 
