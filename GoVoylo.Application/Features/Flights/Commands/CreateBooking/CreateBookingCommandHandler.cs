@@ -220,37 +220,36 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                     passengerNames,
                     paxIds);
 
-                // Flattened across every requested leg's own Segments — for an
-                // ordinary oneway/roundtrip/multi-city booking each requested leg is
-                // one physical flight, so this is the same one-to-one list it always
-                // was. For a combined-itinerary offer (e.g. Flyshop's
-                // SPECIALROUNDTRIP/Booking_Type 2, which books an entire
-                // outbound+return journey as a single "leg" in the request) this
-                // expands that one requested leg into every real flight it contains,
-                // so each one still lines up against its own entry below instead of
-                // all of them collapsing onto the first physical segment's data.
-                var physicalSegments = legSummaries.SelectMany(s => s.Segments).ToList();
-
                 // Zipped by index: Air_Ticketing's AirlinePNRDetails is expected to
                 // preserve the order Air_TempBooking's BookingFlightDetails was sent in.
                 // If Flyshop ever returns a different count, the shorter list wins and
                 // any unmatched leg is skipped — a missing leg's FlightId means it can't
                 // be individually cancelled later, but that's strictly better than the
                 // booking not appearing in "My Trips" at all.
-                for (var i = 0; i < physicalSegments.Count && i < ticket.Legs.Count; i++)
+                //
+                // One requested leg = one saved TripBookingLeg, using that leg's own
+                // Origin/Destination (first/last segment) even when the leg itself
+                // spans multiple physical flights — confirmed live against a
+                // combined-itinerary (SPECIALROUNDTRIP/Booking_Type 2) booking that
+                // Air_Ticketing returns exactly one AirlinePNRDetails entry per
+                // requested leg regardless of its physical segment count, i.e.
+                // Flyshop tracks it as a single connecting-flight-style PNR, not as
+                // independently cancellable segments. Splitting per physical segment
+                // here would misrepresent that PNR as ending at its first stop.
+                for (var i = 0; i < legSummaries.Count && i < ticket.Legs.Count; i++)
                 {
-                    var segment = physicalSegments[i];
+                    var summary = legSummaries[i];
                     var legResult = ticket.Legs[i];
 
                     tripBooking.AddLeg(new TripBookingLeg(
                         tripBooking.Id,
                         i,
-                        segment.Origin,
-                        segment.Destination,
-                        segment.DepartureDateTime,
-                        segment.AirlineCode,
-                        segment.AirlineName,
-                        segment.FlightNumber,
+                        summary.Origin,
+                        summary.Destination,
+                        summary.TravelDate,
+                        summary.AirlineCode,
+                        summary.AirlineName,
+                        summary.FlightNumber,
                         legResult.FlightId));
                 }
 

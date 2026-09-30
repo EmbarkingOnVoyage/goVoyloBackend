@@ -57,14 +57,6 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     // after Reprice/TempBooking — they're never used for pricing or supplier calls,
     // only for the "My Trips" record. Reprice's `with` updates only touch
     // FlightKey/FareId, so these fields stay exactly as captured at search time.
-    // Origin/Destination/TravelDate/FlightNumber above are the FIRST segment's own
-    // (matching the offer's headline display), and Segments is the full physical
-    // segment list backing them — for an ordinary leg offer that's just the one
-    // segment again, but for a combined-itinerary offer (e.g. Flyshop's
-    // SPECIALROUNDTRIP/Booking_Type 2, which returns an entire outbound+return
-    // journey as a single offer) it holds every real flight in the itinerary. See
-    // CreateBookingCommandHandler, which flattens these across every requested leg
-    // to line up 1:1 against Air_Ticketing's own per-flight AirlinePNRDetails list.
     public record FlightOfferSession(
         string SupplierCode,
         string SearchKey,
@@ -77,8 +69,7 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string AirlineName,
         string FlightNumber,
         decimal TotalAmount,
-        string CurrencyCode,
-        IReadOnlyList<SupplierFlightSegmentDto> Segments);
+        string CurrencyCode);
 
     public record SupplierLowFareRequestDto(string Origin, string Destination, int Month, int Year);
 
