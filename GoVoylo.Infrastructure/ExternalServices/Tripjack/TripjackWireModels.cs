@@ -253,7 +253,17 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
     public class TripjackTotalPriceInfoWire
     {
         [JsonPropertyName("totalFareDetail")]
-        public TripjackFareComponentWire? TotalFareDetail { get; set; }
+        public TripjackTotalFareDetailWire? TotalFareDetail { get; set; }
+    }
+
+    // Unlike the per-pax fd[paxType].fC shape, totalFareDetail wraps its fare
+    // component one level deeper than it looks from the field table alone —
+    // confirmed live: totalPriceInfo.totalFareDetail.fC.{BF,TF,TAF}, not
+    // totalPriceInfo.totalFareDetail.{BF,TF,TAF} directly.
+    public class TripjackTotalFareDetailWire
+    {
+        [JsonPropertyName("fC")]
+        public TripjackFareComponentWire FareComponent { get; set; } = new();
     }
 
     public class TripjackConditionsWire
@@ -392,6 +402,15 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         [JsonPropertyName("amount")]
         public decimal Amount { get; set; }
 
+        // Confirmed live: Booking Details echoes back the same emails/contacts Book
+        // was originally called with — Confirm-Book needs this resent (it shares
+        // Book's request shape), and this is the only place it's available again
+        // from just a bookingId, so BookTicketAsync reads it from here rather than
+        // needing PassengerEmail/Mobile threaded through IFlightSupplierClient's
+        // bookingRefNo-only signature.
+        [JsonPropertyName("deliveryInfo")]
+        public TripjackDeliveryInfoWire? DeliveryInfo { get; set; }
+
         // SUCCESS (ticketed, paid) / ON_HOLD / CANCELLED / FAILED / PENDING (poll
         // again) / ABORTED / UNCONFIRMED (a hold that was released via unhold).
         [JsonPropertyName("status")]
@@ -433,6 +452,12 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
         [JsonPropertyName("lN")]
         public string? LastName { get; set; }
+
+        // YYYY-MM-DD — only present when it was submitted at Book time (mandatory
+        // for INFANT, optional otherwise). Resent to Confirm-Book verbatim rather
+        // than re-derived, same reasoning as DeliveryInfo above.
+        [JsonPropertyName("dob")]
+        public string? DateOfBirth { get; set; }
     }
 
     // ===== Release PNR / Unhold (POST oms/v1/air/unhold) =====
@@ -486,8 +511,11 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
     //   Fare Rule       POST fms/v2/farerule                { flowType, id }
     //   Fare Validate   POST oms/v1/air/book/fare-validate  same shape as Book, no paymentInfos
     //
-    // CreateBlockTicketAsync currently only implements the Hold half of Book (no
-    // paymentInfos) — AddPaymentAsync/BookTicketAsync (Confirm-Book, real payment)
-    // and CancelBookingAsync/GetFareRulesAsync/GetSeatMapAsync/GetAncillariesAsync
-    // all still throw NotSupportedException in TripjackClient.
+    // AddPaymentAsync/BookTicketAsync (Confirm-Book) are implemented against
+    // Tripjack's documented contract, built from a real Hold + Booking Details
+    // response but NOT live-verified against Confirm-Book itself (that specific
+    // call commits real payment+ticketing even on the UAT sandbox and was withheld
+    // from automated testing) — see TripjackClient's own doc comments on those two
+    // methods. CancelBookingAsync/GetFareRulesAsync/GetSeatMapAsync/
+    // GetAncillariesAsync still throw NotSupportedException in TripjackClient.
 }
