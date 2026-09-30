@@ -328,6 +328,108 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         public int SessionTimeSeconds { get; set; }
     }
 
+    // ===== Seat Map (POST fms/v1/seat) — only call when Review's own
+    // conditions.isa was true. =====
+
+    public class TripjackSeatMapRequestWire
+    {
+        [JsonPropertyName("bookingId")]
+        public string BookingId { get; set; } = string.Empty;
+    }
+
+    public class TripjackSeatMapResponseWire
+    {
+        [JsonPropertyName("tripSeatMap")]
+        public TripjackTripSeatMapWire? TripSeatMap { get; set; }
+
+        [JsonPropertyName("status")]
+        public TripjackStatusWire? Status { get; set; }
+
+        [JsonPropertyName("errors")]
+        public List<TripjackErrorWire>? Errors { get; set; }
+    }
+
+    public class TripjackTripSeatMapWire
+    {
+        // Nested one level deeper than the docs' own field table implies (it reads
+        // "tripSeat[key], parent tripSeatMap" as if tripSeat were flat under
+        // tripSeatMap) — confirmed live it's { tripSeatMap: { tripSeat: { ... } } }.
+        // Keyed by segment ID, matching Review's own tripInfos[].sI[].id.
+        [JsonPropertyName("tripSeat")]
+        public Dictionary<string, TripjackSegmentSeatMapWire> TripSeat { get; set; } = new();
+    }
+
+    public class TripjackSegmentSeatMapWire
+    {
+        [JsonPropertyName("sData")]
+        public TripjackSeatDeckWire? SeatDeck { get; set; }
+
+        // Present (a reason string) when this leg genuinely has no seat map — not
+        // seat data itself.
+        [JsonPropertyName("nt")]
+        public string? Note { get; set; }
+
+        // A flat list, not pre-grouped into rows the way Flyshop's own
+        // Air_GetSeatMap response is — GetSeatMapAsync groups by
+        // seatPosition.row itself.
+        [JsonPropertyName("sInfo")]
+        public List<TripjackSeatWire>? Seats { get; set; }
+    }
+
+    public class TripjackSeatDeckWire
+    {
+        [JsonPropertyName("row")]
+        public int Row { get; set; }
+
+        [JsonPropertyName("column")]
+        public int Column { get; set; }
+    }
+
+    public class TripjackSeatWire
+    {
+        [JsonPropertyName("seatNo")]
+        public string SeatNo { get; set; } = string.Empty;
+
+        [JsonPropertyName("seatPosition")]
+        public TripjackSeatPositionWire SeatPosition { get; set; } = new();
+
+        [JsonPropertyName("isBooked")]
+        public bool IsBooked { get; set; }
+
+        // Confirmed live: lowercase 'r' ("isLegroom"), not "isLegRoom" the way the
+        // docs' own field table spells it.
+        [JsonPropertyName("isLegroom")]
+        public bool IsLegroom { get; set; }
+
+        [JsonPropertyName("isAisle")]
+        public bool IsAisle { get; set; }
+
+        [JsonPropertyName("isWindow")]
+        public bool IsWindow { get; set; }
+
+        // In the docs' own field table but not seen in the one live response
+        // checked (no exit-row seats on that particular route/aircraft) —
+        // unverified whether the key name/casing is right.
+        [JsonPropertyName("isExitRow")]
+        public bool IsExitRow { get; set; }
+
+        // Pass verbatim to travellerInfo[].ssrSeatInfos[].code at Book time.
+        [JsonPropertyName("code")]
+        public string Code { get; set; } = string.Empty;
+
+        [JsonPropertyName("amount")]
+        public decimal Amount { get; set; }
+    }
+
+    public class TripjackSeatPositionWire
+    {
+        [JsonPropertyName("row")]
+        public int Row { get; set; }
+
+        [JsonPropertyName("column")]
+        public int Column { get; set; }
+    }
+
     // ===== Book (POST oms/v1/air/book) =====
     //
     // Same request shape for both Instant Book and Hold — omitting paymentInfos is
@@ -791,15 +893,23 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
     //     100.0) and meal (VGML, 0.0) selection came back with matching BP/MP amounts
     //     in Booking Details' own fare breakdown (fd.fC.BP/MP), proving the
     //     selections weren't just accepted but actually priced in.
+    //   GetSeatMapAsync is implemented (POST fms/v1/seat) and seat selections thread
+    //     into Book's travellerInfo the same way SSR selections do — see
+    //     TripjackClient.MapSeat/GetSeatMapAsync. Confirmed live end to end: a real
+    //     Book with a seat (1A, 999.0) selection came back with a matching SP amount
+    //     in Booking Details' own fare breakdown. Two things confirmed live that
+    //     differ from the docs' own field table: the response is nested one level
+    //     deeper (tripSeatMap.tripSeat, not tripSeatMap directly), and the legroom
+    //     field is "isLegroom" (lowercase r), not "isLegRoom". isExitRow itself
+    //     wasn't seen in the one response checked (no exit-row seats on that
+    //     route/aircraft) — unverified whether that field name/casing is right.
     //   NOT live-verified: AddPaymentAsync/BookTicketAsync's own Confirm-Book call,
     //     and CancelBookingAsync's amendment flow — both commit a real
     //     payment+ticketing or cancellation+refund even on the UAT sandbox, which
     //     automated testing in this environment isn't allowed to trigger.
     //   Still entirely unverified against a live response (docs-only, no field
     //   table given):
-    //     Seat Map        POST fms/v1/seat                    { bookingId }
     //     Fare Rule       POST fms/v2/farerule                { flowType, id }
     //     Fare Validate (Instant)  POST oms/v1/air/book/fare-validate  same shape as Book, no paymentInfos
-    // GetFareRulesAsync/GetSeatMapAsync still throw NotSupportedException in
-    // TripjackClient.
+    // GetFareRulesAsync still throws NotSupportedException in TripjackClient.
 }
