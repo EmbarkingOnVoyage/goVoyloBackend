@@ -104,6 +104,12 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
     public class TripjackSegmentInfoWire
     {
+        // Segment ID — this is what ssrBaggageInfos[].key/ssrMealInfos[].key/etc.
+        // expect at Book time, and what GetAncillariesAsync's own SsrKey encodes.
+        // Confirmed live it's present on both Search's and Review's segment shape.
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
         [JsonPropertyName("fD")]
         public TripjackFlightDesignatorWire FlightDesignator { get; set; } = new();
 
@@ -125,6 +131,38 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
         [JsonPropertyName("at")]
         public string ArrivalDateTime { get; set; } = string.Empty;
+
+        // Only populated on Review's own tripInfos (not Search's) — confirmed live.
+        [JsonPropertyName("ssrInfo")]
+        public TripjackSegmentSsrInfoWire? SsrInfo { get; set; }
+    }
+
+    public class TripjackSegmentSsrInfoWire
+    {
+        [JsonPropertyName("BAGGAGE")]
+        public List<TripjackSsrOptionWire>? Baggage { get; set; }
+
+        [JsonPropertyName("MEAL")]
+        public List<TripjackSsrOptionWire>? Meal { get; set; }
+
+        [JsonPropertyName("EXTRASERVICES")]
+        public List<TripjackSsrOptionWire>? ExtraServices { get; set; }
+    }
+
+    public class TripjackSsrOptionWire
+    {
+        // Pass verbatim to travellerInfo[].ssrBaggageInfos[]/ssrMealInfos[]/
+        // ssrExtraServiceInfos[].code at Book time.
+        [JsonPropertyName("code")]
+        public string Code { get; set; } = string.Empty;
+
+        // Absent for connecting-segment baggage (same baggage applies to the whole
+        // journey — see this file's own POST-BOOKING SSR notes).
+        [JsonPropertyName("amount")]
+        public decimal? Amount { get; set; }
+
+        [JsonPropertyName("desc")]
+        public string Desc { get; set; } = string.Empty;
     }
 
     public class TripjackFlightDesignatorWire
@@ -248,6 +286,15 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
         [JsonPropertyName("status")]
         public TripjackStatusWire? Status { get; set; }
+
+        // A plain array here (unlike Search's tripInfos, which is a dictionary keyed
+        // by ONWARD/RETURN/COMBO/index — see GetTripLegIndex's own doc comment) —
+        // confirmed live. Array index is trusted as leg index since it's the natural
+        // request/response order for the priceIds array Review was called with; not
+        // independently re-verified the way Search's key-order assumption was (see
+        // SearchAsync's own bug fix comment).
+        [JsonPropertyName("tripInfos")]
+        public List<TripjackTripOptionWire> TripInfos { get; set; } = new();
     }
 
     public class TripjackTotalPriceInfoWire
@@ -414,6 +461,29 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         // Student/senior-citizen fares — required when conditions.idm was true.
         [JsonPropertyName("di")]
         public string? DocumentId { get; set; }
+
+        [JsonPropertyName("ssrBaggageInfos")]
+        public List<TripjackSsrSelectionWire>? SsrBaggageInfos { get; set; }
+
+        [JsonPropertyName("ssrMealInfos")]
+        public List<TripjackSsrSelectionWire>? SsrMealInfos { get; set; }
+
+        [JsonPropertyName("ssrSeatInfos")]
+        public List<TripjackSsrSelectionWire>? SsrSeatInfos { get; set; }
+
+        [JsonPropertyName("ssrExtraServiceInfos")]
+        public List<TripjackSsrSelectionWire>? SsrExtraServiceInfos { get; set; }
+    }
+
+    public class TripjackSsrSelectionWire
+    {
+        // Segment ID from Review's own tripInfos[].sI[].id.
+        [JsonPropertyName("key")]
+        public string Key { get; set; } = string.Empty;
+
+        // SSR code from Review's own sI[].ssrInfo[category][].code.
+        [JsonPropertyName("code")]
+        public string Code { get; set; } = string.Empty;
     }
 
     // The live response is minimal — just an echo of bookingId and status; the real
@@ -713,6 +783,14 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
     //     the way it does deliveryInfo/travellerInfo — see TripjackOrderWire's own
     //     doc comment. BookTicketAsync's GST resend at Confirm-Book time is
     //     currently always a no-op as a result.
+    //   GetAncillariesAsync is implemented (Review's own ssrInfo, cached by
+    //     bookingId since Tripjack has no way to re-fetch it later — see
+    //     TripjackClient's own SsrCacheTtl doc comment) and SSR selections are
+    //     threaded into Book's travellerInfo — see TripjackClient.MapTraveller and
+    //     MapSsrOptions. Confirmed live end to end: a real Book with a baggage (BOF1,
+    //     100.0) and meal (VGML, 0.0) selection came back with matching BP/MP amounts
+    //     in Booking Details' own fare breakdown (fd.fC.BP/MP), proving the
+    //     selections weren't just accepted but actually priced in.
     //   NOT live-verified: AddPaymentAsync/BookTicketAsync's own Confirm-Book call,
     //     and CancelBookingAsync's amendment flow — both commit a real
     //     payment+ticketing or cancellation+refund even on the UAT sandbox, which
@@ -722,6 +800,6 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
     //     Seat Map        POST fms/v1/seat                    { bookingId }
     //     Fare Rule       POST fms/v2/farerule                { flowType, id }
     //     Fare Validate (Instant)  POST oms/v1/air/book/fare-validate  same shape as Book, no paymentInfos
-    // GetFareRulesAsync/GetSeatMapAsync/GetAncillariesAsync still throw
-    // NotSupportedException in TripjackClient.
+    // GetFareRulesAsync/GetSeatMapAsync still throw NotSupportedException in
+    // TripjackClient.
 }

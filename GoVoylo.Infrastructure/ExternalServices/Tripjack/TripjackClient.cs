@@ -3,16 +3,31 @@ using System.Net.Http.Json;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Common;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 {
     public class TripjackClient : IFlightSupplierClient
     {
-        private readonly HttpClient _httpClient;
+        // Review is the only place Tripjack exposes ssrInfo pre-booking (no separate
+        // "get SSR options" call the way Flyshop's Air_GetSSR is, and a bookingId
+        // can't be re-submitted to Review to fetch it again later — confirmed live,
+        // errCode 808 "Keys Passed in the request is already expired"). Every
+        // RepriceAsync/RepriceBatchAsync call caches its own Review response's
+        // tripInfos here, keyed by bookingId, so GetAncillariesAsync (called right
+        // after a reprice, per GetFlightAncillariesQueryHandler's own generic
+        // sequencing) can read it back without a second supplier call. Same 15-minute
+        // TTL already used for InMemoryFlightSearchSessionStore, in the same spirit
+        // (roughly matches Review's own conditions.st session time).
+        private static readonly TimeSpan SsrCacheTtl = TimeSpan.FromMinutes(15);
 
-        public TripjackClient(HttpClient httpClient)
+        private readonly HttpClient _httpClient;
+        private readonly IMemoryCache _cache;
+
+        public TripjackClient(HttpClient httpClient, IMemoryCache cache)
         {
             _httpClient = httpClient;
+            _cache = cache;
         }
 
         public string SupplierCode => FlightSupplierCodes.Tripjack;
@@ -86,6 +101,8 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
             var totalFare = wireResponse.TotalPriceInfo?.TotalFareDetail?.FareComponent.TotalFare ?? 0m;
 
+            CacheSsrTripInfos(wireResponse.BookingId, wireResponse.TripInfos);
+
             // Every later Tripjack call (Seat Map, Book, Confirm-Book, Fare Rules,
             // Booking Details) needs this bookingId, not the original priceId — it's
             // carried forward as FlightKey since that's the field every caller of
@@ -140,6 +157,8 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
             var totalFare = wireResponse.TotalPriceInfo?.TotalFareDetail?.FareComponent.TotalFare ?? 0m;
 
+            CacheSsrTripInfos(wireResponse.BookingId, wireResponse.TripInfos);
+
             return requests
                 .Select((r, index) => new SupplierRepriceResultDto(
                     wireResponse.BookingId,
@@ -162,11 +181,90 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         public Task<SupplierAncillaryResultDto> GetAncillariesAsync(
             SupplierAncillaryRequestDto request, CancellationToken cancellationToken)
         {
-            // Real endpoint exists (Review's own sI[].ssrInfo already returns MEAL/
-            // BAGGAGE options inline — confirmed live), but nothing here maps that
-            // response into SupplierAncillaryResultDto yet.
-            throw new NotSupportedException("Tripjack ancillary services are not implemented.");
+            // request.FlightKey is a bookingId by this point — GetFlightAncillaries
+            // QueryHandler always calls RepriceAsync immediately before this, and
+            // Tripjack's Review response converts the priceId into a bookingId (see
+            // RepriceAsync's own doc comment). The ssrInfo needed here only ever
+            // appears in that same Review response, cached by CacheSsrTripInfos — see
+            // this class's own SsrCacheTtl doc comment for why a second live call
+            // can't recover it (bookingId isn't a valid Review input).
+            if (!_cache.TryGetValue(SsrCacheKey(request.FlightKey), out List<TripjackTripOptionWire>? tripInfos)
+                || tripInfos == null)
+            {
+                throw new InvalidOperationException(
+                    $"No cached Tripjack SSR data for bookingId '{request.FlightKey}' — the reprice that should " +
+                    "have preceded this call is missing or its cache entry expired.");
+            }
+
+            var options = tripInfos
+                .SelectMany((trip, legIndex) => trip.SegmentInfos.SelectMany(seg => MapSsrOptions(seg, legIndex)))
+                .ToList();
+
+            return Task.FromResult(new SupplierAncillaryResultDto(options));
         }
+
+        private static IEnumerable<SupplierAncillaryOptionDto> MapSsrOptions(
+            TripjackSegmentInfoWire segment, int legIndex)
+        {
+            var segmentId = segment.Id ?? string.Empty;
+            // The real identity lives in SsrKey's own string segment id — this int is
+            // only for SupplierAncillaryOptionDto's shared shape (originally
+            // Flyshop's own numeric Segment_Id) and isn't read back at Book time.
+            var segmentIdInt = int.TryParse(segmentId, out var parsed) ? parsed : 0;
+
+            return MapSsrCategory("BAGGAGE", segment.SsrInfo?.Baggage, segmentId, segmentIdInt, legIndex)
+                .Concat(MapSsrCategory("MEAL", segment.SsrInfo?.Meal, segmentId, segmentIdInt, legIndex))
+                .Concat(MapSsrCategory("EXTRASERVICES", segment.SsrInfo?.ExtraServices, segmentId, segmentIdInt, legIndex));
+        }
+
+        private static IEnumerable<SupplierAncillaryOptionDto> MapSsrCategory(
+            string category, List<TripjackSsrOptionWire>? items, string segmentId, int segmentIdInt, int legIndex) =>
+            (items ?? new List<TripjackSsrOptionWire>()).Select(item => new SupplierAncillaryOptionDto(
+                MapSsrCategoryType(category),
+                category,
+                item.Desc,
+                item.Code,
+                // Encodes everything CreateTempBookingAsync's own MapTraveller needs
+                // to rebuild a TripjackSsrSelectionWire at Book time without a second
+                // Tripjack call — category picks which ssrXxxInfos list to populate,
+                // segmentId is the key, code is the code.
+                $"{category}:{segmentId}:{item.Code}",
+                // Meaningless for Tripjack's baggage/meal/extra-service options (no
+                // equivalent of Flyshop's seat-only 0-ISLE/1-AVAILABLE/etc. states) —
+                // always 0, same convention Flyshop's own MapSsrDetail already uses
+                // for its non-seat options.
+                0,
+                legIndex,
+                segmentIdInt,
+                SegmentWise: true,
+                item.Amount ?? 0m,
+                "INR",
+                // Tripjack's ssrInfo items carry no pax-type restriction field the way
+                // Flyshop's own SSR details do — empty means "not further restricted"
+                // rather than "restricted to nothing", consistent with how
+                // GetFlightAncillariesQueryHandler passes this straight through
+                // without ever filtering on it itself.
+                Array.Empty<int>()));
+
+        private static int MapSsrCategoryType(string category) => category switch
+        {
+            "BAGGAGE" => 1,
+            "MEAL" => 2,
+            "EXTRASERVICES" => 3,
+            _ => 0
+        };
+
+        private void CacheSsrTripInfos(string bookingId, List<TripjackTripOptionWire> tripInfos)
+        {
+            if (string.IsNullOrEmpty(bookingId) || tripInfos.Count == 0)
+            {
+                return;
+            }
+
+            _cache.Set(SsrCacheKey(bookingId), tripInfos, SsrCacheTtl);
+        }
+
+        private static string SsrCacheKey(string bookingId) => $"tripjack-ssr:{bookingId}";
 
         public Task<SupplierSeatMapResultDto> GetSeatMapAsync(
             SupplierSeatMapRequestDto request, CancellationToken cancellationToken)
@@ -189,6 +287,37 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // carried here as FlightKey — see RepriceAsync's own doc comment.
             var bookingId = request.Flights[0].FlightKey;
 
+            // Defensive: every leg SHOULD carry the same bookingId by this point, but
+            // CreateBookingCommandHandler skips repricing any leg that already has
+            // SSRs selected (trusting its session's existing FlightKey — see that
+            // handler's own comment) rather than always batching every leg together.
+            // For a multi-leg Tripjack itinerary where SSRs were selected on only
+            // SOME legs, that could leave one leg holding an older/different
+            // bookingId than the rest (from whenever its ancillaries were fetched)
+            // while the others get a fresh one from RepriceBatchAsync — silently
+            // booking against the wrong reviewed itinerary rather than a loud error.
+            // Not yet reworked to prevent this at the source (would mean forcing a
+            // full re-reprice for every leg whenever ANY leg needs one, for Tripjack
+            // specifically) — this at least turns a silent mismatch into a clear one.
+            if (request.Flights.Any(f => f.FlightKey != bookingId))
+            {
+                throw new InvalidOperationException(
+                    "Tripjack booking legs carry different bookingIds — likely a mix of SSR-selected and " +
+                    "un-selected legs on a multi-leg itinerary caused some legs to skip repricing. Reselect SSRs " +
+                    "for every leg (or none) and try again.");
+            }
+
+            // Every leg's SelectedSsrs are gathered by PaxId (not just Flights[0]'s) —
+            // a multi-leg Tripjack itinerary shares one bookingId, but a traveler can
+            // still have picked different SSRs on different legs (different segment
+            // ids), and Tripjack expects all of a traveler's selections together in
+            // their own travellerInfo entry rather than split by leg the way
+            // Flyshop's BookingFlightDetails[].BookingSsrDetails is.
+            var ssrSelectionsByPaxId = request.Flights
+                .SelectMany(f => f.SelectedSsrs)
+                .GroupBy(s => s.PaxId)
+                .ToDictionary(g => g.Key, g => (IReadOnlyList<SupplierBookingSsrDto>)g.ToList());
+
             var wireRequest = new TripjackBookRequestWire
             {
                 BookingId = bookingId,
@@ -206,7 +335,9 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                     Contacts = new List<string> { NormalizeMobile(request.PassengerMobile) },
                     Ecn = $"{request.Travelers.FirstOrDefault()?.FirstName} {request.Travelers.FirstOrDefault()?.LastName}".Trim()
                 },
-                TravellerInfo = request.Travelers.Select(MapTraveller).ToList(),
+                TravellerInfo = request.Travelers
+                    .Select(t => MapTraveller(t, ssrSelectionsByPaxId.GetValueOrDefault(t.PaxId)))
+                    .ToList(),
                 GstInfo = MapGstInfo(request)
                 // PaymentInfos intentionally omitted — this is what makes it a Hold
                 // rather than an Instant Book.
@@ -561,20 +692,52 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             _ => "22"
         };
 
-        private static TripjackTravellerInfoWire MapTraveller(SupplierTempBookingPaxDto pax) => new()
+        private static TripjackTravellerInfoWire MapTraveller(
+            SupplierTempBookingPaxDto pax, IReadOnlyList<SupplierBookingSsrDto>? ssrSelections = null)
         {
-            Title = MapTitle(pax.PaxType, pax.Gender),
-            PaxType = MapPaxType(pax.PaxType),
-            FirstName = pax.FirstName,
-            LastName = pax.LastName,
-            DateOfBirth = pax.DateOfBirth?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            PassportNumber = pax.PassportNumber,
-            PassportExpiry = pax.PassportExpiry?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            PassportNationality = pax.PassportNationality,
-            PassportIssueDate = pax.PassportIssueDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            PanNumber = pax.PanNumber,
-            DocumentId = pax.DocumentId
-        };
+            var wire = new TripjackTravellerInfoWire
+            {
+                Title = MapTitle(pax.PaxType, pax.Gender),
+                PaxType = MapPaxType(pax.PaxType),
+                FirstName = pax.FirstName,
+                LastName = pax.LastName,
+                DateOfBirth = pax.DateOfBirth?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                PassportNumber = pax.PassportNumber,
+                PassportExpiry = pax.PassportExpiry?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                PassportNationality = pax.PassportNationality,
+                PassportIssueDate = pax.PassportIssueDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                PanNumber = pax.PanNumber,
+                DocumentId = pax.DocumentId
+            };
+
+            // SsrKey decodes "{category}:{segmentId}:{code}" — see
+            // GetAncillariesAsync's own MapSsrCategory, which encoded it.
+            foreach (var selection in ssrSelections ?? Array.Empty<SupplierBookingSsrDto>())
+            {
+                var parts = selection.SsrKey.Split(':', 3);
+                if (parts.Length != 3)
+                {
+                    continue;
+                }
+
+                var entry = new TripjackSsrSelectionWire { Key = parts[1], Code = parts[2] };
+
+                switch (parts[0])
+                {
+                    case "BAGGAGE":
+                        (wire.SsrBaggageInfos ??= new List<TripjackSsrSelectionWire>()).Add(entry);
+                        break;
+                    case "MEAL":
+                        (wire.SsrMealInfos ??= new List<TripjackSsrSelectionWire>()).Add(entry);
+                        break;
+                    case "EXTRASERVICES":
+                        (wire.SsrExtraServiceInfos ??= new List<TripjackSsrSelectionWire>()).Add(entry);
+                        break;
+                }
+            }
+
+            return wire;
+        }
 
         // GstInfo is booking-level (one invoice per booking), not per-traveler — see
         // SupplierTempBookingRequestDto.Gst*. RegisteredName/Address fall back to
