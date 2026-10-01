@@ -71,7 +71,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // TripLegIndex meaning Flyshop's TripDetails[].Trip_Id already carries for
             // a multi-leg search.
             var flights = tripInfos
-                .SelectMany(kvp => kvp.Value.Select(option => MapFlight(option, GetTripLegIndex(kvp.Key))))
+                .SelectMany(kvp => kvp.Value.Select(option => MapFlight(option, GetTripLegIndex(kvp.Key), request)))
                 .ToList();
 
             // Tripjack has no equivalent of Flyshop's Search_Key — Review only ever
@@ -890,7 +890,8 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             _ => int.TryParse(tripInfoKey, out var index) ? index : 0
         };
 
-        private static SupplierFlightOptionDto MapFlight(TripjackTripOptionWire tripOption, int tripLegIndex)
+        private static SupplierFlightOptionDto MapFlight(
+            TripjackTripOptionWire tripOption, int tripLegIndex, FlightSearchRequestDto request)
         {
             var primaryPrice = tripOption.TotalPriceList.FirstOrDefault();
             var adultFare = GetAdultFareDetail(primaryPrice);
@@ -921,11 +922,31 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 adultFare?.RefundableType != 0,
                 firstSegment?.FlightDesignator.AirlineInfo.IsLcc ?? false,
                 tripOption.SegmentInfos.Select(MapSegment).ToList(),
-                adultFare?.FareComponent.TotalFare ?? 0m,
+                TotalForPassengers(primaryPrice, request),
                 "INR",
                 adultFare?.SeatsRemaining ?? 0,
                 fares,
                 tripLegIndex);
+        }
+
+        // The offer's TotalAmount is what the app shows as the trip price and charges
+        // at payment, so it has to cover every passenger searched for. fd[paxType].fC.TF
+        // is per passenger — confirmed live: Review's total for 2 ADT + 2 CHD was
+        // exactly 4x the search's per-adult TF, while this used to return just the
+        // single adult fare as the whole-booking total. The per-fare options (Fares)
+        // stay per adult, matching the fare picker's "/adult" label. A pax type the
+        // fare doesn't price separately falls back to the adult fare.
+        private static decimal TotalForPassengers(TripjackPriceWire? price, FlightSearchRequestDto request)
+        {
+            var adult = GetAdultFareDetail(price)?.FareComponent.TotalFare ?? 0m;
+            decimal PerPax(string paxType) =>
+                price?.FareDetailsByPaxType.TryGetValue(paxType, out var detail) == true
+                    ? detail.FareComponent.TotalFare
+                    : adult;
+
+            return adult * request.AdultCount
+                + (request.ChildCount > 0 ? PerPax("CHILD") * request.ChildCount : 0m)
+                + (request.InfantCount > 0 ? PerPax("INFANT") * request.InfantCount : 0m);
         }
 
         private static TripjackFareDetailWire? GetAdultFareDetail(TripjackPriceWire? price) =>
