@@ -80,7 +80,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             EnsureSuccess(wireResponse.ResponseHeader, "Air_Search");
 
             var flights = wireResponse.TripDetails
-                .SelectMany(t => t.Flights.Select(f => MapFlight(f, t.TripId ?? 0)))
+                .SelectMany(t => t.Flights.Select(f => MapFlight(f, t.TripId ?? 0, request)))
                 .ToList();
 
             return new SupplierFlightSearchResultDto(wireResponse.SearchKey, flights);
@@ -505,12 +505,19 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             }
         }
 
-        private static SupplierFlightOptionDto MapFlight(FlightWire flight, int tripLegIndex = 0)
+        // searchRequest is null only for Air_Reprice's own re-mapping, whose total
+        // nothing in the app reads — it then keeps the single adult fare as before.
+        private static SupplierFlightOptionDto MapFlight(
+            FlightWire flight, int tripLegIndex = 0, FlightSearchRequestDto? searchRequest = null)
         {
             var primaryFare = flight.Fares.FirstOrDefault();
 
             var adultFareDetail = primaryFare?.FareDetails.FirstOrDefault(f => f.PaxType == 0)
                 ?? primaryFare?.FareDetails.FirstOrDefault();
+
+            var totalAmount = searchRequest == null
+                ? adultFareDetail?.TotalAmount ?? 0m
+                : TotalForPassengers(primaryFare, adultFareDetail, searchRequest);
 
             return new SupplierFlightOptionDto(
                 flight.FlightKey,
@@ -520,11 +527,31 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 primaryFare?.Refundable ?? false,
                 flight.IsLcc,
                 flight.Segments.Select(MapSegment).ToList(),
-                adultFareDetail?.TotalAmount ?? 0m,
+                totalAmount,
                 adultFareDetail?.CurrencyCode ?? "INR",
                 ParseInt(primaryFare?.SeatsAvailable),
                 flight.Fares.Select(MapFareOption).ToList(),
                 tripLegIndex);
+        }
+
+        // The offer's TotalAmount is the whole-booking price the app shows and charges,
+        // so it has to cover every passenger searched for. FareDetails[].Total_Amount
+        // is per passenger of that PAX_Type — confirmed live: a 2-adult search returns
+        // the same adult Total_Amount as a 1-adult search for the same fare (41/41
+        // unchanged flights, none doubled), while this used to return that single
+        // adult fare as the whole-booking total. Fare options (MapFareOption) stay per
+        // adult, matching the fare picker's "/adult" label. A pax type the fare
+        // doesn't price separately falls back to the adult fare.
+        private static decimal TotalForPassengers(
+            FareWire? fare, FareDetailWire? adultFareDetail, FlightSearchRequestDto request)
+        {
+            var adult = adultFareDetail?.TotalAmount ?? 0m;
+            decimal PerPax(int paxType) =>
+                fare?.FareDetails.FirstOrDefault(f => f.PaxType == paxType)?.TotalAmount ?? adult;
+
+            return adult * request.AdultCount
+                + (request.ChildCount > 0 ? PerPax(1) * request.ChildCount : 0m)
+                + (request.InfantCount > 0 ? PerPax(2) * request.InfantCount : 0m);
         }
 
         private static SupplierFareOptionDto MapFareOption(FareWire fare)
