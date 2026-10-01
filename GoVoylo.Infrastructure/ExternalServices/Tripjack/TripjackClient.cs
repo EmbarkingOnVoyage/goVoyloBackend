@@ -918,7 +918,15 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         private static SupplierFlightOptionDto MapFlight(
             TripjackTripOptionWire tripOption, int tripLegIndex, FlightSearchRequestDto request)
         {
-            var primaryPrice = tripOption.TotalPriceList.FirstOrDefault();
+            // A SPECIAL_RETURN fare is only bookable paired with a matching
+            // special-return fare on the other leg — confirmed live: an onward
+            // SPECIAL_RETURN picked alongside a PUBLISHED return was rejected at
+            // Review with errCode 1080 "All Segments Must be selected if Special
+            // Return fare". Legs are picked independently, so each offer's primary
+            // (bookable-by-default) fare prefers anything else, falling back to
+            // the first fare only when every fare is special-return.
+            var primaryPrice = tripOption.TotalPriceList.FirstOrDefault(p => p.FareIdentifier != "SPECIAL_RETURN")
+                ?? tripOption.TotalPriceList.FirstOrDefault();
             var adultFare = GetAdultFareDetail(primaryPrice);
 
             var fares = tripOption.TotalPriceList
