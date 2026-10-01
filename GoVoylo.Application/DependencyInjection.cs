@@ -22,6 +22,9 @@ public static class DependencyInjection
 
         services.AddValidatorsFromAssembly(assembly);
 
+        services.AddScoped<GoVoylo.Application.Interfaces.ITripBookingTicketingService,
+            GoVoylo.Application.Features.Payments.Services.TripBookingTicketingService>();
+
         return services;
     }
 }

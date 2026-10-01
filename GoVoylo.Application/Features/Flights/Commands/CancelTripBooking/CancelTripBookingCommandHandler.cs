@@ -17,6 +17,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
         // cancelled via Air_TicketCancellation instead. See FLIGHT_ANCILLARIES_SCOPE.MD.
         private const string StatusBlocked = "33";
         private const string StatusFailed = "22";
+        private const string StatusTicketingPending = "44";
 
         // "015" = "Please cancel my ticket with Applicable Penalty" — the generic
         // customer-initiated reason from Air_TicketCancellation's own CancelCode table,
@@ -65,6 +66,15 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
             {
                 throw new BusinessRuleException(
                     "nothing_to_cancel", "This booking was never held or ticketed with the airline.");
+            }
+
+            // Paid, with the supplier still ticketing — neither a releasable hold nor
+            // a ticket that can be cancelled yet.
+            if (booking.StatusId == StatusTicketingPending)
+            {
+                throw new BusinessRuleException(
+                    "ticketing_in_progress",
+                    "This booking is paid and the airline is still issuing the ticket. Please try again later.");
             }
 
             if (string.IsNullOrWhiteSpace(booking.AirlinePnr))

@@ -22,7 +22,8 @@ namespace GoVoylo.Domain.Entities
         public string? CrsPnr { get; private set; }
         public string? RecordLocator { get; private set; }
 
-        // Flyshop's own status at creation time: 11-Success/22-Failed/33-Block.
+        // Flyshop's own status at creation time: 11-Success/22-Failed/33-Block, plus
+        // 44 — paid, supplier still ticketing (see TripjackClient.AwaitTicketingResultAsync).
         public string StatusId { get; private set; } = null!;
 
         // App-tracked lifecycle, independent of StatusId: Active/Cancelled/Released.
