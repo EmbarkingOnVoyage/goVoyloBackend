@@ -12,6 +12,13 @@ namespace GoVoylo.Application.Features.Traveler.Commands.AddPassport
             RuleFor(x => x.ExpiryDate)
                 .GreaterThan(DateTime.UtcNow.Date)
                 .WithMessage("Passport has already expired.");
+
+            RuleFor(x => x.IssueDate)
+                .LessThanOrEqualTo(DateTime.UtcNow.Date)
+                .WithMessage("Passport issue date cannot be in the future.")
+                .LessThan(x => x.ExpiryDate)
+                .WithMessage("Passport issue date must be before its expiry date.")
+                .When(x => x.IssueDate.HasValue);
         }
     }
 }
