@@ -46,15 +46,21 @@ namespace GoVoylo.Application.Interfaces
         // echo. Must succeed before BookTicketAsync will; see AddPaymentRequestWire's
         // own doc comment for the wire contract (sourced from Flyshop's "Client 2.6
         // Air" Postman collection, AddPayment endpoint).
+        //
+        // deferredBookPayload is CreateTempBookingAsync's DeferredBookPayload for a
+        // fare that couldn't be held (null otherwise) — there's no hold to pay
+        // against yet in that case. Flyshop always holds and ignores it.
         Task<SupplierPaymentResultDto> AddPaymentAsync(
-            string bookingRefNo, string clientRefNo, CancellationToken cancellationToken);
+            string bookingRefNo, string clientRefNo, string? deferredBookPayload, CancellationToken cancellationToken);
 
         // Converts an already-paid-for Block_Ticket hold into a real, essentially
         // final airline PNR (Ticketing_Type "1"). Only call this after AddPaymentAsync
         // has succeeded for the same bookingRefNo — Flyshop's own Air_Ticketing
         // rejects Book_Ticket against a hold with no registered payment.
+        // With a deferredBookPayload (see AddPaymentAsync), this makes the instant
+        // booking itself rather than ticketing an existing hold.
         Task<SupplierTicketingResultDto> BookTicketAsync(
-            string bookingRefNo, CancellationToken cancellationToken);
+            string bookingRefNo, string? deferredBookPayload, CancellationToken cancellationToken);
 
         Task<SupplierFareRuleResultDto> GetFareRulesAsync(
             SupplierFareRuleRequestDto request, CancellationToken cancellationToken);

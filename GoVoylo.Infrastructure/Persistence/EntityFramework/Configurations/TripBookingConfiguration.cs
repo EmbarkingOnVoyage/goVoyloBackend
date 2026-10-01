@@ -75,6 +75,9 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasMaxLength(64)
                 .IsRequired();
 
+            builder.Property(x => x.DeferredSupplierPayloadEncrypted)
+                .HasColumnName("deferred_supplier_payload_encrypted");
+
             builder.Property(x => x.CreatedAt)
                 .HasColumnName("created_at")
                 .HasColumnType("timestamptz")

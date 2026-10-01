@@ -153,7 +153,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string GstHolderName = "",
         string GstAddress = "");
 
-    public record SupplierTempBookingResultDto(string BookingRefNo);
+    // DeferredBookPayload is set only when the supplier couldn't hold this fare and
+    // nothing was booked yet (see TripBooking.DeferredSupplierPayloadEncrypted) — the
+    // caller must persist it and hand it back to AddPaymentAsync/BookTicketAsync.
+    public record SupplierTempBookingResultDto(string BookingRefNo, string? DeferredBookPayload = null);
 
     // One AirlinePNRDetails entry from Air_Ticketing's response — for a multi-leg
     // (roundtrip/multi-city) booking there's one of these per flight, each with its

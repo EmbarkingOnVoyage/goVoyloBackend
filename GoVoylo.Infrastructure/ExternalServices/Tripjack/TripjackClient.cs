@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net.Http.Json;
+using System.Text.Json;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Common;
@@ -107,7 +108,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             var totalFare = wireResponse.TotalPriceInfo?.TotalFareDetail?.FareComponent.TotalFare ?? 0m;
 
             CacheSsrTripInfos(wireResponse.BookingId, wireResponse.TripInfos);
-            CacheReviewedFare(wireResponse.BookingId, totalFare);
+            CacheReviewedFare(wireResponse.BookingId, totalFare, wireResponse.Conditions?.IsHoldAllowed ?? true);
 
             // Every later Tripjack call (Seat Map, Book, Confirm-Book, Fare Rules,
             // Booking Details) needs this bookingId, not the original priceId — it's
@@ -186,7 +187,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             var totalFare = wireResponse.TotalPriceInfo?.TotalFareDetail?.FareComponent.TotalFare ?? 0m;
 
             CacheSsrTripInfos(wireResponse.BookingId, wireResponse.TripInfos);
-            CacheReviewedFare(wireResponse.BookingId, totalFare);
+            CacheReviewedFare(wireResponse.BookingId, totalFare, wireResponse.Conditions?.IsHoldAllowed ?? true);
 
             return requests
                 .Select((r, index) => new SupplierRepriceResultDto(
@@ -308,22 +309,42 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         private static bool IsBookingId(string flightKey) =>
             flightKey.StartsWith("TJS", StringComparison.Ordinal);
 
-        private void CacheReviewedFare(string bookingId, decimal totalFare) =>
-            _cache.Set(ReviewedFareCacheKey(bookingId), totalFare, SsrCacheTtl);
+        // HoldAllowed is Review's conditions.isBA — see CreateTempBookingAsync for
+        // what happens when it's false.
+        private sealed record ReviewedFare(decimal TotalFare, bool HoldAllowed);
+
+        private void CacheReviewedFare(string bookingId, decimal totalFare, bool holdAllowed) =>
+            _cache.Set(ReviewedFareCacheKey(bookingId), new ReviewedFare(totalFare, holdAllowed), SsrCacheTtl);
 
         private SupplierRepriceResultDto ReuseReviewedBooking(string bookingId, string fareId)
         {
-            if (!_cache.TryGetValue(ReviewedFareCacheKey(bookingId), out decimal totalFare))
+            if (!_cache.TryGetValue(ReviewedFareCacheKey(bookingId), out ReviewedFare? reviewed) || reviewed == null)
             {
                 throw new InvalidOperationException(
                     "This Tripjack fare session has expired. Please search again.");
             }
 
             return new SupplierRepriceResultDto(
-                bookingId, fareId, totalFare, "INR", Repriced: true, IsFareChange: false);
+                bookingId, fareId, reviewed.TotalFare, "INR", Repriced: true, IsFareChange: false);
         }
 
         private static string ReviewedFareCacheKey(string bookingId) => $"tripjack-review-fare:{bookingId}";
+
+        // Seat prices from the last Seat Map call per bookingId, keyed
+        // "segmentId:seatCode" — only needed to price a deferred instant booking
+        // (see CreateTempBookingAsync), since Review's ssrInfo doesn't cover seats.
+        private static string SeatPriceCacheKey(string bookingId) => $"tripjack-seat-prices:{bookingId}";
+
+        // Set by CreateTempBookingAsync when it deferred the booking instead of
+        // holding, so CreateBlockTicketAsync (called right after) knows there's no
+        // Tripjack booking to look up yet.
+        private static string DeferredCacheKey(string bookingId) => $"tripjack-deferred:{bookingId}";
+
+        private static readonly JsonSerializerOptions PayloadJsonOptions = new(JsonSerializerDefaults.Web);
+
+        private static TripjackBookRequestWire DeserializeDeferredBook(string payload) =>
+            JsonSerializer.Deserialize<TripjackBookRequestWire>(payload, PayloadJsonOptions)
+            ?? throw new InvalidOperationException("Deferred Tripjack booking payload is empty.");
 
         public async Task<SupplierSeatMapResultDto> GetSeatMapAsync(
             SupplierSeatMapRequestDto request, CancellationToken cancellationToken)
@@ -369,6 +390,13 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                     return new SupplierSeatSegmentDto(legIndex, rows);
                 })
                 .ToList();
+
+            var seatPrices = (wireResponse.TripSeatMap?.TripSeat ?? new Dictionary<string, TripjackSegmentSeatMapWire>())
+                .SelectMany(kvp => (kvp.Value.Seats ?? new List<TripjackSeatWire>())
+                    .Select(s => (Key: $"{kvp.Key}:{s.Code}", s.Amount)))
+                .GroupBy(x => x.Key)
+                .ToDictionary(g => g.Key, g => g.First().Amount);
+            _cache.Set(SeatPriceCacheKey(request.FlightKey), seatPrices, SsrCacheTtl);
 
             return new SupplierSeatMapResultDto(segments);
         }
@@ -462,6 +490,29 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 // rather than an Instant Book.
             };
 
+            // A fare Review marked not holdable (conditions.isBA false) rejects a
+            // Hold outright — confirmed live: errCode 1087 "Blocking is not allowed
+            // for this Booking". Nothing is booked with Tripjack yet in that case:
+            // the same request, with paymentInfos, is handed back to be persisted
+            // and sent as an instant booking once the customer's payment is
+            // verified (see BookTicketAsync). The amount has to match Tripjack's own
+            // total, so selected SSRs/seats are priced in from the cached Review/Seat
+            // Map responses.
+            if (_cache.TryGetValue(ReviewedFareCacheKey(bookingId), out ReviewedFare? reviewed)
+                && reviewed is { HoldAllowed: false })
+            {
+                var ssrTotal = PriceSsrSelections(bookingId, ssrSelectionsByPaxId.Values.SelectMany(s => s));
+                wireRequest.PaymentInfos = new List<TripjackPaymentInfoWire>
+                {
+                    new() { Amount = reviewed.TotalFare + ssrTotal }
+                };
+
+                _cache.Set(DeferredCacheKey(bookingId), true, SsrCacheTtl);
+
+                return new SupplierTempBookingResultDto(
+                    bookingId, JsonSerializer.Serialize(wireRequest, PayloadJsonOptions));
+            }
+
             var wireResponse = await PostAsync<TripjackBookRequestWire, TripjackBookResponseWire>(
                 "oms/v1/air/book", wireRequest, cancellationToken);
 
@@ -470,9 +521,85 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             return new SupplierTempBookingResultDto(wireResponse.BookingId ?? bookingId);
         }
 
+        // Prices "category:segmentId:code" SsrKeys (see MapTraveller) from the cached
+        // Review ssrInfo, or the cached Seat Map for seats. A selection that can't be
+        // priced fails loudly rather than under-paying and having Tripjack reject the
+        // instant booking after the customer has already paid.
+        private decimal PriceSsrSelections(string bookingId, IEnumerable<SupplierBookingSsrDto> selections)
+        {
+            _cache.TryGetValue(SsrCacheKey(bookingId), out List<TripjackTripOptionWire>? tripInfos);
+            _cache.TryGetValue(SeatPriceCacheKey(bookingId), out Dictionary<string, decimal>? seatPrices);
+
+            var segmentsById = (tripInfos ?? new List<TripjackTripOptionWire>())
+                .SelectMany(t => t.SegmentInfos)
+                .Where(s => s.Id != null)
+                .GroupBy(s => s.Id!)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            var total = 0m;
+            foreach (var selection in selections)
+            {
+                var parts = selection.SsrKey.Split(':', 3);
+                if (parts.Length != 3)
+                {
+                    throw new InvalidOperationException($"Unrecognised Tripjack SSR key '{selection.SsrKey}'.");
+                }
+
+                var (category, segmentId, code) = (parts[0], parts[1], parts[2]);
+
+                decimal? amount;
+                if (category == "SEAT")
+                {
+                    amount = seatPrices != null && seatPrices.TryGetValue($"{segmentId}:{code}", out var seatPrice)
+                        ? seatPrice
+                        : null;
+                }
+                else
+                {
+                    var ssrInfo = segmentsById.GetValueOrDefault(segmentId)?.SsrInfo;
+                    var options = category switch
+                    {
+                        "BAGGAGE" => ssrInfo?.Baggage,
+                        "MEAL" => ssrInfo?.Meal,
+                        "EXTRASERVICES" => ssrInfo?.ExtraServices,
+                        _ => null
+                    };
+                    var option = options?.FirstOrDefault(o => o.Code == code);
+                    amount = option == null ? null : option.Amount ?? 0m;
+                }
+
+                total += amount ?? throw new InvalidOperationException(
+                    "The selected add-on prices have expired. Please search again.");
+            }
+
+            return total;
+        }
+
         public async Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
             string bookingRefNo, CancellationToken cancellationToken)
         {
+            // Deferred (non-holdable) fare — see CreateTempBookingAsync. Nothing
+            // exists on Tripjack's side to look up yet, so the result is built from
+            // the cached Review itinerary with Status 33 ("held", i.e. awaiting
+            // payment), which is what VerifyRazorpayPaymentCommandHandler expects
+            // before it makes the real booking. Leg ids follow MapTicketingResult's
+            // own "DEP-ARR" route scheme so they line up once ticketed.
+            if (_cache.TryGetValue(DeferredCacheKey(bookingRefNo), out bool _))
+            {
+                _cache.TryGetValue(SsrCacheKey(bookingRefNo), out List<TripjackTripOptionWire>? tripInfos);
+                var pendingLegs = (tripInfos ?? new List<TripjackTripOptionWire>())
+                    .SelectMany(t => t.SegmentInfos)
+                    .Select(seg => new SupplierTicketingLegResultDto(
+                        $"{seg.Departure.Code}-{seg.Arrival.Code}",
+                        "33",
+                        seg.FlightDesignator.AirlineInfo.Code,
+                        null, null, null, null))
+                    .ToList();
+
+                return new SupplierTicketingResultDto(
+                    bookingRefNo, "33", pendingLegs.FirstOrDefault()?.AirlineCode, null, null, null, null, pendingLegs);
+            }
+
             // Tripjack's own integration guide: Booking Details has to be called
             // "after 5 seconds elapsed" — the PNR/ticket data isn't populated in the
             // Book response itself, confirmed live (Book's own response is just an
@@ -559,8 +686,18 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         }
 
         public async Task<SupplierPaymentResultDto> AddPaymentAsync(
-            string bookingRefNo, string clientRefNo, CancellationToken cancellationToken)
+            string bookingRefNo, string clientRefNo, string? deferredBookPayload, CancellationToken cancellationToken)
         {
+            // Deferred (non-holdable) fare: there's no hold to validate yet — the
+            // instant booking in BookTicketAsync is itself Tripjack's fare check, and
+            // fails with Tripjack's own error if the fare is no longer available.
+            if (deferredBookPayload != null)
+            {
+                var deferred = DeserializeDeferredBook(deferredBookPayload);
+                return new SupplierPaymentResultDto(
+                    deferred.PaymentInfos?.Sum(p => p.Amount) ?? 0m, clientRefNo, "11");
+            }
+
             // Tripjack has no separate wallet-debit call the way Flyshop's AddPayment
             // is — Confirm-Book (see BookTicketAsync) takes paymentInfos.amount
             // directly and commits payment and ticketing together in one call, so no
@@ -599,8 +736,28 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         }
 
         public async Task<SupplierTicketingResultDto> BookTicketAsync(
-            string bookingRefNo, CancellationToken cancellationToken)
+            string bookingRefNo, string? deferredBookPayload, CancellationToken cancellationToken)
         {
+            // Deferred (non-holdable) fare — see CreateTempBookingAsync. Sends the
+            // persisted Book request (already carrying paymentInfos) as Tripjack's
+            // instant booking, which books and tickets in one call.
+            if (deferredBookPayload != null)
+            {
+                var instantBook = DeserializeDeferredBook(deferredBookPayload);
+
+                var instantResponse = await PostAsync<TripjackBookRequestWire, TripjackBookResponseWire>(
+                    "oms/v1/air/book", instantBook, cancellationToken);
+
+                EnsureSuccess(instantResponse.Status, instantResponse.Errors, "Book (instant)");
+
+                // Same 5-second rule as CreateBlockTicketAsync before Booking Details.
+                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+
+                var instantDetails = await FetchBookingDetailsAsync(bookingRefNo, cancellationToken);
+
+                return MapTicketingResult(bookingRefNo, instantDetails);
+            }
+
             // Built from Tripjack's documented Confirm-Book contract (same request
             // shape as Book, always carrying paymentInfos — see
             // TripjackConfirmBookRequestWire's own doc comment) and a real Hold +
