@@ -326,7 +326,8 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                 PassportNationality = string.IsNullOrWhiteSpace(traveler.PassportNationality)
                     ? CountryCodes.ToIso2(passport.IssuingCountry)
                     : traveler.PassportNationality,
-                PassportExpiry = traveler.PassportExpiry ?? passport.ExpiryDate
+                PassportExpiry = traveler.PassportExpiry ?? passport.ExpiryDate,
+                PassportIssueDate = traveler.PassportIssueDate ?? passport.IssueDate
             };
         }
 

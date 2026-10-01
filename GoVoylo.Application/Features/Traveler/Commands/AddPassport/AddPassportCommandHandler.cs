@@ -45,7 +45,8 @@ namespace GoVoylo.Application.Features.Traveler.Commands.AddPassport
                 traveler.Id,
                 _encryptionService.Encrypt(request.PassportNumber),
                 request.IssuingCountry,
-                request.ExpiryDate);
+                request.ExpiryDate,
+                request.IssueDate);
 
             await _passportRepository.AddAsync(passport);
 
@@ -53,7 +54,8 @@ namespace GoVoylo.Application.Features.Traveler.Commands.AddPassport
                 passport.Id,
                 MaskingHelper.MaskKeepLast4(request.PassportNumber),
                 passport.IssuingCountry,
-                passport.ExpiryDate);
+                passport.ExpiryDate,
+                passport.IssueDate);
         }
     }
 }

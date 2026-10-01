@@ -100,7 +100,8 @@ namespace GoVoylo.Api.Controllers
         public async Task<IActionResult> AddPassport(Guid id, [FromBody] PassportRequest request)
         {
             var command = new AddPassportCommand(
-                _currentUser.UserId, id, request.PassportNumber, request.IssuingCountry, request.ExpiryDate);
+                _currentUser.UserId, id, request.PassportNumber, request.IssuingCountry, request.ExpiryDate,
+                request.IssueDate);
 
             var result = await _mediator.Send(command);
             return Ok(result);
@@ -110,7 +111,8 @@ namespace GoVoylo.Api.Controllers
         public async Task<IActionResult> UpdatePassport(Guid id, [FromBody] PassportRequest request)
         {
             var command = new UpdatePassportCommand(
-                _currentUser.UserId, id, request.PassportNumber, request.IssuingCountry, request.ExpiryDate);
+                _currentUser.UserId, id, request.PassportNumber, request.IssuingCountry, request.ExpiryDate,
+                request.IssueDate);
 
             var result = await _mediator.Send(command);
             return Ok(result);
@@ -221,7 +223,8 @@ namespace GoVoylo.Api.Controllers
         string? State,
         bool AutoAddTravelInsurance);
 
-    public record PassportRequest(string PassportNumber, string IssuingCountry, DateTime ExpiryDate);
+    public record PassportRequest(
+        string PassportNumber, string IssuingCountry, DateTime ExpiryDate, DateTime? IssueDate = null);
 
     public record VisaRequest(
         string Country, string VisaNumber, string? VisaType, DateTime? IssueDate, DateTime ExpiryDate);

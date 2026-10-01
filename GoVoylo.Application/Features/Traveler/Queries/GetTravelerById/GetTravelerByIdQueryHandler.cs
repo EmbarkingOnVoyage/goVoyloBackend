@@ -57,7 +57,8 @@ namespace GoVoylo.Application.Features.Traveler.Queries.GetTravelerById
                     passport.Id,
                     MaskingHelper.MaskKeepLast4(_encryptionService.Decrypt(passport.PassportNumberEncrypted)),
                     passport.IssuingCountry,
-                    passport.ExpiryDate);
+                    passport.ExpiryDate,
+                    passport.IssueDate);
 
             return new TravelerDetailDto(
                 traveler.Id,

@@ -23,7 +23,8 @@ namespace GoVoylo.Application.Features.Traveler.Dtos
         Guid Id,
         string MaskedPassportNumber,
         string IssuingCountry,
-        DateTime ExpiryDate);
+        DateTime ExpiryDate,
+        DateTime? IssueDate);
 
     public record VisaDto(
         Guid Id,

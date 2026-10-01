@@ -34,6 +34,10 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasColumnType("date")
                 .IsRequired();
 
+            builder.Property(x => x.IssueDate)
+                .HasColumnName("issue_date")
+                .HasColumnType("date");
+
             builder.Property(x => x.LastExpiryAlertSentAt)
                 .HasColumnName("last_expiry_alert_sent_at")
                 .HasColumnType("timestamptz");

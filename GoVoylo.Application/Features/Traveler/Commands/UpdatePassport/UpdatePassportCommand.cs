@@ -8,5 +8,6 @@ namespace GoVoylo.Application.Features.Traveler.Commands.UpdatePassport
         Guid TravelerId,
         string PassportNumber,
         string IssuingCountry,
-        DateTime ExpiryDate) : IRequest<PassportDto>;
+        DateTime ExpiryDate,
+        DateTime? IssueDate = null) : IRequest<PassportDto>;
 }
