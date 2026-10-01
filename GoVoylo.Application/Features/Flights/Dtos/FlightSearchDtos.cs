@@ -106,6 +106,11 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     // Passport_Issuing_Country) — a deliberate simplification, since the two are the
     // same for the overwhelming majority of travelers and neither supplier's own
     // sample requests distinguish them further.
+    //
+    // SavedTravelerId lets the app book a saved co-traveller without ever holding
+    // the full passport number (the travellers API only returns it masked): when
+    // set and PassportNumber is empty, CreateBookingCommandHandler loads and
+    // decrypts the passport on file server-side.
     public record BookingTravelerRequestDto(
         int PaxId,
         string Title,
@@ -119,7 +124,8 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         DateTime? PassportExpiry = null,
         DateTime? PassportIssueDate = null,
         string? PanNumber = null,
-        string? DocumentId = null);
+        string? DocumentId = null,
+        Guid? SavedTravelerId = null);
 
     // GST fields are optional — omit all three for a booking with no GST invoice.
     // Air_TempBooking's own GST flag is derived from whether GstNumber is present,
