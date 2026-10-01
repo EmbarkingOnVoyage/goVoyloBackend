@@ -750,12 +750,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
                 EnsureSuccess(instantResponse.Status, instantResponse.Errors, "Book (instant)");
 
-                // Same 5-second rule as CreateBlockTicketAsync before Booking Details.
-                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
-
-                var instantDetails = await FetchBookingDetailsAsync(bookingRefNo, cancellationToken);
-
-                return MapTicketingResult(bookingRefNo, instantDetails);
+                return await AwaitTicketingResultAsync(bookingRefNo, cancellationToken);
             }
 
             // Built from Tripjack's documented Confirm-Book contract (same request
@@ -812,14 +807,44 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
             EnsureSuccess(confirmResponse.Status, confirmResponse.Errors, "Confirm-Book");
 
-            // Same reasoning as CreateBlockTicketAsync's own delay — the ticketed
-            // PNR/status only shows up in Booking Details, not Confirm-Book's own
-            // response.
-            await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+            return await AwaitTicketingResultAsync(bookingRefNo, cancellationToken);
+        }
 
-            var finalDetails = await FetchBookingDetailsAsync(bookingRefNo, cancellationToken);
+        // After a paid Confirm-Book/instant Book, the ticketed PNR/status only shows
+        // up in Booking Details (first read no sooner than 5s, per Tripjack's guide),
+        // and the order can sit at PENDING while the airline tickets — confirmed live:
+        // a paid international return read back PENDING (PNR already issued) right
+        // after Confirm-Book. Polls while PENDING, then reports anything still short
+        // of SUCCESS as TicketingPendingStatusId rather than the hold's "33": the
+        // customer has paid, so it must not look like a releasable hold.
+        private const string TicketingPendingStatusId = "44";
+        private static readonly TimeSpan TicketingPollInterval = TimeSpan.FromSeconds(5);
+        private const int TicketingMaxPolls = 12;
 
-            return MapTicketingResult(bookingRefNo, finalDetails);
+        private async Task<SupplierTicketingResultDto> AwaitTicketingResultAsync(
+            string bookingRefNo, CancellationToken cancellationToken)
+        {
+            TripjackBookingDetailsResponseWire details;
+            var polls = 0;
+            do
+            {
+                await Task.Delay(TicketingPollInterval, cancellationToken);
+                details = await FetchBookingDetailsAsync(bookingRefNo, cancellationToken);
+                polls++;
+            }
+            while (details.Order?.Status == "PENDING" && polls < TicketingMaxPolls);
+
+            var result = MapTicketingResult(bookingRefNo, details);
+            if (result.StatusId != "33")
+            {
+                return result;
+            }
+
+            return result with
+            {
+                StatusId = TicketingPendingStatusId,
+                Legs = result.Legs.Select(l => l with { StatusId = TicketingPendingStatusId }).ToList()
+            };
         }
 
         public async Task<SupplierFareRuleResultDto> GetFareRulesAsync(
