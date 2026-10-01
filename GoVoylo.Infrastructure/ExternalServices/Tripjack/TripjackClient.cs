@@ -86,6 +86,11 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // call — there's no separate Flight_Key vs Fare_Id the way Flyshop has, so
             // FareId is ignored here and FlightKey (the priceId from search) is the
             // only thing Review needs.
+            if (IsBookingId(request.FlightKey))
+            {
+                return ReuseReviewedBooking(request.FlightKey, request.FareId);
+            }
+
             var wireRequest = new TripjackReviewRequestWire
             {
                 PriceIds = new List<string> { request.FlightKey }
@@ -102,6 +107,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             var totalFare = wireResponse.TotalPriceInfo?.TotalFareDetail?.FareComponent.TotalFare ?? 0m;
 
             CacheSsrTripInfos(wireResponse.BookingId, wireResponse.TripInfos);
+            CacheReviewedFare(wireResponse.BookingId, totalFare);
 
             // Every later Tripjack call (Seat Map, Book, Confirm-Book, Fare Rules,
             // Booking Details) needs this bookingId, not the original priceId — it's
@@ -142,6 +148,28 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 return new List<SupplierRepriceResultDto> { await RepriceAsync(requests[0], cancellationToken) };
             }
 
+            // Every leg of an already-reviewed itinerary carries the same combined
+            // bookingId (see above) — reuse it rather than re-Reviewing. A mix of
+            // reviewed and un-reviewed legs can't be combined into one Review call.
+            if (requests.Any(r => IsBookingId(r.FlightKey)))
+            {
+                var bookingId = requests[0].FlightKey;
+                if (requests.Any(r => r.FlightKey != bookingId))
+                {
+                    throw new InvalidOperationException(
+                        "Tripjack itinerary legs have diverged across review sessions. Please search again.");
+                }
+
+                var reused = ReuseReviewedBooking(bookingId, requests[0].FareId);
+                return requests
+                    .Select((r, index) => reused with
+                    {
+                        FareId = r.FareId,
+                        TotalAmount = index == 0 ? reused.TotalAmount : 0m
+                    })
+                    .ToList();
+            }
+
             var wireRequest = new TripjackReviewRequestWire
             {
                 PriceIds = requests.Select(r => r.FlightKey).ToList()
@@ -158,6 +186,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             var totalFare = wireResponse.TotalPriceInfo?.TotalFareDetail?.FareComponent.TotalFare ?? 0m;
 
             CacheSsrTripInfos(wireResponse.BookingId, wireResponse.TripInfos);
+            CacheReviewedFare(wireResponse.BookingId, totalFare);
 
             return requests
                 .Select((r, index) => new SupplierRepriceResultDto(
@@ -266,6 +295,35 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         }
 
         private static string SsrCacheKey(string bookingId) => $"tripjack-ssr:{bookingId}";
+
+        // Review hands back a bookingId that every later call threads through as
+        // FlightKey — but callers built around Flyshop's model (GetSeatMap, and
+        // CreateBooking for a leg with no SSR selections) reprice again first, and
+        // Tripjack rejects a bookingId sent back to Review (errCode 808 "Keys Passed
+        // in the request is already expired", confirmed live on a real booking
+        // attempt). An already-reviewed bookingId is still valid for Seat Map/Book,
+        // so it's reused as-is with the fare cached from the original Review.
+        // Search priceIds look like "11-6776401094_0DELBOMAI2678~...", bookingIds
+        // always "TJS..." (every bookingId in Tripjack's own sample logs).
+        private static bool IsBookingId(string flightKey) =>
+            flightKey.StartsWith("TJS", StringComparison.Ordinal);
+
+        private void CacheReviewedFare(string bookingId, decimal totalFare) =>
+            _cache.Set(ReviewedFareCacheKey(bookingId), totalFare, SsrCacheTtl);
+
+        private SupplierRepriceResultDto ReuseReviewedBooking(string bookingId, string fareId)
+        {
+            if (!_cache.TryGetValue(ReviewedFareCacheKey(bookingId), out decimal totalFare))
+            {
+                throw new InvalidOperationException(
+                    "This Tripjack fare session has expired. Please search again.");
+            }
+
+            return new SupplierRepriceResultDto(
+                bookingId, fareId, totalFare, "INR", Repriced: true, IsFareChange: false);
+        }
+
+        private static string ReviewedFareCacheKey(string bookingId) => $"tripjack-review-fare:{bookingId}";
 
         public async Task<SupplierSeatMapResultDto> GetSeatMapAsync(
             SupplierSeatMapRequestDto request, CancellationToken cancellationToken)
