@@ -296,8 +296,9 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             string bookingRefNo, CancellationToken cancellationToken) =>
             TicketAsync(bookingRefNo, ticketingType: "0", cancellationToken);
 
+        // Flyshop always holds first, so deferredBookPayload is always null here.
         public Task<SupplierTicketingResultDto> BookTicketAsync(
-            string bookingRefNo, CancellationToken cancellationToken) =>
+            string bookingRefNo, string? deferredBookPayload, CancellationToken cancellationToken) =>
             TicketAsync(bookingRefNo, ticketingType: "1", cancellationToken);
 
         private async Task<SupplierTicketingResultDto> TicketAsync(
@@ -349,7 +350,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
         // full absolute URL through PostAsync bypasses _httpClient.BaseAddress for
         // just this one call (HttpClient treats an absolute request URI as-is).
         public async Task<SupplierPaymentResultDto> AddPaymentAsync(
-            string bookingRefNo, string clientRefNo, CancellationToken cancellationToken)
+            string bookingRefNo, string clientRefNo, string? deferredBookPayload, CancellationToken cancellationToken)
         {
             var wireRequest = new AddPaymentRequestWire
             {

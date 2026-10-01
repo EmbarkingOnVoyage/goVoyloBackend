@@ -3,6 +3,7 @@ using MediatR;
 using GoVoylo.Domain.Interfaces;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Application.Common.Exceptions;
+using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Features.Payments.Dtos;
 
 namespace GoVoylo.Application.Features.Payments.Commands.VerifyRazorpayPayment;
@@ -18,17 +19,20 @@ public class VerifyRazorpayPaymentCommandHandler : IRequestHandler<VerifyRazorpa
     private readonly IRazorpayClient _razorpayClient;
     private readonly ITripBookingRepository _tripBookingRepository;
     private readonly IFlightSupplierClientResolver _supplierClientResolver;
+    private readonly IEncryptionService _encryptionService;
 
     public VerifyRazorpayPaymentCommandHandler(
         IPaymentRepository paymentRepository,
         IRazorpayClient razorpayClient,
         ITripBookingRepository tripBookingRepository,
-        IFlightSupplierClientResolver supplierClientResolver)
+        IFlightSupplierClientResolver supplierClientResolver,
+        IEncryptionService encryptionService)
     {
         _paymentRepository = paymentRepository;
         _razorpayClient = razorpayClient;
         _tripBookingRepository = tripBookingRepository;
         _supplierClientResolver = supplierClientResolver;
+        _encryptionService = encryptionService;
     }
 
     public async Task<PaymentResponseDto> Handle(VerifyRazorpayPaymentCommand request, CancellationToken cancellationToken)
@@ -65,9 +69,28 @@ public class VerifyRazorpayPaymentCommandHandler : IRequestHandler<VerifyRazorpa
             // rather than being swallowed into a false "booking confirmed" response.
             var supplierClient = _supplierClientResolver.Resolve(booking.SupplierCode);
 
-            await supplierClient.AddPaymentAsync(booking.BookingRefNo, payment.Id.ToString(), cancellationToken);
+            // Set only for a fare the supplier couldn't hold — see
+            // TripBooking.DeferredSupplierPayloadEncrypted.
+            var deferredBookPayload = booking.DeferredSupplierPayloadEncrypted is { } encrypted
+                ? _encryptionService.Decrypt(encrypted)
+                : null;
 
-            var ticket = await supplierClient.BookTicketAsync(booking.BookingRefNo, cancellationToken);
+            SupplierTicketingResultDto ticket;
+            try
+            {
+                await supplierClient.AddPaymentAsync(
+                    booking.BookingRefNo, payment.Id.ToString(), deferredBookPayload, cancellationToken);
+
+                ticket = await supplierClient.BookTicketAsync(booking.BookingRefNo, deferredBookPayload, cancellationToken);
+            }
+            catch
+            {
+                // Paid but not ticketed — recorded as failed so it's visible for a
+                // manual refund/retry, then surfaced as before (see comment above).
+                booking.MarkTicketingFailed();
+                await _tripBookingRepository.UpdateAsync(booking, cancellationToken);
+                throw;
+            }
 
             booking.MarkTicketed(ticket.StatusId, ticket.AirlinePnr, ticket.CrsPnr, ticket.RecordLocator);
 

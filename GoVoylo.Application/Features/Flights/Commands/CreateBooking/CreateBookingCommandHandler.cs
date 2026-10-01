@@ -236,6 +236,12 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                     passengerNames,
                     paxIds);
 
+                if (tempBooking.DeferredBookPayload != null)
+                {
+                    tripBooking.SetDeferredSupplierPayload(
+                        _encryptionService.Encrypt(tempBooking.DeferredBookPayload));
+                }
+
                 // Zipped by index: Air_Ticketing's AirlinePNRDetails is expected to
                 // preserve the order Air_TempBooking's BookingFlightDetails was sent in.
                 // If Flyshop ever returns a different count, the shorter list wins and
@@ -271,9 +277,12 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
 
                 await _tripBookingRepository.AddAsync(tripBooking, cancellationToken);
             }
-            catch
+            catch when (tempBooking.DeferredBookPayload == null)
             {
-                // Swallowed deliberately — see comment above.
+                // Swallowed deliberately — see comment above. Not for a deferred
+                // (non-holdable) booking, though: nothing is booked with the supplier
+                // yet and the saved record is the only copy of the request needed
+                // after payment, so failing to save it must fail before payment.
             }
 
             return new CreateBookingResponseDto(

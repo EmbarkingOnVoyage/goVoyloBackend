@@ -49,6 +49,13 @@ namespace GoVoylo.Domain.Entities
         public int? CancellationType { get; private set; }
         public string? CancelCode { get; private set; }
 
+        // Encrypted supplier booking request for a fare that can't be held (Tripjack's
+        // Review conditions.isBA false): nothing is booked with the supplier until
+        // the customer's payment is verified, then this exact request is sent as an
+        // instant booking. Encrypted because it carries passport numbers. Cleared
+        // once the booking is ticketed or fails.
+        public byte[]? DeferredSupplierPayloadEncrypted { get; private set; }
+
         private readonly List<TripBookingLeg> _legs = new();
         public IReadOnlyList<TripBookingLeg> Legs => _legs;
 
@@ -111,6 +118,18 @@ namespace GoVoylo.Domain.Entities
             AirlinePnr = airlinePnr;
             CrsPnr = crsPnr;
             RecordLocator = recordLocator;
+            DeferredSupplierPayloadEncrypted = null;
+        }
+
+        public void SetDeferredSupplierPayload(byte[] payloadEncrypted) =>
+            DeferredSupplierPayloadEncrypted = payloadEncrypted;
+
+        // Ticketing failed after the customer had already paid — needs a manual
+        // refund or retry. 22 is the same "Failed" code StatusId uses everywhere.
+        public void MarkTicketingFailed()
+        {
+            StatusId = "22";
+            DeferredSupplierPayloadEncrypted = null;
         }
 
         public void MarkCancelled(int cancellationType, string cancelCode)
