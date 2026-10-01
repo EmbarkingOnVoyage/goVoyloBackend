@@ -11,5 +11,9 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
     {
         public string BaseUrl { get; set; } = string.Empty;
         public string ApiKey { get; set; } = string.Empty;
+
+        // UAT certification log capture — see TripjackWireLogHandler.
+        public bool CaptureWireLogs { get; set; }
+        public string WireLogDirectory { get; set; } = string.Empty;
     }
 }

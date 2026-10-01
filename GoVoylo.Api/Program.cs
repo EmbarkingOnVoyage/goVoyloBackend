@@ -174,7 +174,9 @@ public class Program
             client.DefaultRequestHeaders.Accept.Add(
                 new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
             client.Timeout = TimeSpan.FromSeconds(60);
-        });
+        })
+        .AddHttpMessageHandler<TripjackWireLogHandler>();
+        builder.Services.AddTransient<TripjackWireLogHandler>();
         builder.Services.AddTransient<IFlightSupplierClient>(sp => sp.GetRequiredService<TripjackClient>());
 
         builder.Services.Configure<FlyshopOptions>(builder.Configuration.GetSection("FlyshopSettings"));

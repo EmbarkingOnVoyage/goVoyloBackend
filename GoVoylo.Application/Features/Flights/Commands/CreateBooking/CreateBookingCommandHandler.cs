@@ -1,3 +1,4 @@
+using GoVoylo.Application.Common;
 using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
@@ -23,19 +24,28 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
         private readonly IUserRepository _userRepository;
         private readonly IEmailService _emailService;
         private readonly ITripBookingRepository _tripBookingRepository;
+        private readonly ISavedTravelerRepository _savedTravelerRepository;
+        private readonly ITravelerPassportRepository _passportRepository;
+        private readonly IEncryptionService _encryptionService;
 
         public CreateBookingCommandHandler(
             IFlightSupplierClientResolver supplierClientResolver,
             IFlightSearchSessionStore sessionStore,
             IUserRepository userRepository,
             IEmailService emailService,
-            ITripBookingRepository tripBookingRepository)
+            ITripBookingRepository tripBookingRepository,
+            ISavedTravelerRepository savedTravelerRepository,
+            ITravelerPassportRepository passportRepository,
+            IEncryptionService encryptionService)
         {
             _supplierClientResolver = supplierClientResolver;
             _sessionStore = sessionStore;
             _userRepository = userRepository;
             _emailService = emailService;
             _tripBookingRepository = tripBookingRepository;
+            _savedTravelerRepository = savedTravelerRepository;
+            _passportRepository = passportRepository;
+            _encryptionService = encryptionService;
         }
 
         public async Task<CreateBookingResponseDto> Handle(
@@ -137,7 +147,13 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                         .ToList()))
                 .ToList();
 
-            var travelers = request.Travelers
+            var requestTravelers = new List<BookingTravelerRequestDto>(request.Travelers.Count);
+            foreach (var traveler in request.Travelers)
+            {
+                requestTravelers.Add(await WithSavedPassportAsync(traveler, request.UserId));
+            }
+
+            var travelers = requestTravelers
                 .Select(t => new SupplierTempBookingPaxDto(
                     t.PaxId,
                     MapPaxType(t.PaxType),
@@ -268,6 +284,41 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                 ticket.CrsPnr,
                 ticket.RecordLocator,
                 ticket.FailureRemark);
+        }
+
+        // Fills passport details from a saved co-traveller's passport on file — see
+        // BookingTravelerRequestDto.SavedTravelerId. Explicit passport fields on the
+        // request always win; a traveller with no passport on file is passed through
+        // unchanged (domestic bookings don't need one).
+        private async Task<BookingTravelerRequestDto> WithSavedPassportAsync(
+            BookingTravelerRequestDto traveler, Guid userId)
+        {
+            if (traveler.SavedTravelerId is not { } savedTravelerId
+                || !string.IsNullOrWhiteSpace(traveler.PassportNumber))
+            {
+                return traveler;
+            }
+
+            var savedTraveler = await _savedTravelerRepository.GetByIdAsync(savedTravelerId);
+            if (savedTraveler == null || savedTraveler.UserId != userId)
+            {
+                throw new NotFoundException("Traveler not found.");
+            }
+
+            var passport = await _passportRepository.GetByTravelerIdAsync(savedTravelerId);
+            if (passport == null)
+            {
+                return traveler;
+            }
+
+            return traveler with
+            {
+                PassportNumber = _encryptionService.Decrypt(passport.PassportNumberEncrypted),
+                PassportNationality = string.IsNullOrWhiteSpace(traveler.PassportNationality)
+                    ? CountryCodes.ToIso2(passport.IssuingCountry)
+                    : traveler.PassportNationality,
+                PassportExpiry = traveler.PassportExpiry ?? passport.ExpiryDate
+            };
         }
 
         // 0-ADT/1-CHD/2-INF, matching Flyshop's own FareDetails.PAX_Type convention.
