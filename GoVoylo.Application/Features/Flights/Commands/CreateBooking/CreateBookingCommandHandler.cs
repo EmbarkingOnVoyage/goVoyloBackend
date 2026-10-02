@@ -218,7 +218,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
             // up in "My Trips" this one time.
             try
             {
-                var totalAmount = legSummaries.Sum(s => s.TotalAmount);
+                var totalAmount = ticket.ConfirmedTotalAmount ?? legSummaries.Sum(s => s.TotalAmount);
                 var currencyCode = legSummaries.FirstOrDefault()?.CurrencyCode ?? "INR";
                 var passengerNames = string.Join(", ", request.Travelers.Select(t => $"{t.FirstName} {t.LastName}"));
                 var paxIds = string.Join(",", request.Travelers.Select(t => t.PaxId));
@@ -292,7 +292,8 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                 ticket.AirlinePnr,
                 ticket.CrsPnr,
                 ticket.RecordLocator,
-                ticket.FailureRemark);
+                ticket.FailureRemark,
+                ticket.ConfirmedTotalAmount);
         }
 
         // Fills passport details from a saved co-traveller's passport on file — see
