@@ -605,11 +605,35 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // "after 5 seconds elapsed" — the PNR/ticket data isn't populated in the
             // Book response itself, confirmed live (Book's own response is just an
             // echo of bookingId + status).
-            await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+            //
+            // A Hold only counts once the order reads ON_HOLD. It can sit at PENDING
+            // while the airline confirms it, and Confirm-Book is refused against a
+            // PENDING order (errCode 2520 "Invalid Action Requested for current
+            // Order Status") — confirmed live on a paid international multi-city
+            // booking. So this polls while PENDING, and a hold still unconfirmed
+            // afterwards is reported as failed BEFORE the customer is charged.
+            TripjackBookingDetailsResponseWire wireResponse;
+            var polls = 0;
+            do
+            {
+                await Task.Delay(TicketingPollInterval, cancellationToken);
+                wireResponse = await FetchBookingDetailsAsync(bookingRefNo, cancellationToken);
+                polls++;
+            }
+            while (wireResponse.Order?.Status == "PENDING" && polls < TicketingMaxPolls);
 
-            var wireResponse = await FetchBookingDetailsAsync(bookingRefNo, cancellationToken);
+            var result = MapTicketingResult(bookingRefNo, wireResponse);
+            if (wireResponse.Order?.Status != "PENDING")
+            {
+                return result;
+            }
 
-            return MapTicketingResult(bookingRefNo, wireResponse);
+            return result with
+            {
+                StatusId = "22",
+                FailureRemark = "The airline hasn't confirmed the hold on this fare yet. Please try again.",
+                Legs = result.Legs.Select(l => l with { StatusId = "22" }).ToList()
+            };
         }
 
         public async Task CancelBookingAsync(
@@ -727,7 +751,9 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             var details = await FetchBookingDetailsAsync(bookingRefNo, cancellationToken);
             var status = details.Order?.Status;
 
-            if (status != "ON_HOLD" && status != "PENDING")
+            // Only a confirmed hold is payable — Confirm-Book refuses a PENDING order
+            // (see CreateBlockTicketAsync).
+            if (status != "ON_HOLD")
             {
                 throw new InvalidOperationException(
                     $"Tripjack booking '{bookingRefNo}' is not payable (order status: {status ?? "unknown"}).");
