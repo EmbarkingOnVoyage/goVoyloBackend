@@ -147,7 +147,11 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string? AirlinePnr,
         string? CrsPnr,
         string? RecordLocator,
-        string? FailureRemark);
+        string? FailureRemark,
+        // The supplier-confirmed amount to charge — see
+        // SupplierTicketingResultDto.ConfirmedTotalAmount. Null means charge the
+        // searched price as before.
+        decimal? ConfirmedTotalAmount = null);
 
     public record FareRuleDto(string SegmentId, string FareRuleName, string FareRuleDesc);
 

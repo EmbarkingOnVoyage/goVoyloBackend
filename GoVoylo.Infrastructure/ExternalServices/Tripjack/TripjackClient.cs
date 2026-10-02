@@ -507,7 +507,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                     new() { Amount = reviewed.TotalFare + ssrTotal }
                 };
 
-                _cache.Set(DeferredCacheKey(bookingId), true, SsrCacheTtl);
+                _cache.Set(DeferredCacheKey(bookingId), reviewed.TotalFare + ssrTotal, SsrCacheTtl);
 
                 return new SupplierTempBookingResultDto(
                     bookingId, JsonSerializer.Serialize(wireRequest, PayloadJsonOptions));
@@ -584,7 +584,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // payment), which is what VerifyRazorpayPaymentCommandHandler expects
             // before it makes the real booking. Leg ids follow MapTicketingResult's
             // own "DEP-ARR" route scheme so they line up once ticketed.
-            if (_cache.TryGetValue(DeferredCacheKey(bookingRefNo), out bool _))
+            if (_cache.TryGetValue(DeferredCacheKey(bookingRefNo), out decimal deferredAmount))
             {
                 _cache.TryGetValue(SsrCacheKey(bookingRefNo), out List<TripjackTripOptionWire>? tripInfos);
                 var pendingLegs = (tripInfos ?? new List<TripjackTripOptionWire>())
@@ -597,7 +597,8 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                     .ToList();
 
                 return new SupplierTicketingResultDto(
-                    bookingRefNo, "33", pendingLegs.FirstOrDefault()?.AirlineCode, null, null, null, null, pendingLegs);
+                    bookingRefNo, "33", pendingLegs.FirstOrDefault()?.AirlineCode, null, null, null, null, pendingLegs,
+                    ConfirmedTotalAmount: deferredAmount);
             }
 
             // Tripjack's own integration guide: Booking Details has to be called
@@ -1052,7 +1053,10 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 null,
                 null,
                 null,
-                legs);
+                legs,
+                // Booking Details' order amount — what Tripjack charges for the
+                // hold, including selected SSRs.
+                ConfirmedTotalAmount: order != null && order.Amount > 0 ? order.Amount : null);
         }
 
         // Tripjack's own Order Status values, mapped onto the same "11-Success/
