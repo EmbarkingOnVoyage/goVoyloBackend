@@ -2,6 +2,7 @@ using GoVoylo.Application.Common;
 using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
+using GoVoylo.Domain.Common;
 using GoVoylo.Domain.Entities;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
@@ -84,6 +85,30 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
 
             var supplierClient = _supplierClientResolver.Resolve(supplierCode);
 
+            // A leg can book one of its offer's other fares (fare picker, or the
+            // matched fare of a supplier special-return package) rather than the
+            // default. That fare must be priced afresh — the session may already
+            // hold a reprice of the default fare (Tripjack: a bookingId from
+            // Review) — so the leg is forced through reprice below. Tripjack
+            // reprices by the price id itself, which is its fare id, so it becomes
+            // the leg's FlightKey too; Flyshop reprices by Flight_Key + Fare_Id.
+            var fareChangedLegs = new HashSet<int>();
+            for (var i = 0; i < request.Legs.Count; i++)
+            {
+                var requestedFareId = request.Legs[i].FareId;
+                if (string.IsNullOrWhiteSpace(requestedFareId) || requestedFareId == legSummaries[i].FareId)
+                {
+                    continue;
+                }
+
+                legSummaries[i] = legSummaries[i] with
+                {
+                    FareId = requestedFareId,
+                    FlightKey = supplierCode == FlightSupplierCodes.Tripjack ? requestedFareId : legSummaries[i].FlightKey
+                };
+                fareChangedLegs.Add(i);
+            }
+
             // A seat/meal/baggage SSR_Key returned by Air_GetSeatMap or Air_GetSSR is
             // only valid against the exact Flight_Key that request was repriced
             // against (both handlers persist their reprice back into the session).
@@ -110,7 +135,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
             // roundtrip/multi-city Tripjack booking isn't possible without this.
             var legsNeedingReprice = request.Legs
                 .Select((leg, index) => (leg, index))
-                .Where(x => x.leg.SelectedSsrs.Count == 0)
+                .Where(x => x.leg.SelectedSsrs.Count == 0 || fareChangedLegs.Contains(x.index))
                 .ToList();
 
             if (legsNeedingReprice.Count > 0)

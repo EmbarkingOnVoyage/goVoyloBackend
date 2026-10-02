@@ -940,7 +940,11 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                         fareDetail?.FareComponent.TotalFare ?? 0m,
                         "INR",
                         fareDetail?.BaggageInfo?.CheckInBaggage,
-                        fareDetail?.BaggageInfo?.CabinBaggage);
+                        fareDetail?.BaggageInfo?.CabinBaggage,
+                        TotalForPassengers(price, request),
+                        price.FareIdentifier,
+                        price.SpecialReturnId,
+                        price.MatchingSpecialReturnIds);
                 })
                 .ToList();
 

@@ -207,6 +207,16 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         [JsonPropertyName("fareIdentifier")]
         public string? FareIdentifier { get; set; }
 
+        // Special-return pairing: this fare's own id (sri), and the sri values of
+        // the other leg's fares it may be combined with (msri). Only set on
+        // pairable SPECIAL_RETURN fares — confirmed live on a domestic return
+        // search: every onward msri matched a return sri and vice versa.
+        [JsonPropertyName("sri")]
+        public string? SpecialReturnId { get; set; }
+
+        [JsonPropertyName("msri")]
+        public List<string>? MatchingSpecialReturnIds { get; set; }
+
         // Keyed by pax type ("ADULT"/"CHILD"/"INFANT").
         [JsonPropertyName("fd")]
         public Dictionary<string, TripjackFareDetailWire> FareDetailsByPaxType { get; set; } = new();

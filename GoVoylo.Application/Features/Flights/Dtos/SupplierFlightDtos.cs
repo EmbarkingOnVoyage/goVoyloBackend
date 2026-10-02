@@ -10,13 +10,23 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         DateTime ArrivalDateTime,
         string Duration);
 
+    // TotalAmount is per adult (the fare picker's "/adult" figure);
+    // BookingTotalAmount covers every searched passenger. FareIdentifier,
+    // SpecialReturnId and MatchingSpecialReturnIds describe supplier-defined
+    // special-return pairing (Tripjack's fareIdentifier/sri/msri): a fare is only
+    // bookable on a round trip with a fare on the other leg whose SpecialReturnId
+    // is in this fare's MatchingSpecialReturnIds.
     public record SupplierFareOptionDto(
         string FareId,
         bool Refundable,
         decimal TotalAmount,
         string CurrencyCode,
         string? CheckInBaggage,
-        string? HandBaggage);
+        string? HandBaggage,
+        decimal BookingTotalAmount = 0m,
+        string? FareIdentifier = null,
+        string? SpecialReturnId = null,
+        IReadOnlyList<string>? MatchingSpecialReturnIds = null);
 
     public record SupplierFlightOptionDto(
         string FlightKey,
