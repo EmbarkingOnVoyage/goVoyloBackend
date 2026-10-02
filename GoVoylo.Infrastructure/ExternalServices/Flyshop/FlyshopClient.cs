@@ -530,7 +530,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 totalAmount,
                 adultFareDetail?.CurrencyCode ?? "INR",
                 ParseInt(primaryFare?.SeatsAvailable),
-                flight.Fares.Select(MapFareOption).ToList(),
+                flight.Fares.Select(f => MapFareOption(f, searchRequest)).ToList(),
                 tripLegIndex);
         }
 
@@ -554,7 +554,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 + (request.InfantCount > 0 ? PerPax(2) * request.InfantCount : 0m);
         }
 
-        private static SupplierFareOptionDto MapFareOption(FareWire fare)
+        private static SupplierFareOptionDto MapFareOption(FareWire fare, FlightSearchRequestDto? searchRequest)
         {
             var adultFareDetail = fare.FareDetails.FirstOrDefault(f => f.PaxType == 0)
                 ?? fare.FareDetails.FirstOrDefault();
@@ -565,7 +565,8 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 adultFareDetail?.TotalAmount ?? 0m,
                 adultFareDetail?.CurrencyCode ?? "INR",
                 adultFareDetail?.FreeBaggage?.CheckInBaggage,
-                adultFareDetail?.FreeBaggage?.HandBaggage);
+                adultFareDetail?.FreeBaggage?.HandBaggage,
+                searchRequest == null ? 0m : TotalForPassengers(fare, adultFareDetail, searchRequest));
         }
 
         private static SupplierFlightSegmentDto MapSegment(SegmentWire segment) => new(

@@ -20,13 +20,18 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         DateTime ArrivalDateTime,
         string Duration);
 
+    // See SupplierFareOptionDto for BookingTotalAmount and the special-return fields.
     public record FareOptionDto(
         string FareId,
         bool Refundable,
         decimal TotalAmount,
         string CurrencyCode,
         string? CheckInBaggage,
-        string? HandBaggage);
+        string? HandBaggage,
+        decimal BookingTotalAmount,
+        string? FareIdentifier,
+        string? SpecialReturnId,
+        IReadOnlyList<string> MatchingSpecialReturnIds);
 
     public record FlightOfferDto(
         Guid OfferId,
@@ -90,7 +95,11 @@ namespace GoVoylo.Application.Features.Flights.Dtos
 
     public record BookingSsrSelectionDto(int PaxId, string SsrKey);
 
-    public record BookingLegRequestDto(Guid OfferId, IReadOnlyList<BookingSsrSelectionDto> SelectedSsrs);
+    // FareId picks one of the offer's own fare options (FareOptionDto.FareId) to
+    // book instead of its default fare — from the fare picker, or the matched
+    // fare of a supplier special-return package. Null books the default fare.
+    public record BookingLegRequestDto(
+        Guid OfferId, IReadOnlyList<BookingSsrSelectionDto> SelectedSsrs, string? FareId = null);
 
     // PaxType/Gender as plain strings at the API boundary, same reasoning as
     // SeatMapTravelerRequestDto — the handler maps them to Flyshop's numeric codes.

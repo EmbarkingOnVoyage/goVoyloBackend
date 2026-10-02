@@ -118,7 +118,11 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                         flight.SeatsAvailable,
                         flight.Fares
                             .Select(f => new FareOptionDto(
-                                f.FareId, f.Refundable, f.TotalAmount, f.CurrencyCode, f.CheckInBaggage, f.HandBaggage))
+                                f.FareId, f.Refundable, f.TotalAmount, f.CurrencyCode, f.CheckInBaggage, f.HandBaggage,
+                                f.BookingTotalAmount > 0 ? f.BookingTotalAmount : f.TotalAmount,
+                                f.FareIdentifier,
+                                f.SpecialReturnId,
+                                f.MatchingSpecialReturnIds ?? Array.Empty<string>()))
                             .ToList(),
                         flight.TripLegIndex,
                         client.SupplierCode));
