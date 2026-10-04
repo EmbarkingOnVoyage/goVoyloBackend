@@ -1003,8 +1003,15 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // Review with errCode 1080 "All Segments Must be selected if Special
             // Return fare". Legs are picked independently, so each offer's primary
             // (bookable-by-default) fare prefers anything else, falling back to
-            // the first fare only when every fare is special-return.
-            var primaryPrice = tripOption.TotalPriceList.FirstOrDefault(p => p.FareIdentifier != "SPECIAL_RETURN")
+            // the first fare only when every fare is special-return. Among those it
+            // takes the cheapest for the searched passengers: Tripjack lists
+            // CORPORATE/FLEXI_PLUS ahead of PUBLISHED, so the first one made the
+            // result card, sorting and "Cheapest" label use the dearest fare while
+            // the app then booked the cheapest one.
+            var primaryPrice = tripOption.TotalPriceList
+                    .Where(p => p.FareIdentifier != "SPECIAL_RETURN")
+                    .OrderBy(p => TotalForPassengers(p, request))
+                    .FirstOrDefault()
                 ?? tripOption.TotalPriceList.FirstOrDefault();
             var adultFare = GetAdultFareDetail(primaryPrice);
 
