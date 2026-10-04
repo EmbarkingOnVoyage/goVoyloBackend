@@ -112,7 +112,8 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                                 s.FlightNumber,
                                 s.DepartureDateTime,
                                 s.ArrivalDateTime,
-                                s.Duration))
+                                s.Duration,
+                                s.TripIndex))
                             .ToList(),
                         flight.TotalAmount,
                         flight.CurrencyCode,

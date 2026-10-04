@@ -18,7 +18,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string FlightNumber,
         DateTime DepartureDateTime,
         DateTime ArrivalDateTime,
-        string Duration);
+        string Duration,
+        // Which trip of a whole-trip offer the segment belongs to — see
+        // SupplierFlightSegmentDto.TripIndex.
+        int TripIndex = 0);
 
     // See SupplierFareOptionDto for BookingTotalAmount and the special-return fields.
     public record FareOptionDto(
