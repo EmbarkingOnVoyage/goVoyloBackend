@@ -276,13 +276,17 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 // without ever filtering on it itself.
                 Array.Empty<int>()));
 
+        // Must match Flyshop's own SSR_Type numbering (0-Baggage, 1-Meals,
+        // 2-Complimentary meals, 3-Seat), which the app filters its Baggage/Meal
+        // lists on. Extra services have no Flyshop equivalent, so they get a value
+        // outside that range and stay out of both lists.
         private static int MapSsrCategoryType(string category) => category switch
         {
-            "BAGGAGE" => 1,
-            "MEAL" => 2,
-            "EXTRASERVICES" => 3,
-            "SEAT" => 4,
-            _ => 0
+            "BAGGAGE" => 0,
+            "MEAL" => 1,
+            "SEAT" => 3,
+            "EXTRASERVICES" => 99,
+            _ => 99
         };
 
         private void CacheSsrTripInfos(string bookingId, List<TripjackTripOptionWire> tripInfos)
