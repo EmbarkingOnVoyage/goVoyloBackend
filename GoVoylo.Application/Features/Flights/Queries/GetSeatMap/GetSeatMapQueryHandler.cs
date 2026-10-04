@@ -20,27 +20,15 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetSeatMap
 
         public async Task<SeatMapResponseDto> Handle(GetSeatMapQuery request, CancellationToken cancellationToken)
         {
-            var session = await _sessionStore.GetAsync(request.OfferId, cancellationToken);
-
-            if (session == null)
-            {
-                throw new NotFoundException("Flight offer not found or has expired. Please search again.");
-            }
-
-            var supplierClient = _supplierClientResolver.Resolve(session.SupplierCode);
-
             // Same reasoning as GetFlightAncillariesQueryHandler: Air_GetSeatMap's docs
             // specify the Flight_Key from an Air_Reprice response.
-            var repriceResult = await supplierClient.RepriceAsync(
-                new SupplierRepriceRequestDto(session.SearchKey, session.FlightKey, session.FareId),
-                cancellationToken);
-
-            var updatedSession = session with
-            {
-                FlightKey = repriceResult.FlightKey,
-                FareId = repriceResult.FareId
-            };
-            await _sessionStore.UpdateAsync(request.OfferId, updatedSession, cancellationToken);
+            var legs = await ItineraryReprice.RepriceAsync(
+                _sessionStore, _supplierClientResolver, request.OfferId, request.ItineraryOfferIds, cancellationToken);
+            var leg = legs.Single(l => l.OfferId == request.OfferId);
+            var session = leg.Session;
+            var updatedSession = leg.Session;
+            var supplierClient = _supplierClientResolver.Resolve(session.SupplierCode);
+            var combined = legs.Count > 1 && legs.All(l => l.Session.FlightKey == session.FlightKey);
 
             var travelers = request.Travelers
                 .Select((t, index) => new SupplierPaxDetailDto(
@@ -57,6 +45,7 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetSeatMap
                 cancellationToken);
 
             var segments = result.Segments
+                .Where(seg => !combined || seg.LegIndex == leg.Position)
                 .Select(seg => new SeatMapSegmentDto(
                     seg.LegIndex,
                     seg.Rows

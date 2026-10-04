@@ -8,7 +8,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string FlightNumber,
         DateTime DepartureDateTime,
         DateTime ArrivalDateTime,
-        string Duration);
+        string Duration,
+        // Which trip of a whole-trip offer this segment belongs to (Tripjack COMBO:
+        // 0 outbound, 1 return, ...). Always 0 for a single-trip offer.
+        int TripIndex = 0);
 
     // TotalAmount is per adult (the fare picker's "/adult" figure);
     // BookingTotalAmount covers every searched passenger. FareIdentifier,
@@ -79,7 +82,19 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string AirlineName,
         string FlightNumber,
         decimal TotalAmount,
-        string CurrencyCode);
+        string CurrencyCode,
+        // Set only for a whole-trip offer (e.g. a Tripjack international return):
+        // one entry per trip, so the booking is saved as DEL-DXB + DXB-DEL rather
+        // than one DEL-DEL leg.
+        IReadOnlyList<FlightOfferSessionTrip>? Trips = null);
+
+    public record FlightOfferSessionTrip(
+        string Origin,
+        string Destination,
+        DateTime TravelDate,
+        string AirlineCode,
+        string AirlineName,
+        string FlightNumber);
 
     public record SupplierLowFareRequestDto(string Origin, string Destination, int Month, int Year);
 

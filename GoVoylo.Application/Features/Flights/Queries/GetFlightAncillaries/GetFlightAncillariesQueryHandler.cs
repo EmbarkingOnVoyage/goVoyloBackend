@@ -22,34 +22,24 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetFlightAncillaries
         public async Task<FlightAncillariesResponseDto> Handle(
             GetFlightAncillariesQuery request, CancellationToken cancellationToken)
         {
-            var session = await _sessionStore.GetAsync(request.OfferId, cancellationToken);
-
-            if (session == null)
-            {
-                throw new NotFoundException("Flight offer not found or has expired. Please search again.");
-            }
-
-            var supplierClient = _supplierClientResolver.Resolve(session.SupplierCode);
-
             // Air_GetSSR's own docs specify using the Flight_Key from an Air_Reprice
             // response, not the one from Air_Search — reprice here rather than assume
             // the search-time key is still valid, same as RepriceFlightOfferQueryHandler.
-            var repriceResult = await supplierClient.RepriceAsync(
-                new SupplierRepriceRequestDto(session.SearchKey, session.FlightKey, session.FareId),
-                cancellationToken);
-
-            var updatedSession = session with
-            {
-                FlightKey = repriceResult.FlightKey,
-                FareId = repriceResult.FareId
-            };
-            await _sessionStore.UpdateAsync(request.OfferId, updatedSession, cancellationToken);
+            var legs = await ItineraryReprice.RepriceAsync(
+                _sessionStore, _supplierClientResolver, request.OfferId, request.ItineraryOfferIds, cancellationToken);
+            var leg = legs.Single(l => l.OfferId == request.OfferId);
+            var supplierClient = _supplierClientResolver.Resolve(leg.Session.SupplierCode);
 
             var result = await supplierClient.GetAncillariesAsync(
-                new SupplierAncillaryRequestDto(session.SearchKey, updatedSession.FlightKey),
+                new SupplierAncillaryRequestDto(leg.Session.SearchKey, leg.Session.FlightKey),
                 cancellationToken);
 
+            // A combined review (one Tripjack bookingId for every leg) returns every
+            // leg's options; this leg only wants its own.
+            var combined = legs.Count > 1 && legs.All(l => l.Session.FlightKey == leg.Session.FlightKey);
+
             var options = result.Options
+                .Where(o => !combined || o.LegIndex == leg.Position)
                 .Select(o => new AncillaryOptionDto(
                     o.SsrType,
                     o.SsrTypeName,

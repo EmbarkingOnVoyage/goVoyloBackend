@@ -283,21 +283,54 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                 // Flyshop tracks it as a single connecting-flight-style PNR, not as
                 // independently cancellable segments. Splitting per physical segment
                 // here would misrepresent that PNR as ending at its first stop.
-                for (var i = 0; i < legSummaries.Count && i < ticket.Legs.Count; i++)
+                //
+                // A whole-trip offer (one offer for a Tripjack international return or
+                // multi-city) is saved as one leg per trip instead — its own
+                // Origin/Destination would otherwise read DEL-DEL. Tripjack's ticketing
+                // legs are per segment, keyed "DEP-ARR", so each trip takes the next
+                // one departing from its origin.
+                if (legSummaries.Count == 1 && legSummaries[0].Trips is { Count: > 1 } trips)
                 {
-                    var summary = legSummaries[i];
-                    var legResult = ticket.Legs[i];
+                    var remainingLegs = ticket.Legs.ToList();
+                    for (var i = 0; i < trips.Count; i++)
+                    {
+                        var trip = trips[i];
+                        var legResult = remainingLegs.FirstOrDefault(l => l.FlightId.StartsWith($"{trip.Origin}-", StringComparison.Ordinal));
+                        if (legResult != null)
+                        {
+                            remainingLegs.Remove(legResult);
+                        }
 
-                    tripBooking.AddLeg(new TripBookingLeg(
-                        tripBooking.Id,
-                        i,
-                        summary.Origin,
-                        summary.Destination,
-                        summary.TravelDate,
-                        summary.AirlineCode,
-                        summary.AirlineName,
-                        summary.FlightNumber,
-                        legResult.FlightId));
+                        tripBooking.AddLeg(new TripBookingLeg(
+                            tripBooking.Id,
+                            i,
+                            trip.Origin,
+                            trip.Destination,
+                            trip.TravelDate,
+                            trip.AirlineCode,
+                            trip.AirlineName,
+                            trip.FlightNumber,
+                            legResult?.FlightId ?? string.Empty));
+                    }
+                }
+                else
+                {
+                    for (var i = 0; i < legSummaries.Count && i < ticket.Legs.Count; i++)
+                    {
+                        var summary = legSummaries[i];
+                        var legResult = ticket.Legs[i];
+
+                        tripBooking.AddLeg(new TripBookingLeg(
+                            tripBooking.Id,
+                            i,
+                            summary.Origin,
+                            summary.Destination,
+                            summary.TravelDate,
+                            summary.AirlineCode,
+                            summary.AirlineName,
+                            summary.FlightNumber,
+                            legResult.FlightId));
+                    }
                 }
 
                 await _tripBookingRepository.AddAsync(tripBooking, cancellationToken);
