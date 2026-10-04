@@ -62,18 +62,20 @@ namespace GoVoylo.Api.Controllers
             return Ok(result);
         }
 
+        // itinerary: every leg's offerId in order, for a trip booked as separate
+        // leg offers (domestic return / multi-city). Omit for a single offer.
         [HttpGet("offers/{offerId}/ancillaries")]
-        public async Task<IActionResult> GetAncillaries(Guid offerId)
+        public async Task<IActionResult> GetAncillaries(Guid offerId, [FromQuery] Guid[]? itinerary)
         {
-            var result = await _mediator.Send(new GetFlightAncillariesQuery(offerId));
+            var result = await _mediator.Send(new GetFlightAncillariesQuery(offerId, itinerary ?? Array.Empty<Guid>()));
             return Ok(result);
         }
 
         [HttpPost("offers/{offerId}/seatmap")]
         public async Task<IActionResult> GetSeatMap(
-            Guid offerId, [FromBody] IReadOnlyList<SeatMapTravelerRequestDto> travelers)
+            Guid offerId, [FromBody] IReadOnlyList<SeatMapTravelerRequestDto> travelers, [FromQuery] Guid[]? itinerary)
         {
-            var result = await _mediator.Send(new GetSeatMapQuery(offerId, travelers));
+            var result = await _mediator.Send(new GetSeatMapQuery(offerId, travelers, itinerary ?? Array.Empty<Guid>()));
             return Ok(result);
         }
 

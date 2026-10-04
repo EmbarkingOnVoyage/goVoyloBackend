@@ -8,6 +8,7 @@ using GoVoylo.Application.Features.Payments.Commands.CreateRazorpayOrder;
 using GoVoylo.Application.Features.Payments.Commands.VerifyRazorpayPayment;
 using GoVoylo.Application.Features.Payments.Dtos;
 using GoVoylo.Application.Features.Payments.Queries;
+using GoVoylo.Application.Interfaces;
 
 namespace GoVoylo.Api.Controllers;
 
@@ -17,11 +18,13 @@ namespace GoVoylo.Api.Controllers;
 public class PaymentsController : ControllerBase
 {
     private readonly ISender _mediator;
+    private readonly ICurrentUserService _currentUser;
 
     // inject ISender (MediatR interface) keeping our controller fully decoupled from business logic
-    public PaymentsController(ISender mediator)
+    public PaymentsController(ISender mediator, ICurrentUserService currentUser)
     {
         _mediator = mediator;
+        _currentUser = currentUser;
     }
 
     [HttpPost]
@@ -56,7 +59,7 @@ public class PaymentsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateRazorpayOrder([FromBody] CreateRazorpayOrderCommand command)
     {
-        var result = await _mediator.Send(command);
+        var result = await _mediator.Send(command with { UserId = _currentUser.UserId });
         return Ok(result);
     }
 

@@ -23,36 +23,27 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetFareRules
         {
             var legs = new List<LegFareRulesDto>();
 
-            foreach (var offerId in request.OfferIds)
+            if (request.OfferIds.Count == 0)
             {
-                var session = await _sessionStore.GetAsync(offerId, cancellationToken);
+                return new FareRulesResponseDto(legs);
+            }
 
-                if (session == null)
-                {
-                    throw new NotFoundException("Flight offer not found or has expired. Please search again.");
-                }
+            // Same reasoning as the other post-search Flyshop calls: reprice first
+            // for a fresh Flight_Key/Fare_Id rather than trust the search-time one.
+            // The request's offers are the trip's legs, so they're repriced together
+            // (see ItineraryReprice).
+            var repriced = await ItineraryReprice.RepriceAsync(
+                _sessionStore, _supplierClientResolver, request.OfferIds[0], request.OfferIds, cancellationToken);
 
-                var supplierClient = _supplierClientResolver.Resolve(session.SupplierCode);
-
-                // Same reasoning as the other post-search Flyshop calls: reprice first
-                // for a fresh Flight_Key/Fare_Id rather than trust the search-time one.
-                var repriceResult = await supplierClient.RepriceAsync(
-                    new SupplierRepriceRequestDto(session.SearchKey, session.FlightKey, session.FareId),
-                    cancellationToken);
-
-                var updatedSession = session with
-                {
-                    FlightKey = repriceResult.FlightKey,
-                    FareId = repriceResult.FareId
-                };
-                await _sessionStore.UpdateAsync(offerId, updatedSession, cancellationToken);
-
+            foreach (var leg in repriced)
+            {
+                var supplierClient = _supplierClientResolver.Resolve(leg.Session.SupplierCode);
                 var result = await supplierClient.GetFareRulesAsync(
-                    new SupplierFareRuleRequestDto(session.SearchKey, updatedSession.FlightKey, updatedSession.FareId),
+                    new SupplierFareRuleRequestDto(leg.Session.SearchKey, leg.Session.FlightKey, leg.Session.FareId),
                     cancellationToken);
 
                 legs.Add(new LegFareRulesDto(
-                    offerId,
+                    leg.OfferId,
                     result.Rules
                         .Select(r => new FareRuleDto(r.SegmentId, r.FareRuleName, r.FareRuleDesc))
                         .ToList()));

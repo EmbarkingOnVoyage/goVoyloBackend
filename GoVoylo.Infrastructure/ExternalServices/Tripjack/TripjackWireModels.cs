@@ -116,6 +116,11 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         [JsonPropertyName("stops")]
         public int Stops { get; set; }
 
+        // Segment number within its trip: restarts at 0 for each trip of a COMBO
+        // (whole-trip) result, e.g. a return's outbound and inbound both start at 0.
+        [JsonPropertyName("sN")]
+        public int SegmentNumber { get; set; }
+
         [JsonPropertyName("duration")]
         public int DurationMinutes { get; set; }
 
@@ -749,6 +754,13 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         [JsonPropertyName("itemInfos")]
         public TripjackItemInfosWire? ItemInfos { get; set; }
 
+        // The GST details registered at Book time, at the top level of Booking
+        // Details (not inside `order`) — confirmed live: a GST hold reads back the
+        // full gstNumber/registeredName/address, a booking without GST reads back
+        // only {"isez": false}. Resent at Confirm-Book (see BookTicketAsync).
+        [JsonPropertyName("gstInfo")]
+        public TripjackGstInfoWire? GstInfo { get; set; }
+
         [JsonPropertyName("status")]
         public TripjackStatusWire? Status { get; set; }
     }
@@ -769,22 +781,6 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         // bookingRefNo-only signature.
         [JsonPropertyName("deliveryInfo")]
         public TripjackDeliveryInfoWire? DeliveryInfo { get; set; }
-
-        // Confirmed live: unlike deliveryInfo, Booking Details does NOT echo gstInfo
-        // back — a Hold booked with a real gstInfo (verified against Tripjack's own
-        // GSTIN validator) still comes back with no gstInfo key in `order` at all.
-        // This field will therefore always be null in practice, so
-        // BookTicketAsync's resend at Confirm-Book time is currently a guaranteed
-        // no-op: whatever GST invoice was registered at Hold time either already
-        // stuck server-side without needing a resend, or is silently lost — which of
-        // the two is true is NOT verified (would need a live Confirm-Book run to
-        // check the final ticket's own GST invoice, which automated testing here
-        // can't trigger). If it turns out GST needs to survive to the final ticket
-        // and isn't retained server-side, this needs GstInfo persisted on our own
-        // TripBooking record instead and threaded into BookTicketAsync some other
-        // way — bookingRefNo alone can't recover it.
-        [JsonPropertyName("gstInfo")]
-        public TripjackGstInfoWire? GstInfo { get; set; }
 
         // SUCCESS (ticketed, paid) / ON_HOLD / CANCELLED / FAILED / PENDING (poll
         // again) / ABORTED / UNCONFIRMED (a hold that was released via unhold).

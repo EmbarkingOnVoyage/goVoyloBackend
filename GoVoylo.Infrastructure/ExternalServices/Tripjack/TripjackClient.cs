@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json;
+using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Common;
@@ -87,14 +88,20 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // call — there's no separate Flight_Key vs Fare_Id the way Flyshop has, so
             // FareId is ignored here and FlightKey (the priceId from search) is the
             // only thing Review needs.
+            var priceIds = new List<string> { request.FlightKey };
             if (IsBookingId(request.FlightKey))
             {
-                return ReuseReviewedBooking(request.FlightKey, request.FareId);
+                if (!IsBookingUsed(request.FlightKey))
+                {
+                    return ReuseReviewedBooking(request.FlightKey, request.FareId);
+                }
+
+                priceIds = OriginalPriceIds(request.FlightKey).ToList();
             }
 
             var wireRequest = new TripjackReviewRequestWire
             {
-                PriceIds = new List<string> { request.FlightKey }
+                PriceIds = priceIds
             };
 
             var wireResponse = await PostAsync<TripjackReviewRequestWire, TripjackReviewResponseWire>(
@@ -108,7 +115,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             var totalFare = wireResponse.TotalPriceInfo?.TotalFareDetail?.FareComponent.TotalFare ?? 0m;
 
             CacheSsrTripInfos(wireResponse.BookingId, wireResponse.TripInfos);
-            CacheReviewedFare(wireResponse.BookingId, totalFare, wireResponse.Conditions?.IsHoldAllowed ?? true);
+            CacheReviewedFare(wireResponse.BookingId, totalFare, wireResponse.Conditions?.IsHoldAllowed ?? true, priceIds);
 
             // Every later Tripjack call (Seat Map, Book, Confirm-Book, Fare Rules,
             // Booking Details) needs this bookingId, not the original priceId — it's
@@ -152,6 +159,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // Every leg of an already-reviewed itinerary carries the same combined
             // bookingId (see above) — reuse it rather than re-Reviewing. A mix of
             // reviewed and un-reviewed legs can't be combined into one Review call.
+            var priceIds = requests.Select(r => r.FlightKey).ToList();
             if (requests.Any(r => IsBookingId(r.FlightKey)))
             {
                 var bookingId = requests[0].FlightKey;
@@ -161,19 +169,26 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                         "Tripjack itinerary legs have diverged across review sessions. Please search again.");
                 }
 
-                var reused = ReuseReviewedBooking(bookingId, requests[0].FareId);
-                return requests
-                    .Select((r, index) => reused with
-                    {
-                        FareId = r.FareId,
-                        TotalAmount = index == 0 ? reused.TotalAmount : 0m
-                    })
-                    .ToList();
+                if (IsBookingUsed(bookingId))
+                {
+                    priceIds = OriginalPriceIds(bookingId).ToList();
+                }
+                else
+                {
+                    var reused = ReuseReviewedBooking(bookingId, requests[0].FareId);
+                    return requests
+                        .Select((r, index) => reused with
+                        {
+                            FareId = r.FareId,
+                            TotalAmount = index == 0 ? reused.TotalAmount : 0m
+                        })
+                        .ToList();
+                }
             }
 
             var wireRequest = new TripjackReviewRequestWire
             {
-                PriceIds = requests.Select(r => r.FlightKey).ToList()
+                PriceIds = priceIds
             };
 
             var wireResponse = await PostAsync<TripjackReviewRequestWire, TripjackReviewResponseWire>(
@@ -187,7 +202,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             var totalFare = wireResponse.TotalPriceInfo?.TotalFareDetail?.FareComponent.TotalFare ?? 0m;
 
             CacheSsrTripInfos(wireResponse.BookingId, wireResponse.TripInfos);
-            CacheReviewedFare(wireResponse.BookingId, totalFare, wireResponse.Conditions?.IsHoldAllowed ?? true);
+            CacheReviewedFare(wireResponse.BookingId, totalFare, wireResponse.Conditions?.IsHoldAllowed ?? true, priceIds);
 
             return requests
                 .Select((r, index) => new SupplierRepriceResultDto(
@@ -314,11 +329,31 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             flightKey.StartsWith("TJS", StringComparison.Ordinal);
 
         // HoldAllowed is Review's conditions.isBA — see CreateTempBookingAsync for
-        // what happens when it's false.
-        private sealed record ReviewedFare(decimal TotalFare, bool HoldAllowed);
+        // what happens when it's false. PriceIds are the search priceIds this
+        // bookingId was reviewed from, kept so a bookingId that's already been
+        // booked can be reviewed afresh (see IsBookingUsed).
+        private sealed record ReviewedFare(decimal TotalFare, bool HoldAllowed, IReadOnlyList<string> PriceIds);
 
-        private void CacheReviewedFare(string bookingId, decimal totalFare, bool holdAllowed) =>
-            _cache.Set(ReviewedFareCacheKey(bookingId), new ReviewedFare(totalFare, holdAllowed), SsrCacheTtl);
+        private void CacheReviewedFare(string bookingId, decimal totalFare, bool holdAllowed, IReadOnlyList<string> priceIds) =>
+            _cache.Set(ReviewedFareCacheKey(bookingId), new ReviewedFare(totalFare, holdAllowed, priceIds), SsrCacheTtl);
+
+        // A bookingId can be booked only once. After a hold is released (the
+        // customer cancelled checkout) the offer session still carries it, and
+        // booking it again fails with errCode 2714 "Duplicate booking Id" (confirmed
+        // live). Marked here once Book succeeds, so the next reprice reviews the
+        // original priceIds again for a fresh bookingId.
+        private void MarkBookingUsed(string bookingId) =>
+            _cache.Set(BookingUsedCacheKey(bookingId), true, SsrCacheTtl);
+
+        private bool IsBookingUsed(string bookingId) =>
+            _cache.TryGetValue(BookingUsedCacheKey(bookingId), out bool used) && used;
+
+        private IReadOnlyList<string> OriginalPriceIds(string bookingId) =>
+            _cache.TryGetValue(ReviewedFareCacheKey(bookingId), out ReviewedFare? reviewed) && reviewed != null
+                ? reviewed.PriceIds
+                : throw new InvalidOperationException("This Tripjack fare session has expired. Please search again.");
+
+        private static string BookingUsedCacheKey(string bookingId) => $"tripjack-booked:{bookingId}";
 
         private SupplierRepriceResultDto ReuseReviewedBooking(string bookingId, string fareId)
         {
@@ -438,6 +473,17 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // carried here as FlightKey — see RepriceAsync's own doc comment.
             var bookingId = request.Flights[0].FlightKey;
 
+            // A leg with SSRs skips repricing (see CreateBookingCommandHandler), so a
+            // used bookingId can still reach here. Its SSR keys carry that Review's
+            // segment ids, so it can't be silently re-reviewed; the customer has to
+            // pick the flight again.
+            if (IsBookingUsed(bookingId))
+            {
+                throw new BusinessRuleException(
+                    "fare_session_used",
+                    "This fare was already used for an earlier booking attempt. Please select the flight again.");
+            }
+
             // Defensive: every leg SHOULD carry the same bookingId by this point, but
             // CreateBookingCommandHandler skips repricing any leg that already has
             // SSRs selected (trusting its session's existing FlightKey — see that
@@ -521,6 +567,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 "oms/v1/air/book", wireRequest, cancellationToken);
 
             EnsureSuccess(wireResponse.Status, wireResponse.Errors, "Book");
+            MarkBookingUsed(bookingId);
 
             return new SupplierTempBookingResultDto(wireResponse.BookingId ?? bookingId);
         }
@@ -828,9 +875,10 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 },
                 TravellerInfo = travellerInfo,
                 PaymentInfos = new List<TripjackPaymentInfoWire> { new() { Amount = order.Amount } },
-                // Best-effort resend — see TripjackOrderWire.GstInfo's own doc
-                // comment on why this isn't confirmed to actually round-trip.
-                GstInfo = order.GstInfo
+                // Resent as registered at Book time (see
+                // TripjackBookingDetailsResponseWire.GstInfo); a booking without GST
+                // reads back an empty gstInfo, which isn't sent.
+                GstInfo = string.IsNullOrWhiteSpace(details.GstInfo?.GstNumber) ? null : details.GstInfo
             };
 
             var confirmResponse = await PostAsync<TripjackConfirmBookRequestWire, TripjackBookResponseWire>(
@@ -955,8 +1003,15 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // Review with errCode 1080 "All Segments Must be selected if Special
             // Return fare". Legs are picked independently, so each offer's primary
             // (bookable-by-default) fare prefers anything else, falling back to
-            // the first fare only when every fare is special-return.
-            var primaryPrice = tripOption.TotalPriceList.FirstOrDefault(p => p.FareIdentifier != "SPECIAL_RETURN")
+            // the first fare only when every fare is special-return. Among those it
+            // takes the cheapest for the searched passengers: Tripjack lists
+            // CORPORATE/FLEXI_PLUS ahead of PUBLISHED, so the first one made the
+            // result card, sorting and "Cheapest" label use the dearest fare while
+            // the app then booked the cheapest one.
+            var primaryPrice = tripOption.TotalPriceList
+                    .Where(p => p.FareIdentifier != "SPECIAL_RETURN")
+                    .OrderBy(p => TotalForPassengers(p, request))
+                    .FirstOrDefault()
                 ?? tripOption.TotalPriceList.FirstOrDefault();
             var adultFare = GetAdultFareDetail(primaryPrice);
 
@@ -989,7 +1044,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 firstSegment?.FlightDesignator.AirlineInfo.Name ?? string.Empty,
                 adultFare?.RefundableType != 0,
                 firstSegment?.FlightDesignator.AirlineInfo.IsLcc ?? false,
-                tripOption.SegmentInfos.Select(MapSegment).ToList(),
+                MapSegments(tripOption.SegmentInfos),
                 TotalForPassengers(primaryPrice, request),
                 "INR",
                 adultFare?.SeatsRemaining ?? 0,
@@ -1020,7 +1075,24 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         private static TripjackFareDetailWire? GetAdultFareDetail(TripjackPriceWire? price) =>
             price?.FareDetailsByPaxType.TryGetValue("ADULT", out var detail) == true ? detail : null;
 
-        private static SupplierFlightSegmentDto MapSegment(TripjackSegmentInfoWire segment) => new(
+        // A new trip starts wherever sN goes back to 0 (see TripjackSegmentInfoWire.SegmentNumber).
+        private static List<SupplierFlightSegmentDto> MapSegments(IEnumerable<TripjackSegmentInfoWire> segments)
+        {
+            var tripIndex = -1;
+            return segments
+                .Select(segment =>
+                {
+                    if (segment.SegmentNumber == 0 || tripIndex < 0)
+                    {
+                        tripIndex++;
+                    }
+
+                    return MapSegment(segment, tripIndex);
+                })
+                .ToList();
+        }
+
+        private static SupplierFlightSegmentDto MapSegment(TripjackSegmentInfoWire segment, int tripIndex) => new(
             segment.Departure.Code,
             segment.Arrival.Code,
             segment.FlightDesignator.AirlineInfo.Code,
@@ -1028,7 +1100,8 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             segment.FlightDesignator.FlightNumber,
             ParseDateTime(segment.DepartureDateTime),
             ParseDateTime(segment.ArrivalDateTime),
-            segment.DurationMinutes.ToString(CultureInfo.InvariantCulture));
+            segment.DurationMinutes.ToString(CultureInfo.InvariantCulture),
+            tripIndex);
 
         private Task<TripjackBookingDetailsResponseWire> FetchBookingDetailsAsync(
             string bookingRefNo, CancellationToken cancellationToken) =>

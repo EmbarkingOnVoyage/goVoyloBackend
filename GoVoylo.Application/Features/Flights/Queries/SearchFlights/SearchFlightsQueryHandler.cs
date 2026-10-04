@@ -92,7 +92,8 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                         flight.AirlineName,
                         firstSegment?.FlightNumber ?? string.Empty,
                         flight.TotalAmount,
-                        flight.CurrencyCode);
+                        flight.CurrencyCode,
+                        MapTrips(flight.Segments));
 
                     var offerId = await _sessionStore.SaveAsync(session, cancellationToken);
 
@@ -111,7 +112,8 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                                 s.FlightNumber,
                                 s.DepartureDateTime,
                                 s.ArrivalDateTime,
-                                s.Duration))
+                                s.Duration,
+                                s.TripIndex))
                             .ToList(),
                         flight.TotalAmount,
                         flight.CurrencyCode,
@@ -134,6 +136,29 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
             var sortedOffers = offers.OrderBy(o => o.TotalAmount).ToList();
 
             return new FlightSearchResponseDto(sortedOffers);
+        }
+
+        // One entry per trip of a whole-trip offer (see FlightOfferSession.Trips);
+        // null for an ordinary single-trip offer.
+        private static IReadOnlyList<FlightOfferSessionTrip>? MapTrips(IReadOnlyList<SupplierFlightSegmentDto> segments)
+        {
+            var trips = segments
+                .GroupBy(s => s.TripIndex)
+                .OrderBy(g => g.Key)
+                .Select(g =>
+                {
+                    var first = g.First();
+                    return new FlightOfferSessionTrip(
+                        first.Origin,
+                        g.Last().Destination,
+                        first.DepartureDateTime,
+                        first.AirlineCode,
+                        first.AirlineName,
+                        first.FlightNumber);
+                })
+                .ToList();
+
+            return trips.Count > 1 ? trips : null;
         }
     }
 }
