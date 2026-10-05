@@ -80,7 +80,12 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         bool SegmentWise,
         decimal TotalAmount,
         string CurrencyCode,
-        IReadOnlyList<int> ApplicablePaxTypes);
+        IReadOnlyList<int> ApplicablePaxTypes,
+        // Seats only — see SupplierAncillaryOptionDto.
+        int? SeatRow = null,
+        int? SeatColumn = null,
+        bool IsExtraLegroom = false,
+        bool IsExitRow = false);
 
     public record FlightAncillariesResponseDto(IReadOnlyList<AncillaryOptionDto> Options);
 
@@ -92,7 +97,11 @@ namespace GoVoylo.Application.Features.Flights.Dtos
 
     public record SeatMapRowDto(IReadOnlyList<AncillaryOptionDto> Seats);
 
-    public record SeatMapSegmentDto(int LegIndex, IReadOnlyList<SeatMapRowDto> Rows);
+    public record SeatMapSegmentDto(
+        int LegIndex,
+        IReadOnlyList<SeatMapRowDto> Rows,
+        string? Origin = null,
+        string? Destination = null);
 
     public record SeatMapResponseDto(IReadOnlyList<SeatMapSegmentDto> Segments);
 

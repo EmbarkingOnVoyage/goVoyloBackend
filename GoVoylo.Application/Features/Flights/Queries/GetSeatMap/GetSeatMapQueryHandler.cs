@@ -62,9 +62,15 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetSeatMap
                                 o.SegmentWise,
                                 o.TotalAmount,
                                 o.CurrencyCode,
-                                o.ApplicablePaxTypes))
+                                o.ApplicablePaxTypes,
+                                o.SeatRow,
+                                o.SeatColumn,
+                                o.IsExtraLegroom,
+                                o.IsExitRow))
                             .ToList()))
-                        .ToList()))
+                        .ToList(),
+                    seg.Origin,
+                    seg.Destination))
                 .ToList();
 
             return new SeatMapResponseDto(segments);
