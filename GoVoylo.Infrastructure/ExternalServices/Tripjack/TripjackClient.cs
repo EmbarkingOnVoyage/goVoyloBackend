@@ -394,7 +394,8 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             var wireResponse = await PostAsync<TripjackSeatMapRequestWire, TripjackSeatMapResponseWire>(
                 "fms/v1/seat",
                 new TripjackSeatMapRequestWire { BookingId = request.FlightKey },
-                cancellationToken);
+                cancellationToken,
+                readErrorBody: true);
 
             // Some fares don't allow seat selection at all (e.g. OFFER_FARE_WITH_PNR) —
             // errCode 1056 "Seat Selection Not Applicable for this Itinerary",
@@ -1320,11 +1321,17 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 ? parsed
                 : default;
 
+        // readErrorBody: Tripjack sends its errors (status + errCode) with HTTP 400;
+        // a caller that handles specific errCodes itself reads that body instead
+        // of the HTTP status failing first.
         private async Task<TResponse> PostAsync<TRequest, TResponse>(
-            string method, TRequest body, CancellationToken cancellationToken)
+            string method, TRequest body, CancellationToken cancellationToken, bool readErrorBody = false)
         {
             using var httpResponse = await _httpClient.PostAsJsonAsync(method, body, cancellationToken);
-            httpResponse.EnsureSuccessStatusCode();
+            if (!(readErrorBody && httpResponse.StatusCode == System.Net.HttpStatusCode.BadRequest))
+            {
+                httpResponse.EnsureSuccessStatusCode();
+            }
 
             var result = await httpResponse.Content.ReadFromJsonAsync<TResponse>(cancellationToken: cancellationToken);
 
