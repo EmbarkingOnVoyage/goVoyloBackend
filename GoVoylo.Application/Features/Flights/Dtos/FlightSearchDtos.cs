@@ -176,7 +176,18 @@ namespace GoVoylo.Application.Features.Flights.Dtos
 
     public record FareRuleDto(string SegmentId, string FareRuleName, string FareRuleDesc);
 
-    public record LegFareRulesDto(Guid OfferId, IReadOnlyList<FareRuleDto> Rules);
+    // See SupplierFareRulePolicyDto. Route is the supplier's own "DEL-BOM" key — a
+    // leg can carry several (connections, or a combined multi-city fare).
+    public record FareRulePolicyDto(
+        string Route,
+        string Type,
+        int? StartHours,
+        int? EndHours,
+        decimal? AirlineFee,
+        decimal? TransactionFee,
+        string? Info);
+
+    public record LegFareRulesDto(Guid OfferId, IReadOnlyList<FareRuleDto> Rules, IReadOnlyList<FareRulePolicyDto> Policies);
 
     public record FareRulesResponseDto(IReadOnlyList<LegFareRulesDto> Legs);
 

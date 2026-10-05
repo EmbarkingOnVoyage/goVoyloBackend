@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Net.Http.Json;
 using System.Text.Json;
 using GoVoylo.Application.Common.Exceptions;
@@ -1109,7 +1110,43 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                         FormatFareRulePolicies(policyEntry.Value))))
                 .ToList();
 
-            return new SupplierFareRuleResultDto(rules);
+            var policies = (wireResponse.FareRule ?? new Dictionary<string, TripjackRouteFareRuleWire>())
+                .SelectMany(routeEntry => (routeEntry.Value.TimedFareRule ?? new Dictionary<string, List<TripjackFareRulePolicyWire>>())
+                    .Where(policyEntry => FareRulePolicyType(policyEntry.Key) != null)
+                    .SelectMany(policyEntry => policyEntry.Value.Select(p => new SupplierFareRulePolicyDto(
+                        routeEntry.Key,
+                        FareRulePolicyType(policyEntry.Key)!,
+                        ParseHours(p.StartTimeHours),
+                        ParseHours(p.EndTimeHours),
+                        p.Amount,
+                        p.AdditionalFee,
+                        CleanPolicyInfo(p.PolicyInfo)))))
+                .ToList();
+
+            return new SupplierFareRuleResultDto(rules, policies);
+        }
+
+        private static string? FareRulePolicyType(string key) => key.ToUpperInvariant() switch
+        {
+            "CANCELLATION" => "Cancellation",
+            "DATECHANGE" => "DateChange",
+            "NO_SHOW" => "NoShow",
+            _ => null
+        };
+
+        private static int? ParseHours(string? value) =>
+            int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var hours) ? hours : null;
+
+        // "__nls__" is Tripjack's line-break marker inside policyInfo.
+        private static string? CleanPolicyInfo(string? info)
+        {
+            if (string.IsNullOrWhiteSpace(info))
+            {
+                return null;
+            }
+
+            var cleaned = Regex.Replace(info.Replace("__nls__", "\n"), @"[ \t]+", " ").Trim();
+            return cleaned.Length == 0 ? null : cleaned;
         }
 
         // Tripjack returns structured time-banded policy data (amount/additionalFee/
