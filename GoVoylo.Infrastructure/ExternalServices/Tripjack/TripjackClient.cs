@@ -396,6 +396,15 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 new TripjackSeatMapRequestWire { BookingId = request.FlightKey },
                 cancellationToken);
 
+            // Some fares don't allow seat selection at all (e.g. OFFER_FARE_WITH_PNR) —
+            // errCode 1056 "Seat Selection Not Applicable for this Itinerary",
+            // confirmed live. That's "no seats to choose", not a failure.
+            if (wireResponse.Status?.Success != true
+                && wireResponse.Errors?.Any(e => e.ErrorCode == "1056") == true)
+            {
+                return new SupplierSeatMapResultDto(Array.Empty<SupplierSeatSegmentDto>());
+            }
+
             EnsureSuccess(wireResponse.Status, wireResponse.Errors, "Seat Map");
 
             // Seat Map's own response has no leg/trip grouping of its own — just a
