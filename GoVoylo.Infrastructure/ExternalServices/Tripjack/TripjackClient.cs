@@ -408,6 +408,11 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 .SelectMany((trip, legIndex) => trip.SegmentInfos.Select(seg => (seg.Id, legIndex)))
                 .Where(x => x.Id != null)
                 .ToDictionary(x => x.Id!, x => x.legIndex);
+            var segmentById = (tripInfos ?? new List<TripjackTripOptionWire>())
+                .SelectMany(trip => trip.SegmentInfos)
+                .Where(seg => seg.Id != null)
+                .GroupBy(seg => seg.Id!)
+                .ToDictionary(g => g.Key, g => g.First());
 
             var segments = (wireResponse.TripSeatMap?.TripSeat ?? new Dictionary<string, TripjackSegmentSeatMapWire>())
                 .Select(kvp =>
@@ -426,7 +431,9 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                                 .ToList()))
                         .ToList();
 
-                    return new SupplierSeatSegmentDto(legIndex, rows);
+                    var segment = segmentById.GetValueOrDefault(kvp.Key);
+                    return new SupplierSeatSegmentDto(
+                        legIndex, rows, segment?.Departure.Code, segment?.Arrival.Code);
                 })
                 .ToList();
 
@@ -458,7 +465,11 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             SegmentWise: true,
             seat.Amount,
             "INR",
-            Array.Empty<int>());
+            Array.Empty<int>(),
+            seat.SeatPosition.Row,
+            seat.SeatPosition.Column,
+            seat.IsLegroom,
+            seat.IsExitRow);
 
         public async Task<SupplierTempBookingResultDto> CreateTempBookingAsync(
             SupplierTempBookingRequestDto request, CancellationToken cancellationToken)

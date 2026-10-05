@@ -127,7 +127,15 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         bool SegmentWise,
         decimal TotalAmount,
         string CurrencyCode,
-        IReadOnlyList<int> ApplicablePaxTypes);
+        IReadOnlyList<int> ApplicablePaxTypes,
+        // Seats only, when the supplier reports them (Tripjack does; Flyshop sends
+        // its rows pre-laid-out with aisle placeholders instead): the seat's
+        // row/column on the cabin grid — a skipped column is an aisle — and
+        // extra-legroom / emergency-exit-row flags.
+        int? SeatRow = null,
+        int? SeatColumn = null,
+        bool IsExtraLegroom = false,
+        bool IsExitRow = false);
 
     public record SupplierAncillaryResultDto(IReadOnlyList<SupplierAncillaryOptionDto> Options);
 
@@ -141,7 +149,13 @@ namespace GoVoylo.Application.Features.Flights.Dtos
 
     public record SupplierSeatRowDto(IReadOnlyList<SupplierAncillaryOptionDto> Seats);
 
-    public record SupplierSeatSegmentDto(int LegIndex, IReadOnlyList<SupplierSeatRowDto> Rows);
+    // Origin/Destination: the flight segment this map is for (a connecting leg
+    // has one map per segment), when the supplier lets us tell.
+    public record SupplierSeatSegmentDto(
+        int LegIndex,
+        IReadOnlyList<SupplierSeatRowDto> Rows,
+        string? Origin = null,
+        string? Destination = null);
 
     public record SupplierSeatMapResultDto(IReadOnlyList<SupplierSeatSegmentDto> Segments);
 
