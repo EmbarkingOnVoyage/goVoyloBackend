@@ -237,6 +237,59 @@ namespace GoVoylo.Application.Features.Flights.Dtos
 
     public record SupplierCancelSegmentDto(string FlightId, string PassengerId, string SegmentId);
 
+    // ===== Post-booking: full booking details and cancellation quote (My Trips) =====
+
+    // TripIndex: which trip of the booking the flight belongs to (0 outbound, 1 return, ...).
+    public record SupplierBookingSegmentDto(
+        int TripIndex,
+        string Origin,
+        string Destination,
+        string AirlineCode,
+        string AirlineName,
+        string FlightNumber,
+        DateTime DepartureDateTime,
+        DateTime ArrivalDateTime,
+        int DurationMinutes);
+
+    // PaxType: "Adult" / "Child" / "Infant".
+    public record SupplierBookingPassengerDto(string Title, string FirstName, string LastName, string PaxType);
+
+    // A supplier's own cancellation rule for one passenger type (Flyshop's
+    // Air_Reprint CancellationCharges) — used to estimate a refund when the supplier
+    // can't quote one before cancelling.
+    public record SupplierCancellationRuleDto(string PaxType, decimal Value, bool IsPercentage);
+
+    // Fare amounts are for the whole booking (every passenger), as the supplier
+    // reports them; null when the supplier doesn't break them down.
+    public record SupplierBookingDetailsDto(
+        IReadOnlyList<SupplierBookingSegmentDto> Segments,
+        IReadOnlyList<SupplierBookingPassengerDto> Passengers,
+        decimal? BaseFare,
+        decimal? TaxesAndFees,
+        decimal? TotalFare,
+        string CurrencyCode,
+        IReadOnlyList<SupplierCancellationRuleDto> CancellationRules);
+
+    // Origin/Destination/DepartureDate narrow the quote to one trip of the booking
+    // (leg-only cancellation); all null means the whole booking.
+    public record SupplierCancellationQuoteRequestDto(
+        string BookingRefNo,
+        string? AirlinePnr,
+        string? Origin,
+        string? Destination,
+        DateTime? DepartureDate);
+
+    // IsEstimate: the supplier couldn't quote before cancelling, so the charges are
+    // estimated from its fare rules and the final amount is confirmed afterwards.
+    public record SupplierCancellationQuoteDto(
+        decimal TotalFare,
+        decimal CancellationCharges,
+        decimal RefundAmount,
+        bool IsEstimate);
+
+    // RefundAmount: what the supplier will refund, when it reports it; null if unknown.
+    public record SupplierCancellationResultDto(decimal? RefundAmount);
+
     // CancellationType: 0-Normal Cancel (online, auto-cancelled with the airline's
     // applicable penalty) / 1-Full Refund (offline, only if a full refund applies) /
     // 2-No Show (offline). CancelCode is one of a fixed set of reason codes specific

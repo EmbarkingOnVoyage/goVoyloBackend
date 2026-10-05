@@ -44,6 +44,10 @@ namespace GoVoylo.Domain.Entities
 
         public DateTime? CancelledAt { get; private set; }
 
+        // What the supplier said it will refund on cancellation (null if it didn't
+        // say, or the booking isn't cancelled). Shown on the Cancelled trip card.
+        public decimal? RefundAmount { get; private set; }
+
         // Only set when LocalStatus is Cancelled (via Air_TicketCancellation) — a
         // Released hold went through Air_ReleasePNR instead, which has no
         // CancellationType/CancelCode concept of its own.
@@ -158,6 +162,14 @@ namespace GoVoylo.Domain.Entities
             if (_legs.All(l => l.IsCancelled))
             {
                 MarkCancelled(cancellationType, cancelCode);
+            }
+        }
+
+        public void SetRefundAmount(decimal? refundAmount)
+        {
+            if (refundAmount.HasValue)
+            {
+                RefundAmount = (RefundAmount ?? 0m) + refundAmount.Value;
             }
         }
 

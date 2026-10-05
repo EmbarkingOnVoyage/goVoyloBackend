@@ -138,7 +138,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
                         .Select(paxId => new SupplierCancelSegmentDto(leg.FlightId, paxId, DirectFlightSegmentId)))
                     .ToList();
 
-                await supplierClient.CancelBookingAsync(
+                var result = await supplierClient.CancelBookingAsync(
                     new SupplierCancellationRequestDto(
                         booking.BookingRefNo,
                         airlinePnr,
@@ -156,11 +156,13 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
                 {
                     booking.MarkCancelled(cancellationType, cancelCode);
                 }
+
+                booking.SetRefundAmount(result.RefundAmount);
             }
 
             await _tripBookingRepository.UpdateAsync(booking, cancellationToken);
 
-            return new CancelTripBookingResponseDto(true, booking.LocalStatus);
+            return new CancelTripBookingResponseDto(true, booking.LocalStatus, booking.RefundAmount);
         }
     }
 }

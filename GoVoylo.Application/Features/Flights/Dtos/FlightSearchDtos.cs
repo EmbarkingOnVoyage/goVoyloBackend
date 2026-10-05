@@ -220,9 +220,62 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         // Only set once LocalStatus is Cancelled — see TripBooking.MarkCancelled.
         int? CancellationType,
         string? CancelCode,
-        IReadOnlyList<TripBookingLegDto> Legs);
+        IReadOnlyList<TripBookingLegDto> Legs,
+        DateTime? CancelledAt,
+        // What the supplier said it will refund once cancelled; null if it didn't say.
+        decimal? RefundAmount);
 
-    public record CancelTripBookingResponseDto(bool Success, string LocalStatus);
+    public record TripBookingSegmentDto(
+        int LegIndex,
+        string Origin,
+        string Destination,
+        string AirlineCode,
+        string AirlineName,
+        string FlightNumber,
+        DateTime DepartureDateTime,
+        DateTime ArrivalDateTime,
+        int DurationMinutes);
+
+    // PaxType: "Adult" / "Child" / "Infant".
+    public record TripBookingPassengerDto(string Title, string FirstName, string LastName, string PaxType);
+
+    // My Trips "Flight Details". Segments/Passengers/fare split are read back from the
+    // supplier; when that call fails, SupplierDetailsAvailable is false, the lists are
+    // empty and the screen falls back to the booking's own legs and passenger names.
+    public record TripBookingDetailsDto(
+        TripBookingDto Booking,
+        bool SupplierDetailsAvailable,
+        IReadOnlyList<TripBookingSegmentDto> Segments,
+        IReadOnlyList<TripBookingPassengerDto> Passengers,
+        decimal? BaseFare,
+        decimal? TaxesAndFees,
+        decimal TotalPaid);
+
+    public static class CancellationQuoteVariants
+    {
+        // No airline fee — everything paid comes back.
+        public const string FreeCancellation = "FreeCancellation";
+        // Only taxes come back (the base fare is forfeited).
+        public const string NonRefundable = "NonRefundable";
+        public const string PartialRefund = "PartialRefund";
+        // The supplier can't quote before cancelling, so the fee is estimated from
+        // its fare rules; the final refund is confirmed after cancelling.
+        public const string Estimated = "Estimated";
+    }
+
+    // "Cancel your booking?" modal. BaseFare/TaxesAndFees are null for a leg-only
+    // quote or when the supplier doesn't split them.
+    public record CancellationQuoteDto(
+        decimal AmountPaid,
+        decimal CancellationCharges,
+        decimal RefundAmount,
+        decimal? BaseFare,
+        decimal? TaxesAndFees,
+        bool IsEstimate,
+        string Variant,
+        string CurrencyCode);
+
+    public record CancelTripBookingResponseDto(bool Success, string LocalStatus, decimal? RefundAmount = null);
 
     // All optional — an empty/omitted body keeps the handler's own customer-initiated
     // default (CancellationType 0 / CancelCode "015") and cancels every leg. See
