@@ -47,6 +47,10 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetFareRules
                     leg.OfferId,
                     result.Rules
                         .Select(r => new FareRuleDto(r.SegmentId, r.FareRuleName, r.FareRuleDesc))
+                        .ToList(),
+                    (result.Policies ?? Array.Empty<SupplierFareRulePolicyDto>())
+                        .Select(p => new FareRulePolicyDto(
+                            p.Route, p.Type, p.StartHours, p.EndHours, p.AirlineFee, p.TransactionFee, p.Info))
                         .ToList()));
             }
 

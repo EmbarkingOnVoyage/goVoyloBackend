@@ -233,7 +233,24 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     // XHTML document (often just one boilerplate paragraph), not structured data.
     public record SupplierFareRuleDto(string SegmentId, string FareRuleName, string FareRuleDesc);
 
-    public record SupplierFareRuleResultDto(IReadOnlyList<SupplierFareRuleDto> Rules);
+    // One time band of a structured fare rule (Tripjack): applies from StartHours
+    // to EndHours before departure. Type: "Cancellation" / "DateChange" / "NoShow".
+    // AirlineFee is per passenger; null when the airline sets it at the time
+    // (shown as "Airline policy"). TransactionFee is the supplier's own fee on top.
+    public record SupplierFareRulePolicyDto(
+        string Route,
+        string Type,
+        int? StartHours,
+        int? EndHours,
+        decimal? AirlineFee,
+        decimal? TransactionFee,
+        string? Info);
+
+    // Policies: structured bands when the supplier gives them (Tripjack); empty
+    // for free-text-only suppliers (Flyshop), whose Rules carry the text.
+    public record SupplierFareRuleResultDto(
+        IReadOnlyList<SupplierFareRuleDto> Rules,
+        IReadOnlyList<SupplierFareRulePolicyDto>? Policies = null);
 
     public record SupplierCancelSegmentDto(string FlightId, string PassengerId, string SegmentId);
 
