@@ -4,6 +4,7 @@ using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Entities;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
 {
@@ -32,13 +33,16 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
 
         private readonly ITripBookingRepository _tripBookingRepository;
         private readonly IFlightSupplierClientResolver _supplierClientResolver;
+        private readonly ILogger<CancelTripBookingCommandHandler> _logger;
 
         public CancelTripBookingCommandHandler(
             ITripBookingRepository tripBookingRepository,
-            IFlightSupplierClientResolver supplierClientResolver)
+            IFlightSupplierClientResolver supplierClientResolver,
+            ILogger<CancelTripBookingCommandHandler> logger)
         {
             _tripBookingRepository = tripBookingRepository;
             _supplierClientResolver = supplierClientResolver;
+            _logger = logger;
         }
 
         public async Task<CancelTripBookingResponseDto> Handle(
@@ -138,15 +142,26 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
                         .Select(paxId => new SupplierCancelSegmentDto(leg.FlightId, paxId, DirectFlightSegmentId)))
                     .ToList();
 
-                var result = await supplierClient.CancelBookingAsync(
-                    new SupplierCancellationRequestDto(
-                        booking.BookingRefNo,
-                        airlinePnr,
-                        cancellationType,
-                        cancelCode,
-                        "Cancelled by customer via GoVoylo app",
-                        segments),
-                    cancellationToken);
+                SupplierCancellationResultDto result;
+                try
+                {
+                    result = await supplierClient.CancelBookingAsync(
+                        new SupplierCancellationRequestDto(
+                            booking.BookingRefNo,
+                            airlinePnr,
+                            cancellationType,
+                            cancelCode,
+                            "Cancelled by customer via GoVoylo app",
+                            segments),
+                        cancellationToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException and not AppException)
+                {
+                    _logger.LogWarning(ex, "Supplier cancellation failed for trip booking {TripBookingId}.", booking.Id);
+                    throw new BusinessRuleException(
+                        "cancellation_failed",
+                        "The airline couldn't cancel this booking online. Please contact support to cancel it.");
+                }
 
                 if (request.LegIndex.HasValue)
                 {

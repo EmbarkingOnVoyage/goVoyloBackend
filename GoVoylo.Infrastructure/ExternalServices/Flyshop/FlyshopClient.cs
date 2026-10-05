@@ -497,6 +497,12 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             var baseFare = ForAllPax(d => d.BasicAmount);
             var total = ForAllPax(d => d.TotalAmount);
 
+            // Seen on UAT: a 1 adult + 1 child booking whose Fares carried only the
+            // adult entry. The split would then cover only some of the passengers,
+            // so it's left out rather than shown wrong.
+            var pricedPaxTypes = fareDetails.Select(d => d.PaxType).ToHashSet();
+            var splitIsComplete = fareDetails.Count > 0 && paxCounts.Keys.All(pricedPaxTypes.Contains);
+
             var rules = fareDetails
                 .SelectMany(d => (d.CancellationCharges ?? new List<ReprintCancellationChargeWire>())
                     .Where(c => decimal.TryParse(c.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out _))
@@ -513,9 +519,9 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                         p.Title ?? string.Empty, p.FirstName ?? string.Empty, p.LastName ?? string.Empty,
                         FlyshopPaxTypeLabel(p.PaxType)))
                     .ToList(),
-                fareDetails.Count == 0 ? null : baseFare,
-                fareDetails.Count == 0 ? null : total - baseFare,
-                fareDetails.Count == 0 ? null : total,
+                splitIsComplete ? baseFare : null,
+                splitIsComplete ? total - baseFare : null,
+                splitIsComplete ? total : null,
                 "INR",
                 rules);
         }
@@ -540,10 +546,27 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 .Where(f => request.Origin == null || f.Segments.Any(s => AirportCode(s.Origin) == request.Origin))
                 .ToList();
 
-            decimal total = 0m, fees = 0m;
-            foreach (var detail in flights.SelectMany(f => f.Fares.Take(1)).SelectMany(f => f.FareDetails))
+            // A passenger type with no fare entry of its own (see GetBookingDetailsAsync)
+            // is estimated at the adult entry's amounts, so every passenger is counted.
+            var estimateDetails = new List<(ReprintFareDetailWire Detail, int Count)>();
+            foreach (var fare in flights.SelectMany(f => f.Fares.Take(1)))
             {
-                var count = paxCounts.GetValueOrDefault(detail.PaxType, 0);
+                var details = fare.FareDetails;
+                if (details.Count == 0)
+                {
+                    continue;
+                }
+
+                var proxy = details.FirstOrDefault(d => d.PaxType == 0) ?? details[0];
+                foreach (var (paxType, count) in paxCounts)
+                {
+                    estimateDetails.Add((details.FirstOrDefault(d => d.PaxType == paxType) ?? proxy, count));
+                }
+            }
+
+            decimal total = 0m, fees = 0m;
+            foreach (var (detail, count) in estimateDetails)
+            {
                 var charge = (detail.CancellationCharges ?? new List<ReprintCancellationChargeWire>())
                     .Where(c => c.PassengerType == detail.PaxType
                         && decimal.TryParse(c.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out _))
