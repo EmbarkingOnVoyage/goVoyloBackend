@@ -861,6 +861,163 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
     // real ticket. Confirmed against live UAT: Air_TicketCancellation rejects an
     // un-ticketed hold with Err007 "Please check your RefNo Status" — this is the real
     // release path for holds specifically.
+    // ===== Air_Reprint — full details of a booking (Postman collection "09 - Air_Reprint") =====
+    public class AirReprintRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Booking_RefNo")]
+        public string BookingRefNo { get; set; } = string.Empty;
+
+        [JsonPropertyName("Airline_PNR")]
+        public string AirlinePnr { get; set; } = string.Empty;
+    }
+
+    public class AirReprintResponseWire
+    {
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+
+        [JsonPropertyName("AirPNRDetails")]
+        public List<ReprintPnrWire> AirPnrDetails { get; set; } = new();
+    }
+
+    public class ReprintPnrWire
+    {
+        [JsonPropertyName("Flights")]
+        public List<ReprintFlightWire> Flights { get; set; } = new();
+
+        [JsonPropertyName("PAXTicketDetails")]
+        public List<ReprintPaxWire> PaxTicketDetails { get; set; } = new();
+    }
+
+    public class ReprintFlightWire
+    {
+        [JsonPropertyName("Fares")]
+        public List<ReprintFareWire> Fares { get; set; } = new();
+
+        [JsonPropertyName("Segments")]
+        public List<ReprintSegmentWire> Segments { get; set; } = new();
+    }
+
+    public class ReprintFareWire
+    {
+        [JsonPropertyName("FareDetails")]
+        public List<ReprintFareDetailWire> FareDetails { get; set; } = new();
+    }
+
+    // Amounts are per passenger of PAX_Type (0-ADT / 1-CHD / 2-INF), same as Air_Search.
+    public class ReprintFareDetailWire
+    {
+        [JsonPropertyName("PAX_Type")]
+        public int PaxType { get; set; }
+
+        [JsonPropertyName("Basic_Amount")]
+        public decimal BasicAmount { get; set; }
+
+        [JsonPropertyName("Total_Amount")]
+        public decimal TotalAmount { get; set; }
+
+        [JsonPropertyName("CancellationCharges")]
+        public List<ReprintCancellationChargeWire>? CancellationCharges { get; set; }
+    }
+
+    // ValueType 0 = fixed amount, 1 = percentage (the collection's own samples:
+    // "3500.00" / 0 and "100" / 1). The duration window fields aren't documented,
+    // so they aren't relied on.
+    public class ReprintCancellationChargeWire
+    {
+        [JsonPropertyName("PassengerType")]
+        public int PassengerType { get; set; }
+
+        [JsonPropertyName("Value")]
+        public string? Value { get; set; }
+
+        [JsonPropertyName("ValueType")]
+        public int ValueType { get; set; }
+    }
+
+    public class ReprintSegmentWire
+    {
+        [JsonPropertyName("Airline_Code")]
+        public string? AirlineCode { get; set; }
+
+        [JsonPropertyName("Airline_Name")]
+        public string? AirlineName { get; set; }
+
+        [JsonPropertyName("Flight_Number")]
+        public string? FlightNumber { get; set; }
+
+        // e.g. "MUMBAI (BOM) " — the code is read from the brackets.
+        [JsonPropertyName("Origin")]
+        public string? Origin { get; set; }
+
+        [JsonPropertyName("Destination")]
+        public string? Destination { get; set; }
+
+        // MM/dd/yyyy HH:mm:ss
+        [JsonPropertyName("Departure_DateTime")]
+        public string? DepartureDateTime { get; set; }
+
+        [JsonPropertyName("Arrival_DateTime")]
+        public string? ArrivalDateTime { get; set; }
+
+        // "hh:mm"
+        [JsonPropertyName("Duration")]
+        public string? Duration { get; set; }
+    }
+
+    public class ReprintPaxWire
+    {
+        [JsonPropertyName("Title")]
+        public string? Title { get; set; }
+
+        [JsonPropertyName("First_Name")]
+        public string? FirstName { get; set; }
+
+        [JsonPropertyName("Last_Name")]
+        public string? LastName { get; set; }
+
+        [JsonPropertyName("Pax_type")]
+        public int PaxType { get; set; }
+    }
+
+    // ===== Air_APIGetCancelPenalty — penalty applied to a cancellation already raised =====
+    public class AirGetCancelPenaltyRequestWire
+    {
+        [JsonPropertyName("Auth_Header")]
+        public AuthHeaderWire AuthHeader { get; set; } = new();
+
+        [JsonPropertyName("Booking_RefNo")]
+        public string BookingRefNo { get; set; } = string.Empty;
+
+        [JsonPropertyName("Airline_PNR")]
+        public string AirlinePnr { get; set; } = string.Empty;
+
+        // 0 = the booking's cancellation request(s), per the collection's sample.
+        [JsonPropertyName("CancelReqId")]
+        public int CancelReqId { get; set; }
+    }
+
+    public class AirGetCancelPenaltyResponseWire
+    {
+        [JsonPropertyName("Response_Header")]
+        public ResponseHeaderWire? ResponseHeader { get; set; }
+
+        [JsonPropertyName("CancelChargeDetails")]
+        public List<CancelChargeDetailWire>? CancelChargeDetails { get; set; }
+    }
+
+    public class CancelChargeDetailWire
+    {
+        [JsonPropertyName("CancellationCharges")]
+        public decimal CancellationCharges { get; set; }
+
+        [JsonPropertyName("TicketFare")]
+        public decimal TicketFare { get; set; }
+    }
+
     public class AirReleasePnrRequestWire
     {
         [JsonPropertyName("Auth_Header")]

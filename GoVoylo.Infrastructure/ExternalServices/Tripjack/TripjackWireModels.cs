@@ -801,6 +801,11 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
         [JsonPropertyName("travellerInfos")]
         public List<TripjackBookingTravellerInfoWire> TravellerInfos { get; set; } = new();
+
+        // Whole-booking fare split (BF base, TAF taxes & fees, TF total) — confirmed
+        // on a real Booking Details response.
+        [JsonPropertyName("totalPriceInfo")]
+        public TripjackTotalPriceInfoWire? TotalPriceInfo { get; set; }
     }
 
     public class TripjackBookingTravellerInfoWire
@@ -919,24 +924,76 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
         [JsonPropertyName("remarks")]
         public string Remarks { get; set; } = string.Empty;
+
+        // Optional — only to narrow charges / a cancellation to one trip.
+        [JsonPropertyName("trips")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<TripjackAmendmentTripWire>? Trips { get; set; }
     }
 
+    public class TripjackAmendmentTripWire
+    {
+        [JsonPropertyName("src")]
+        public string Source { get; set; } = string.Empty;
+
+        [JsonPropertyName("dest")]
+        public string Destination { get; set; } = string.Empty;
+
+        // YYYY-MM-DD
+        [JsonPropertyName("departureDate")]
+        public string DepartureDate { get; set; } = string.Empty;
+    }
+
+    // Amendment Charges. Tripjack's docs describe the charges both as booking totals
+    // and per trip / per passenger type, so every shape is read and the handler uses
+    // whichever is present (see TripjackClient.GetCancellationQuoteAsync).
     public class TripjackAmendmentChargesResponseWire
     {
         [JsonPropertyName("amendmentCharges")]
-        public decimal AmendmentCharges { get; set; }
+        public decimal? AmendmentCharges { get; set; }
 
         [JsonPropertyName("refundableAmount")]
-        public decimal RefundableAmount { get; set; }
+        public decimal? RefundableAmount { get; set; }
 
         [JsonPropertyName("totalFare")]
-        public decimal TotalFare { get; set; }
+        public decimal? TotalFare { get; set; }
+
+        [JsonPropertyName("trips")]
+        public List<TripjackAmendmentChargeTripWire>? Trips { get; set; }
 
         [JsonPropertyName("status")]
         public TripjackStatusWire? Status { get; set; }
 
         [JsonPropertyName("errors")]
         public List<TripjackErrorWire>? Errors { get; set; }
+    }
+
+    public class TripjackAmendmentChargeTripWire
+    {
+        [JsonPropertyName("src")]
+        public string? Source { get; set; }
+
+        [JsonPropertyName("dest")]
+        public string? Destination { get; set; }
+
+        // Keyed by pax type (ADULT / CHILD / INFANT); amounts are per passenger.
+        [JsonPropertyName("amendmentInfo")]
+        public Dictionary<string, TripjackAmendmentAmountsWire>? AmendmentInfo { get; set; }
+
+        [JsonPropertyName("travellers")]
+        public List<TripjackAmendmentAmountsWire>? Travellers { get; set; }
+    }
+
+    public class TripjackAmendmentAmountsWire
+    {
+        [JsonPropertyName("amendmentCharges")]
+        public decimal AmendmentCharges { get; set; }
+
+        [JsonPropertyName("refundAmount")]
+        public decimal RefundAmount { get; set; }
+
+        [JsonPropertyName("totalFare")]
+        public decimal TotalFare { get; set; }
     }
 
     public class TripjackSubmitAmendmentResponseWire

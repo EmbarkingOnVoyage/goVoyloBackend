@@ -413,7 +413,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             return Regex.Replace(decoded, @"\s+", " ").Trim();
         }
 
-        public async Task CancelBookingAsync(
+        public async Task<SupplierCancellationResultDto> CancelBookingAsync(
             SupplierCancellationRequestDto request, CancellationToken cancellationToken)
         {
             var wireRequest = new AirTicketCancellationRequestWire
@@ -440,7 +440,161 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 "Air_TicketCancellation", wireRequest, cancellationToken);
 
             EnsureSuccess(wireResponse.ResponseHeader, "Air_TicketCancellation");
+
+            // Air_TicketCancellation doesn't say what's refunded; the penalty Flyshop
+            // applied is read back afterwards. Best-effort — the cancellation itself
+            // already succeeded, so a failure here just leaves the refund unknown.
+            try
+            {
+                var penalty = await PostAsync<AirGetCancelPenaltyRequestWire, AirGetCancelPenaltyResponseWire>(
+                    "Air_APIGetCancelPenalty",
+                    new AirGetCancelPenaltyRequestWire
+                    {
+                        AuthHeader = BuildAuthHeader(),
+                        BookingRefNo = request.RefNo,
+                        AirlinePnr = request.AirlinePnr
+                    },
+                    cancellationToken);
+                var charges = penalty.CancelChargeDetails ?? new List<CancelChargeDetailWire>();
+                return new SupplierCancellationResultDto(
+                    charges.Count == 0 ? null : charges.Sum(c => Math.Max(0m, c.TicketFare - c.CancellationCharges)));
+            }
+            catch
+            {
+                return new SupplierCancellationResultDto(null);
+            }
         }
+
+        public async Task<SupplierBookingDetailsDto> GetBookingDetailsAsync(
+            string bookingRefNo, string? airlinePnr, CancellationToken cancellationToken)
+        {
+            var reprint = await GetReprintAsync(bookingRefNo, airlinePnr, cancellationToken);
+            var pnrs = reprint.AirPnrDetails;
+            var passengers = pnrs.SelectMany(p => p.PaxTicketDetails)
+                .GroupBy(p => $"{p.FirstName}|{p.LastName}|{p.PaxType}")
+                .Select(g => g.First())
+                .ToList();
+            var paxCounts = passengers.GroupBy(p => p.PaxType).ToDictionary(g => g.Key, g => g.Count());
+
+            var flights = pnrs.SelectMany(p => p.Flights).ToList();
+            var segments = flights
+                .SelectMany((flight, tripIndex) => flight.Segments.Select(seg => new SupplierBookingSegmentDto(
+                    tripIndex,
+                    AirportCode(seg.Origin),
+                    AirportCode(seg.Destination),
+                    seg.AirlineCode ?? string.Empty,
+                    seg.AirlineName ?? string.Empty,
+                    seg.FlightNumber ?? string.Empty,
+                    ParseDate(seg.DepartureDateTime),
+                    ParseDate(seg.ArrivalDateTime),
+                    DurationMinutes(seg.Duration))))
+                .ToList();
+
+            // Per-passenger fare details × passengers of that type, over every flight.
+            var fareDetails = flights.SelectMany(f => f.Fares.Take(1)).SelectMany(f => f.FareDetails).ToList();
+            decimal ForAllPax(Func<ReprintFareDetailWire, decimal> amount) =>
+                fareDetails.Sum(d => amount(d) * paxCounts.GetValueOrDefault(d.PaxType, 0));
+            var baseFare = ForAllPax(d => d.BasicAmount);
+            var total = ForAllPax(d => d.TotalAmount);
+
+            var rules = fareDetails
+                .SelectMany(d => (d.CancellationCharges ?? new List<ReprintCancellationChargeWire>())
+                    .Where(c => decimal.TryParse(c.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out _))
+                    .Select(c => new SupplierCancellationRuleDto(
+                        FlyshopPaxTypeLabel(c.PassengerType),
+                        decimal.Parse(c.Value!, NumberStyles.Number, CultureInfo.InvariantCulture),
+                        c.ValueType == 1)))
+                .ToList();
+
+            return new SupplierBookingDetailsDto(
+                segments,
+                passengers
+                    .Select(p => new SupplierBookingPassengerDto(
+                        p.Title ?? string.Empty, p.FirstName ?? string.Empty, p.LastName ?? string.Empty,
+                        FlyshopPaxTypeLabel(p.PaxType)))
+                    .ToList(),
+                fareDetails.Count == 0 ? null : baseFare,
+                fareDetails.Count == 0 ? null : total - baseFare,
+                fareDetails.Count == 0 ? null : total,
+                "INR",
+                rules);
+        }
+
+        // Flyshop has no "what would cancelling cost" call (Air_APIGetCancelPenalty
+        // only reports a cancellation already raised), so this estimates from the
+        // booking's own cancellation rules: per passenger type, the highest charge
+        // that applies (a fixed amount, or a percentage of that passenger's base
+        // fare), never more than the fare. Marked as an estimate.
+        public async Task<SupplierCancellationQuoteDto> GetCancellationQuoteAsync(
+            SupplierCancellationQuoteRequestDto request, CancellationToken cancellationToken)
+        {
+            var reprint = await GetReprintAsync(request.BookingRefNo, request.AirlinePnr, cancellationToken);
+            var pnrs = reprint.AirPnrDetails;
+            var paxCounts = pnrs.SelectMany(p => p.PaxTicketDetails)
+                .GroupBy(p => $"{p.FirstName}|{p.LastName}|{p.PaxType}")
+                .Select(g => g.First())
+                .GroupBy(p => p.PaxType)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            var flights = pnrs.SelectMany(p => p.Flights)
+                .Where(f => request.Origin == null || f.Segments.Any(s => AirportCode(s.Origin) == request.Origin))
+                .ToList();
+
+            decimal total = 0m, fees = 0m;
+            foreach (var detail in flights.SelectMany(f => f.Fares.Take(1)).SelectMany(f => f.FareDetails))
+            {
+                var count = paxCounts.GetValueOrDefault(detail.PaxType, 0);
+                var charge = (detail.CancellationCharges ?? new List<ReprintCancellationChargeWire>())
+                    .Where(c => c.PassengerType == detail.PaxType
+                        && decimal.TryParse(c.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out _))
+                    .Select(c =>
+                    {
+                        var value = decimal.Parse(c.Value!, NumberStyles.Number, CultureInfo.InvariantCulture);
+                        return c.ValueType == 1 ? detail.BasicAmount * value / 100m : value;
+                    })
+                    .DefaultIfEmpty(0m)
+                    .Max();
+                total += detail.TotalAmount * count;
+                fees += Math.Min(charge, detail.TotalAmount) * count;
+            }
+
+            return new SupplierCancellationQuoteDto(total, fees, Math.Max(0m, total - fees), IsEstimate: true);
+        }
+
+        private async Task<AirReprintResponseWire> GetReprintAsync(
+            string bookingRefNo, string? airlinePnr, CancellationToken cancellationToken)
+        {
+            var reprint = await PostAsync<AirReprintRequestWire, AirReprintResponseWire>(
+                "Air_Reprint",
+                new AirReprintRequestWire
+                {
+                    AuthHeader = BuildAuthHeader(),
+                    BookingRefNo = bookingRefNo,
+                    AirlinePnr = airlinePnr ?? string.Empty
+                },
+                cancellationToken);
+            EnsureSuccess(reprint.ResponseHeader, "Air_Reprint");
+            return reprint;
+        }
+
+        // "MUMBAI (BOM) " → "BOM"; a bare code is returned as-is.
+        private static string AirportCode(string? value)
+        {
+            var text = (value ?? string.Empty).Trim();
+            var open = text.LastIndexOf('(');
+            var close = text.LastIndexOf(')');
+            return open >= 0 && close > open ? text.Substring(open + 1, close - open - 1).Trim() : text;
+        }
+
+        private static int DurationMinutes(string? hhmm) =>
+            TimeSpan.TryParse(hhmm, CultureInfo.InvariantCulture, out var span) ? (int)span.TotalMinutes : 0;
+
+        private static string FlyshopPaxTypeLabel(int paxType) => paxType switch
+        {
+            1 => "Child",
+            2 => "Infant",
+            _ => "Adult"
+        };
 
         public async Task ReleaseHoldAsync(
             SupplierReleaseHoldRequestDto request, CancellationToken cancellationToken)

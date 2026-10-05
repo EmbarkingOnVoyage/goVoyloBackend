@@ -84,6 +84,10 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasDefaultValueSql("now()")
                 .IsRequired();
 
+            builder.Property(x => x.RefundAmount)
+                .HasColumnName("refund_amount")
+                .HasColumnType("numeric(18,2)");
+
             builder.Property(x => x.CancelledAt)
                 .HasColumnName("cancelled_at")
                 .HasColumnType("timestamptz");

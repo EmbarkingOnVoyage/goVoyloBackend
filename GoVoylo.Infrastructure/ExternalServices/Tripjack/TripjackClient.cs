@@ -732,7 +732,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             };
         }
 
-        public async Task CancelBookingAsync(
+        public async Task<SupplierCancellationResultDto> CancelBookingAsync(
             SupplierCancellationRequestDto request, CancellationToken cancellationToken)
         {
             // Built from Tripjack's documented 3-step amendment flow (submit ->
@@ -772,7 +772,7 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
                 if (detailsResponse.AmendmentStatus == "SUCCESS")
                 {
-                    return;
+                    return new SupplierCancellationResultDto(detailsResponse.RefundableAmount);
                 }
 
                 if (detailsResponse.AmendmentStatus == "REJECTED")
@@ -788,6 +788,122 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 $"Tripjack cancellation for booking '{request.RefNo}' (amendmentId: {amendmentId}) is still processing " +
                 "after 5 polls — contact Tripjack support per their own docs rather than retrying automatically.");
         }
+
+        public async Task<SupplierBookingDetailsDto> GetBookingDetailsAsync(
+            string bookingRefNo, string? airlinePnr, CancellationToken cancellationToken)
+        {
+            var details = await FetchBookingDetailsAsync(bookingRefNo, cancellationToken);
+            EnsureSuccess(details.Status, null, "Booking Details");
+            var air = details.ItemInfos?.Air;
+
+            var segments = (air?.TripInfos ?? new List<TripjackTripOptionWire>())
+                .SelectMany((trip, tripIndex) => trip.SegmentInfos.Select(seg => new SupplierBookingSegmentDto(
+                    tripIndex,
+                    seg.Departure.Code,
+                    seg.Arrival.Code,
+                    seg.FlightDesignator.AirlineInfo.Code,
+                    seg.FlightDesignator.AirlineInfo.Name,
+                    seg.FlightDesignator.FlightNumber,
+                    ParseDateTime(seg.DepartureDateTime),
+                    ParseDateTime(seg.ArrivalDateTime),
+                    seg.DurationMinutes)))
+                .ToList();
+
+            var passengers = (air?.TravellerInfos ?? new List<TripjackBookingTravellerInfoWire>())
+                .Select(t => new SupplierBookingPassengerDto(
+                    t.Title ?? string.Empty,
+                    t.FirstName ?? string.Empty,
+                    t.LastName ?? string.Empty,
+                    PaxTypeLabel(t.PaxType)))
+                .ToList();
+
+            var fare = air?.TotalPriceInfo?.TotalFareDetail?.FareComponent;
+            return new SupplierBookingDetailsDto(
+                segments,
+                passengers,
+                fare?.BaseFare,
+                fare?.TaxesAndFees,
+                fare?.TotalFare ?? details.Order?.Amount,
+                "INR",
+                Array.Empty<SupplierCancellationRuleDto>());
+        }
+
+        // Tripjack's Amendment Charges call — "Does not apply any changes" per its own
+        // docs — so this is a real quote, not an estimate.
+        public async Task<SupplierCancellationQuoteDto> GetCancellationQuoteAsync(
+            SupplierCancellationQuoteRequestDto request, CancellationToken cancellationToken)
+        {
+            var trips = request.Origin != null && request.Destination != null && request.DepartureDate.HasValue
+                ? new List<TripjackAmendmentTripWire>
+                {
+                    new()
+                    {
+                        Source = request.Origin,
+                        Destination = request.Destination,
+                        DepartureDate = request.DepartureDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+                    }
+                }
+                : null;
+
+            var charges = await PostAsync<TripjackAmendmentRequestWire, TripjackAmendmentChargesResponseWire>(
+                "oms/v1/air/amendment/amendment-charges",
+                new TripjackAmendmentRequestWire
+                {
+                    BookingId = request.BookingRefNo,
+                    Type = "CANCELLATION",
+                    Remarks = "Cancellation charges requested by customer via GoVoylo app",
+                    Trips = trips
+                },
+                cancellationToken);
+
+            EnsureSuccess(charges.Status, charges.Errors, "Amendment-Charges");
+
+            if (charges.TotalFare is > 0)
+            {
+                return new SupplierCancellationQuoteDto(
+                    charges.TotalFare.Value,
+                    charges.AmendmentCharges ?? 0m,
+                    charges.RefundableAmount ?? Math.Max(0m, charges.TotalFare.Value - (charges.AmendmentCharges ?? 0m)),
+                    IsEstimate: false);
+            }
+
+            var tripCharges = charges.Trips ?? new List<TripjackAmendmentChargeTripWire>();
+            if (tripCharges.Any(t => t.Travellers is { Count: > 0 }))
+            {
+                var travellers = tripCharges.SelectMany(t => t.Travellers ?? new List<TripjackAmendmentAmountsWire>()).ToList();
+                return new SupplierCancellationQuoteDto(
+                    travellers.Sum(t => t.TotalFare),
+                    travellers.Sum(t => t.AmendmentCharges),
+                    travellers.Sum(t => t.RefundAmount),
+                    IsEstimate: false);
+            }
+
+            // Per pax type amounts are per passenger, so they're scaled by how many
+            // passengers of each type are on the booking.
+            var details = await FetchBookingDetailsAsync(request.BookingRefNo, cancellationToken);
+            var paxCounts = (details.ItemInfos?.Air?.TravellerInfos ?? new List<TripjackBookingTravellerInfoWire>())
+                .GroupBy(t => (t.PaxType ?? "ADULT").ToUpperInvariant())
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            decimal total = 0m, fees = 0m, refund = 0m;
+            foreach (var (paxType, amounts) in tripCharges.SelectMany(t =>
+                         t.AmendmentInfo ?? new Dictionary<string, TripjackAmendmentAmountsWire>()))
+            {
+                var count = paxCounts.GetValueOrDefault(paxType.ToUpperInvariant(), 1);
+                total += amounts.TotalFare * count;
+                fees += amounts.AmendmentCharges * count;
+                refund += amounts.RefundAmount * count;
+            }
+
+            return new SupplierCancellationQuoteDto(total, fees, refund, IsEstimate: false);
+        }
+
+        private static string PaxTypeLabel(string? paxType) => (paxType ?? "ADULT").ToUpperInvariant() switch
+        {
+            "CHILD" => "Child",
+            "INFANT" => "Infant",
+            _ => "Adult"
+        };
 
         public async Task ReleaseHoldAsync(
             SupplierReleaseHoldRequestDto request, CancellationToken cancellationToken)

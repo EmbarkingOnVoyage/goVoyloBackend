@@ -7,8 +7,10 @@ using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Features.Flights.Queries.GetFareCalendar;
 using GoVoylo.Application.Features.Flights.Queries.GetFareRules;
 using GoVoylo.Application.Features.Flights.Queries.GetFlightAncillaries;
+using GoVoylo.Application.Features.Flights.Queries.GetCancellationQuote;
 using GoVoylo.Application.Features.Flights.Queries.GetMyTripBookings;
 using GoVoylo.Application.Features.Flights.Queries.GetSeatMap;
+using GoVoylo.Application.Features.Flights.Queries.GetTripBookingDetails;
 using GoVoylo.Application.Features.Flights.Queries.RepriceFlightOffer;
 using GoVoylo.Application.Features.Flights.Queries.SearchFlights;
 using GoVoylo.Application.Interfaces;
@@ -133,6 +135,24 @@ namespace GoVoylo.Api.Controllers
         public async Task<IActionResult> GetMyBookings()
         {
             var result = await _mediator.Send(new GetMyTripBookingsQuery(_currentUser.UserId));
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpGet("mybookings/{tripBookingId}")]
+        public async Task<IActionResult> GetMyBookingDetails(Guid tripBookingId)
+        {
+            var result = await _mediator.Send(new GetTripBookingDetailsQuery(tripBookingId, _currentUser.UserId));
+            return Ok(result);
+        }
+
+        // Read-only: what cancelling (the whole booking, or ?legIndex= one leg) would refund.
+        [Authorize]
+        [HttpGet("mybookings/{tripBookingId}/cancellation-quote")]
+        public async Task<IActionResult> GetMyBookingCancellationQuote(Guid tripBookingId, [FromQuery] int? legIndex)
+        {
+            var result = await _mediator.Send(
+                new GetCancellationQuoteQuery(tripBookingId, _currentUser.UserId, legIndex));
             return Ok(result);
         }
 

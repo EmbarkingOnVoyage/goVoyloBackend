@@ -65,8 +65,17 @@ namespace GoVoylo.Application.Interfaces
         Task<SupplierFareRuleResultDto> GetFareRulesAsync(
             SupplierFareRuleRequestDto request, CancellationToken cancellationToken);
 
-        Task CancelBookingAsync(
+        Task<SupplierCancellationResultDto> CancelBookingAsync(
             SupplierCancellationRequestDto request, CancellationToken cancellationToken);
+
+        // Full details of a ticketed booking (flights, passengers, fare breakdown),
+        // read back from the supplier for the My Trips details screen.
+        Task<SupplierBookingDetailsDto> GetBookingDetailsAsync(
+            string bookingRefNo, string? airlinePnr, CancellationToken cancellationToken);
+
+        // What cancelling would cost, without cancelling.
+        Task<SupplierCancellationQuoteDto> GetCancellationQuoteAsync(
+            SupplierCancellationQuoteRequestDto request, CancellationToken cancellationToken);
 
         // Releases a Block_Ticket hold that was never converted to a real ticket.
         // See CancelBookingAsync's own doc comment / FLIGHT_ANCILLARIES_SCOPE.MD for
