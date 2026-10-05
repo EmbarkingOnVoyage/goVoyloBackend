@@ -23,7 +23,8 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetSeatMap
             // Same reasoning as GetFlightAncillariesQueryHandler: Air_GetSeatMap's docs
             // specify the Flight_Key from an Air_Reprice response.
             var legs = await ItineraryReprice.RepriceAsync(
-                _sessionStore, _supplierClientResolver, request.OfferId, request.ItineraryOfferIds, cancellationToken);
+                _sessionStore, _supplierClientResolver, request.OfferId, request.ItineraryOfferIds, cancellationToken,
+                request.FareIds);
             var leg = legs.Single(l => l.OfferId == request.OfferId);
             var session = leg.Session;
             var updatedSession = leg.Session;

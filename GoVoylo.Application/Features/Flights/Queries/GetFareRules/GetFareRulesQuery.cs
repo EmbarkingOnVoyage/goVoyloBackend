@@ -3,5 +3,7 @@ using MediatR;
 
 namespace GoVoylo.Application.Features.Flights.Queries.GetFareRules
 {
-    public record GetFareRulesQuery(IReadOnlyList<Guid> OfferIds) : IRequest<FareRulesResponseDto>;
+    // FareIds: the fare picked for each offer, same order — see ItineraryReprice.
+    public record GetFareRulesQuery(IReadOnlyList<Guid> OfferIds, IReadOnlyList<string?>? FareIds = null)
+        : IRequest<FareRulesResponseDto>;
 }

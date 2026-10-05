@@ -7,5 +7,6 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetSeatMap
     public record GetSeatMapQuery(
         Guid OfferId,
         IReadOnlyList<SeatMapTravelerRequestDto> Travelers,
-        IReadOnlyList<Guid> ItineraryOfferIds) : IRequest<SeatMapResponseDto>;
+        IReadOnlyList<Guid> ItineraryOfferIds,
+        IReadOnlyList<string?>? FareIds = null) : IRequest<SeatMapResponseDto>;
 }

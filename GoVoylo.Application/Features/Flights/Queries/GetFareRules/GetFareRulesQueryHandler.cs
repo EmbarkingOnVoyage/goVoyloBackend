@@ -33,7 +33,8 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetFareRules
             // The request's offers are the trip's legs, so they're repriced together
             // (see ItineraryReprice).
             var repriced = await ItineraryReprice.RepriceAsync(
-                _sessionStore, _supplierClientResolver, request.OfferIds[0], request.OfferIds, cancellationToken);
+                _sessionStore, _supplierClientResolver, request.OfferIds[0], request.OfferIds, cancellationToken,
+                request.FareIds);
 
             foreach (var leg in repriced)
             {

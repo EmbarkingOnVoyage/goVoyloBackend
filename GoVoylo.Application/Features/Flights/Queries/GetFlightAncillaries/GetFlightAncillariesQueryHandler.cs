@@ -26,7 +26,8 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetFlightAncillaries
             // response, not the one from Air_Search — reprice here rather than assume
             // the search-time key is still valid, same as RepriceFlightOfferQueryHandler.
             var legs = await ItineraryReprice.RepriceAsync(
-                _sessionStore, _supplierClientResolver, request.OfferId, request.ItineraryOfferIds, cancellationToken);
+                _sessionStore, _supplierClientResolver, request.OfferId, request.ItineraryOfferIds, cancellationToken,
+                request.FareIds);
             var leg = legs.Single(l => l.OfferId == request.OfferId);
             var supplierClient = _supplierClientResolver.Resolve(leg.Session.SupplierCode);
 
