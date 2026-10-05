@@ -719,12 +719,18 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
         // adult fare as the whole-booking total. Fare options (MapFareOption) stay per
         // adult, matching the fare picker's "/adult" label. A pax type the fare
         // doesn't price separately falls back to the adult fare.
+        // amount picks which figure is summed (the total by default, or e.g. the base fare).
         private static decimal TotalForPassengers(
-            FareWire? fare, FareDetailWire? adultFareDetail, FlightSearchRequestDto request)
+            FareWire? fare, FareDetailWire? adultFareDetail, FlightSearchRequestDto request,
+            Func<FareDetailWire, decimal>? amount = null)
         {
-            var adult = adultFareDetail?.TotalAmount ?? 0m;
-            decimal PerPax(int paxType) =>
-                fare?.FareDetails.FirstOrDefault(f => f.PaxType == paxType)?.TotalAmount ?? adult;
+            amount ??= d => d.TotalAmount;
+            var adult = adultFareDetail == null ? 0m : amount(adultFareDetail);
+            decimal PerPax(int paxType)
+            {
+                var detail = fare?.FareDetails.FirstOrDefault(f => f.PaxType == paxType);
+                return detail == null ? adult : amount(detail);
+            }
 
             return adult * request.AdultCount
                 + (request.ChildCount > 0 ? PerPax(1) * request.ChildCount : 0m)
@@ -743,7 +749,10 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 adultFareDetail?.CurrencyCode ?? "INR",
                 adultFareDetail?.FreeBaggage?.CheckInBaggage,
                 adultFareDetail?.FreeBaggage?.HandBaggage,
-                searchRequest == null ? 0m : TotalForPassengers(fare, adultFareDetail, searchRequest));
+                searchRequest == null ? 0m : TotalForPassengers(fare, adultFareDetail, searchRequest),
+                BookingBaseAmount: searchRequest == null
+                    ? 0m
+                    : TotalForPassengers(fare, adultFareDetail, searchRequest, d => d.BasicAmount));
         }
 
         private static SupplierFlightSegmentDto MapSegment(SegmentWire segment) => new(

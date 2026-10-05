@@ -34,7 +34,9 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         decimal BookingTotalAmount,
         string? FareIdentifier,
         string? SpecialReturnId,
-        IReadOnlyList<string> MatchingSpecialReturnIds);
+        IReadOnlyList<string> MatchingSpecialReturnIds,
+        // See SupplierFareOptionDto.BookingBaseAmount; 0 when the supplier didn't split it.
+        decimal BookingBaseAmount = 0m);
 
     public record FlightOfferDto(
         Guid OfferId,

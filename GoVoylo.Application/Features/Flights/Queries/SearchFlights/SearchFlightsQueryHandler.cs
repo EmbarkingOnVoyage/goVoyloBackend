@@ -124,7 +124,8 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                                 f.BookingTotalAmount > 0 ? f.BookingTotalAmount : f.TotalAmount,
                                 f.FareIdentifier,
                                 f.SpecialReturnId,
-                                f.MatchingSpecialReturnIds ?? Array.Empty<string>()))
+                                f.MatchingSpecialReturnIds ?? Array.Empty<string>(),
+                                f.BookingBaseAmount))
                             .ToList(),
                         flight.TripLegIndex,
                         client.SupplierCode));
