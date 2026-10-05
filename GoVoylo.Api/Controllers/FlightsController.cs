@@ -65,24 +65,33 @@ namespace GoVoylo.Api.Controllers
         // itinerary: every leg's offerId in order, for a trip booked as separate
         // leg offers (domestic return / multi-city). Omit for a single offer.
         [HttpGet("offers/{offerId}/ancillaries")]
-        public async Task<IActionResult> GetAncillaries(Guid offerId, [FromQuery] Guid[]? itinerary)
+        // fareIds: the fare picked for each leg, same order as itinerary (or one entry
+        // for a single offer). Omit to use each offer's default fare.
+        public async Task<IActionResult> GetAncillaries(
+            Guid offerId, [FromQuery] Guid[]? itinerary, [FromQuery] string?[]? fareIds)
         {
-            var result = await _mediator.Send(new GetFlightAncillariesQuery(offerId, itinerary ?? Array.Empty<Guid>()));
+            var result = await _mediator.Send(
+                new GetFlightAncillariesQuery(offerId, itinerary ?? Array.Empty<Guid>(), fareIds));
             return Ok(result);
         }
 
         [HttpPost("offers/{offerId}/seatmap")]
         public async Task<IActionResult> GetSeatMap(
-            Guid offerId, [FromBody] IReadOnlyList<SeatMapTravelerRequestDto> travelers, [FromQuery] Guid[]? itinerary)
+            Guid offerId,
+            [FromBody] IReadOnlyList<SeatMapTravelerRequestDto> travelers,
+            [FromQuery] Guid[]? itinerary,
+            [FromQuery] string?[]? fareIds)
         {
-            var result = await _mediator.Send(new GetSeatMapQuery(offerId, travelers, itinerary ?? Array.Empty<Guid>()));
+            var result = await _mediator.Send(
+                new GetSeatMapQuery(offerId, travelers, itinerary ?? Array.Empty<Guid>(), fareIds));
             return Ok(result);
         }
 
         [HttpPost("fare-rules")]
-        public async Task<IActionResult> GetFareRules([FromBody] IReadOnlyList<Guid> offerIds)
+        public async Task<IActionResult> GetFareRules(
+            [FromBody] IReadOnlyList<Guid> offerIds, [FromQuery] string?[]? fareIds)
         {
-            var result = await _mediator.Send(new GetFareRulesQuery(offerIds));
+            var result = await _mediator.Send(new GetFareRulesQuery(offerIds, fareIds));
             return Ok(result);
         }
 

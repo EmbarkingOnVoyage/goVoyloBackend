@@ -1,6 +1,7 @@
 using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
+using GoVoylo.Domain.Common;
 
 namespace GoVoylo.Application.Features.Flights.Queries
 {
@@ -17,12 +18,17 @@ namespace GoVoylo.Application.Features.Flights.Queries
 
         // itineraryOfferIds is every leg of the trip in display order, or empty for a
         // single-offer trip. offerId must be one of them when it isn't empty.
+        // fareIds (optional, same order as the legs) is the fare picked for each leg
+        // in the fare modal; a leg is switched to it before repricing, the same way
+        // CreateBookingCommandHandler does, so add-ons and fare rules describe the
+        // fare that will actually be booked rather than the offer's default one.
         public static async Task<IReadOnlyList<RepricedLeg>> RepriceAsync(
             IFlightSearchSessionStore sessionStore,
             IFlightSupplierClientResolver supplierClientResolver,
             Guid offerId,
             IReadOnlyList<Guid> itineraryOfferIds,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IReadOnlyList<string?>? fareIds = null)
         {
             var offerIds = itineraryOfferIds.Count > 0 ? itineraryOfferIds : new[] { offerId };
             if (!offerIds.Contains(offerId))
@@ -41,6 +47,22 @@ namespace GoVoylo.Application.Features.Flights.Queries
             if (sessions.Any(s => s.SupplierCode != supplierCode))
             {
                 throw new BusinessRuleException("mixed_supplier_itinerary", "All flights in a trip must come from the same supplier.");
+            }
+
+            for (var i = 0; i < sessions.Count && fareIds != null && i < fareIds.Count; i++)
+            {
+                var fareId = fareIds[i];
+                if (string.IsNullOrWhiteSpace(fareId) || fareId == sessions[i].FareId)
+                {
+                    continue;
+                }
+
+                // Tripjack reprices by the fare's own price id, Flyshop by Flight_Key + Fare_Id.
+                sessions[i] = sessions[i] with
+                {
+                    FareId = fareId,
+                    FlightKey = supplierCode == FlightSupplierCodes.Tripjack ? fareId : sessions[i].FlightKey
+                };
             }
 
             var supplierClient = supplierClientResolver.Resolve(supplierCode);

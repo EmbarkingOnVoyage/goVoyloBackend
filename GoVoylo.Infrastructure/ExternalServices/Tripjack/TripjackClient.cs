@@ -160,7 +160,31 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             // bookingId (see above) — reuse it rather than re-Reviewing. A mix of
             // reviewed and un-reviewed legs can't be combined into one Review call.
             var priceIds = requests.Select(r => r.FlightKey).ToList();
-            if (requests.Any(r => IsBookingId(r.FlightKey)))
+
+            // A leg switched to another fare carries that fare's priceId while the
+            // rest still carry the itinerary's combined bookingId. Review takes
+            // priceIds only, so each reviewed leg goes back to the priceId it was
+            // reviewed from (same position in the original Review) and the whole
+            // itinerary is reviewed again with the new fare.
+            if (requests.Any(r => IsBookingId(r.FlightKey)) && requests.Any(r => !IsBookingId(r.FlightKey)))
+            {
+                priceIds = requests
+                    .Select((r, index) =>
+                    {
+                        if (!IsBookingId(r.FlightKey))
+                        {
+                            return r.FlightKey;
+                        }
+
+                        var original = OriginalPriceIds(r.FlightKey);
+                        return index < original.Count
+                            ? original[index]
+                            : throw new InvalidOperationException(
+                                "This Tripjack fare session has expired. Please search again.");
+                    })
+                    .ToList();
+            }
+            else if (requests.Any(r => IsBookingId(r.FlightKey)))
             {
                 var bookingId = requests[0].FlightKey;
                 if (requests.Any(r => r.FlightKey != bookingId))
