@@ -1227,7 +1227,8 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                         TotalForPassengers(price, request),
                         price.FareIdentifier,
                         price.SpecialReturnId,
-                        price.MatchingSpecialReturnIds);
+                        price.MatchingSpecialReturnIds,
+                        TotalForPassengers(price, request, c => c.BaseFare));
                 })
                 .ToList();
 
@@ -1257,12 +1258,16 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         // single adult fare as the whole-booking total. The per-fare options (Fares)
         // stay per adult, matching the fare picker's "/adult" label. A pax type the
         // fare doesn't price separately falls back to the adult fare.
-        private static decimal TotalForPassengers(TripjackPriceWire? price, FlightSearchRequestDto request)
+        // amount picks which figure is summed (the total by default, or e.g. the base fare).
+        private static decimal TotalForPassengers(
+            TripjackPriceWire? price, FlightSearchRequestDto request, Func<TripjackFareComponentWire, decimal>? amount = null)
         {
-            var adult = GetAdultFareDetail(price)?.FareComponent.TotalFare ?? 0m;
+            amount ??= c => c.TotalFare;
+            var adultDetail = GetAdultFareDetail(price);
+            var adult = adultDetail == null ? 0m : amount(adultDetail.FareComponent);
             decimal PerPax(string paxType) =>
                 price?.FareDetailsByPaxType.TryGetValue(paxType, out var detail) == true
-                    ? detail.FareComponent.TotalFare
+                    ? amount(detail.FareComponent)
                     : adult;
 
             return adult * request.AdultCount

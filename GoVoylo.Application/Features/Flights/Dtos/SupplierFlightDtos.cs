@@ -29,7 +29,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         decimal BookingTotalAmount = 0m,
         string? FareIdentifier = null,
         string? SpecialReturnId = null,
-        IReadOnlyList<string>? MatchingSpecialReturnIds = null);
+        IReadOnlyList<string>? MatchingSpecialReturnIds = null,
+        // Base fare (before taxes and fees) of BookingTotalAmount — every searched
+        // passenger. The rest of BookingTotalAmount is taxes and fees.
+        decimal BookingBaseAmount = 0m);
 
     public record SupplierFlightOptionDto(
         string FlightKey,
