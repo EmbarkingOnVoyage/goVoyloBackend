@@ -80,10 +80,21 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetCancellationQuote
             }
 
             var supplierClient = _supplierClientResolver.Resolve(booking.SupplierCode);
-            var quote = await supplierClient.GetCancellationQuoteAsync(
-                new SupplierCancellationQuoteRequestDto(
-                    booking.BookingRefNo, airlinePnr, origin, destination, departureDate),
-                cancellationToken);
+            SupplierCancellationQuoteDto quote;
+            try
+            {
+                quote = await supplierClient.GetCancellationQuoteAsync(
+                    new SupplierCancellationQuoteRequestDto(
+                        booking.BookingRefNo, airlinePnr, origin, destination, departureDate),
+                    cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException and not AppException)
+            {
+                // e.g. Tripjack 2563 "AutoCancellation is not enabled for supplier".
+                _logger.LogWarning(ex, "Cancellation quote failed for trip booking {TripBookingId}.", booking.Id);
+                throw new BusinessRuleException(
+                    "quote_unavailable", "The airline can't quote a refund for this booking online right now.");
+            }
 
             // The base/taxes split is only for the whole booking, and only nice to have.
             decimal? baseFare = null, taxes = null;
