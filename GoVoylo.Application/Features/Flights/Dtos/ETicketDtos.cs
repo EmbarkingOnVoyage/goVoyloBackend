@@ -47,7 +47,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string? Seat,
         string? Meal,
         string? ExtraBaggage,
-        string? TicketNumber);
+        string? TicketNumber,
+        // The airline PNR for this route — the barcode's fallback when there's no
+        // e-ticket number.
+        string? Pnr = null);
 
     public record ETicketBaggageRowDto(string PaxType, string Sector, string CheckIn, string Cabin);
 

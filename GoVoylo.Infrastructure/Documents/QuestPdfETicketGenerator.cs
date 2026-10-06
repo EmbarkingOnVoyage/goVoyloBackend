@@ -5,6 +5,8 @@ using Microsoft.Extensions.Options;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using ZXing;
+using ZXing.Common;
 
 namespace GoVoylo.Infrastructure.Documents
 {
@@ -221,7 +223,15 @@ namespace GoVoylo.Infrastructure.Documents
                                     Field(row.RelativeItem(), "EXTRA BAGGAGE", route.ExtraBaggage ?? "–");
                                 });
                                 r.Item().PaddingTop(4).LineHorizontal(1).LineColor(Border);
-                                r.Item().PaddingTop(4).Element(c => Field(c, "E-TICKET NO.", route.TicketNumber ?? "–"));
+                                r.Item().PaddingTop(4).Row(ticketRow =>
+                                {
+                                    ticketRow.RelativeItem().Element(c => Field(c, "E-TICKET NO.", route.TicketNumber ?? "–"));
+                                    // The e-ticket number, or the route's PNR when the supplier gave none.
+                                    if (Barcode(route.TicketNumber ?? route.Pnr) is { } barcode)
+                                    {
+                                        ticketRow.ConstantItem(150).AlignRight().AlignMiddle().Height(26).Svg(barcode);
+                                    }
+                                });
                             });
                         }
                     });
@@ -297,7 +307,7 @@ namespace GoVoylo.Infrastructure.Documents
             });
 
         private static void ImportantInformation(IContainer container) =>
-            container.Background("#FFF9E6").Border(1).BorderColor("#F5E3A3").CornerRadius(8).Padding(10).Column(column =>
+            container.ShowEntire().Background("#FFF9E6").Border(1).BorderColor("#F5E3A3").CornerRadius(8).Padding(10).Column(column =>
             {
                 column.Item().Text("IMPORTANT INFORMATION").FontSize(8).SemiBold().FontColor(Muted);
                 foreach (var line in new[]
@@ -351,7 +361,8 @@ namespace GoVoylo.Infrastructure.Documents
         private static string Duration(int minutes) => minutes <= 0 ? "" : $"{minutes / 60}h {minutes % 60}m";
 
         private static string Money(decimal amount, string currencyCode) =>
-            (currencyCode == "INR" ? "₹" : currencyCode + " ") + Math.Round(amount).ToString("N0", India);
+            (currencyCode == "INR" ? "₹" : currencyCode + " ") +
+            Math.Round(amount, MidpointRounding.AwayFromZero).ToString("N0", India);
 
         // Stored UTC → India time, as the booking was made from India.
         private static string BookedOn(DateTime utc)
@@ -360,6 +371,30 @@ namespace GoVoylo.Infrastructure.Documents
                 DateTime.SpecifyKind(utc, DateTimeKind.Utc),
                 TimeZoneInfo.FindSystemTimeZoneById(OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata"));
             return ist.ToString("ddd, d MMM yyyy, HH:mm", India);
+        }
+
+        // Code 128 as vector SVG (no native dependency).
+        private static string? Barcode(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            try
+            {
+                var writer = new BarcodeWriterSvg
+                {
+                    Format = BarcodeFormat.CODE_128,
+                    Options = new EncodingOptions { Width = 300, Height = 52, Margin = 0, PureBarcode = true }
+                };
+                return writer.Write(value.Trim()).Content;
+            }
+            catch (Exception)
+            {
+                // A value Code 128 can't encode just goes without a barcode.
+                return null;
+            }
         }
 
         private static string? LoadLogo()
