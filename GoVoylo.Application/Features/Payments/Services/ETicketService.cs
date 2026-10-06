@@ -120,12 +120,16 @@ namespace GoVoylo.Application.Features.Payments.Services
                         .FirstOrDefault(t => t.Route == route && !string.IsNullOrWhiteSpace(t.Pnr))?.Pnr
                         ?? booking.Legs.FirstOrDefault(l => l.LegIndex == index)?.AirlinePnr
                         ?? booking.AirlinePnr;
+                    // A whole-trip offer is stored as one leg per trip; otherwise trip i is leg i.
+                    var fareType = booking.Legs.FirstOrDefault(l => l.LegIndex == index)?.FareType
+                        ?? booking.Legs.FirstOrDefault()?.FareType;
                     return new ETicketTripDto(
                         TripLabel(index, trips),
                         pnr,
                         CabinText(firstPassenger?.CabinClass),
                         BaggageText(firstPassenger?.CabinBaggage, firstPassenger?.CheckInBaggage),
-                        tripSegments);
+                        tripSegments,
+                        FareTypeLabel(fareType));
                 })
                 .ToList();
 
@@ -153,12 +157,13 @@ namespace GoVoylo.Application.Features.Payments.Services
                         tripRoutes.Select(r => new ETicketPassengerRouteDto(r, null, null, null, null, null, TripPnr(r))).ToList()))
                     .ToList();
 
-            // One baggage row per passenger type and trip.
+            // One baggage row per passenger type and trip: "Adult", or "Each Adult (2)".
+            var paxCounts = passengers.GroupBy(p => p.PaxType).ToDictionary(g => g.Key, g => g.Count());
             var baggage = (passengers.Count > 0
                     ? passengers.GroupBy(p => p.PaxType).Select(g => g.First())
                     : Array.Empty<SupplierBookingPassengerDto>())
                 .SelectMany(p => tripDtos.Select(t => new ETicketBaggageRowDto(
-                    p.PaxType,
+                    paxCounts[p.PaxType] > 1 ? $"Each {p.PaxType} ({paxCounts[p.PaxType]})" : p.PaxType,
                     $"{t.Segments[0].From.Code}-{t.Segments[^1].To.Code} ({string.Join(", ", t.Segments.Select(s => $"{s.AirlineCode}-{s.FlightNumber}"))})",
                     string.IsNullOrWhiteSpace(p.CheckInBaggage) ? "–" : p.CheckInBaggage!,
                     string.IsNullOrWhiteSpace(p.CabinBaggage) ? "–" : p.CabinBaggage!)))
@@ -168,8 +173,15 @@ namespace GoVoylo.Application.Features.Payments.Services
                 ? booking.TotalAmount - supplierTotal
                 : (decimal?)null;
 
+            var passengerSummary = passengerDtos.Count > 1
+                ? string.Join(" + ", passengerDtos
+                    .GroupBy(p => p.PaxType)
+                    .Select(g => $"{g.Count()} {(g.Count() == 1 ? g.Key : PluralPaxType(g.Key))}"))
+                : null;
+
             return new ETicketDocumentDto(
                 booking.BookingRefNo,
+                $"GV{booking.Id:N}"[..18].ToUpperInvariant(),
                 TripTitle(tripDtos, segments),
                 booking.CreatedAt,
                 tripDtos,
@@ -177,7 +189,31 @@ namespace GoVoylo.Application.Features.Payments.Services
                 baggage,
                 new ETicketPaymentDto(details?.BaseFare, details?.TaxesAndFees, addOns, booking.TotalAmount, booking.CurrencyCode),
                 contactEmail,
-                contactPhone);
+                contactPhone,
+                tripDtos.Count > 2 || (tripDtos.Count == 2 && !IsRoundTrip(trips)),
+                passengerSummary);
+        }
+
+        private static string PluralPaxType(string paxType) => paxType switch
+        {
+            "Child" => "Children",
+            _ => paxType + "s"
+        };
+
+        // Supplier fare type → what the ticket prints. Tripjack's PUBLISHED is the
+        // airline's standard fare; others read as their own name.
+        private static string? FareTypeLabel(string? fareType)
+        {
+            if (string.IsNullOrWhiteSpace(fareType))
+            {
+                return null;
+            }
+            if (fareType.Equals("PUBLISHED", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Regular Fare";
+            }
+            var words = CultureInfo.InvariantCulture.TextInfo.ToTitleCase(fareType.Replace('_', ' ').ToLowerInvariant());
+            return words.EndsWith("Fare", StringComparison.Ordinal) ? words : $"{words} Fare";
         }
 
         private static string TripLabel(int index, IReadOnlyList<List<ETicketSegmentDto>> trips)

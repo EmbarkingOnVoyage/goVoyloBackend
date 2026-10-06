@@ -113,7 +113,9 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     // book instead of its default fare — from the fare picker, or the matched
     // fare of a supplier special-return package. Null books the default fare.
     public record BookingLegRequestDto(
-        Guid OfferId, IReadOnlyList<BookingSsrSelectionDto> SelectedSsrs, string? FareId = null);
+        Guid OfferId, IReadOnlyList<BookingSsrSelectionDto> SelectedSsrs, string? FareId = null,
+        // The booked fare's supplier fare type (e.g. Tripjack "PUBLISHED"), printed on the e-ticket.
+        string? FareType = null);
 
     // PaxType/Gender as plain strings at the API boundary, same reasoning as
     // SeatMapTravelerRequestDto — the handler maps them to Flyshop's numeric codes.

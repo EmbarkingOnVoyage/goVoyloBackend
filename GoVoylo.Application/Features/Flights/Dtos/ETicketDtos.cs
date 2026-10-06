@@ -5,6 +5,8 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     // return them.
     public record ETicketDocumentDto(
         string BookingRefNo,
+        // GoVoylo's own reference for the booking (from its internal id).
+        string RefId,
         // "Domestic · One Way", "International · Round Trip", "Multi-city", ...
         string TripTitle,
         DateTime BookedOnUtc,
@@ -13,7 +15,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         IReadOnlyList<ETicketBaggageRowDto> Baggage,
         ETicketPaymentDto Payment,
         string? ContactEmail,
-        string? ContactPhone);
+        string? ContactPhone,
+        bool IsMultiCity = false,
+        // "2 Adults + 1 Child" — shown next to Base Fare when there's more than one.
+        string? PassengerSummary = null);
 
     // One trip of the booking (Departure / Return / Flight N) — one or more
     // connecting flights.
@@ -22,7 +27,9 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string? Pnr,
         string? CabinClass,
         string? Baggage,
-        IReadOnlyList<ETicketSegmentDto> Segments);
+        IReadOnlyList<ETicketSegmentDto> Segments,
+        // "Regular Fare", "SME Fare", ... — null when the booking didn't record it.
+        string? FareType = null);
 
     public record ETicketSegmentDto(
         string AirlineCode,
