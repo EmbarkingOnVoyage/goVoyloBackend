@@ -3,6 +3,7 @@ using System.Text.Json;
 using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
 using Microsoft.Extensions.Options;
+using QuestPDF.Drawing;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -51,6 +52,17 @@ namespace GoVoylo.Infrastructure.Documents
         static QuestPdfETicketGenerator()
         {
             QuestPDF.Settings.License = LicenseType.Community;
+
+            // Inter, the design's typeface, bundled so it renders the same on every host.
+            foreach (var weight in new[] { "Regular", "Medium", "SemiBold", "Bold" })
+            {
+                using var font = typeof(QuestPdfETicketGenerator).Assembly
+                    .GetManifestResourceStream($"GoVoylo.Infrastructure.Documents.Fonts.Inter-{weight}.ttf");
+                if (font != null)
+                {
+                    FontManager.RegisterFont(font);
+                }
+            }
         }
 
         public QuestPdfETicketGenerator(IOptions<ETicketSettings> settings)
@@ -65,7 +77,7 @@ namespace GoVoylo.Infrastructure.Documents
                 page.MarginHorizontal(24);
                 page.MarginVertical(22);
                 page.PageColor(Colors.White);
-                page.DefaultTextStyle(t => t.FontSize(9).FontColor(Ink));
+                page.DefaultTextStyle(t => t.FontFamily("Inter").FontSize(9).FontColor(Ink));
 
                 page.Content().Column(column =>
                 {
@@ -242,7 +254,7 @@ namespace GoVoylo.Infrastructure.Documents
                 card.Item().PaddingTop(7).Row(row =>
                 {
                     row.ConstantItem(80).Element(c => Field(c, "FARE", trip.FareType ?? "–"));
-                    row.ConstantItem(150).Element(c => Field(c, "BAGGAGE", trip.Baggage ?? "–"));
+                    row.ConstantItem(185).Element(c => Field(c, "BAGGAGE", trip.Baggage ?? "–"));
                     row.RelativeItem().Column(c =>
                     {
                         c.Item().Text("STATUS").FontSize(6.5f).Bold().FontColor(Muted).LetterSpacing(0.06f);

@@ -37,6 +37,8 @@
     <EmbeddedResource Include="Documents\Assets\govoylo-logo.svg" LogicalName="GoVoylo.Infrastructure.Documents.govoylo-logo.svg" />
     <!-- Airline brand marks by IATA code, the same set the app bundles (airlineLogos.ts). -->
     <EmbeddedResource Include="Documents\Assets\airline-logos.json" LogicalName="GoVoylo.Infrastructure.Documents.airline-logos.json" />
+    <!-- Inter 4.1 (rsms/inter, SIL Open Font License — Inter-LICENSE.txt), the Figma ticket's typeface. -->
+    <EmbeddedResource Include="Documents\Assets\Fonts\Inter-*.ttf" LogicalName="GoVoylo.Infrastructure.Documents.Fonts.%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>
