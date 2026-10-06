@@ -208,11 +208,21 @@ namespace GoVoylo.Application.Features.Payments.Services
             {
                 return null;
             }
-            if (fareType.Equals("PUBLISHED", StringComparison.OrdinalIgnoreCase))
+            var key = fareType.Trim().ToUpperInvariant();
+            if (key == "PUBLISHED")
             {
                 return "Regular Fare";
             }
-            var words = CultureInfo.InvariantCulture.TextInfo.ToTitleCase(fareType.Replace('_', ' ').ToLowerInvariant());
+            // "OFFER_FARE_WITH_PNR" / "..._WITHOUT_PNR" are both an offer fare to the traveller.
+            foreach (var suffix in new[] { "_WITH_PNR", "_WITHOUT_PNR" })
+            {
+                if (key.EndsWith(suffix, StringComparison.Ordinal))
+                {
+                    key = key[..^suffix.Length];
+                }
+            }
+            var words = string.Join(' ', key.Split('_', StringSplitOptions.RemoveEmptyEntries)
+                .Select(w => w is "SME" or "LCC" ? w : CultureInfo.InvariantCulture.TextInfo.ToTitleCase(w.ToLowerInvariant())));
             return words.EndsWith("Fare", StringComparison.Ordinal) ? words : $"{words} Fare";
         }
 
