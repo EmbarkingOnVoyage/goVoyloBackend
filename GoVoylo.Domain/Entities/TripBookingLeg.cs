@@ -27,6 +27,13 @@ namespace GoVoylo.Domain.Entities
         public string? CrsPnr { get; private set; }
         public string? RecordLocator { get; private set; }
 
+        // The booked fare's supplier fare type (e.g. "PUBLISHED", "SME"), as sent by
+        // the app at booking time; printed on the e-ticket. Null when not sent.
+        public string? FareType { get; private set; }
+
+        public void SetFareType(string? fareType) =>
+            FareType = string.IsNullOrWhiteSpace(fareType) ? null : fareType.Trim();
+
         // Set when this leg is cancelled on its own via Air_TicketCancellation
         // (e.g. cancelling only the return leg of a roundtrip) rather than the whole
         // booking. TripBooking.LocalStatus only flips to Cancelled once every leg here

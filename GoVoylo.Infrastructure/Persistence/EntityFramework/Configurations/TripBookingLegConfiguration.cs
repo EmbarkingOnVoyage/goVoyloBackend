@@ -74,6 +74,10 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasColumnName("record_locator")
                 .HasMaxLength(32);
 
+            builder.Property(x => x.FareType)
+                .HasColumnName("fare_type")
+                .HasMaxLength(40);
+
             builder.Property(x => x.IsCancelled)
                 .HasColumnName("is_cancelled")
                 .HasDefaultValue(false)

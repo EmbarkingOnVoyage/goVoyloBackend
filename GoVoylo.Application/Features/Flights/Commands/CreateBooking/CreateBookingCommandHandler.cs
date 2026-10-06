@@ -301,7 +301,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                             remainingLegs.Remove(legResult);
                         }
 
-                        tripBooking.AddLeg(new TripBookingLeg(
+                        var tripLeg = new TripBookingLeg(
                             tripBooking.Id,
                             i,
                             trip.Origin,
@@ -310,7 +310,10 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                             trip.AirlineCode,
                             trip.AirlineName,
                             trip.FlightNumber,
-                            legResult?.FlightId ?? string.Empty));
+                            legResult?.FlightId ?? string.Empty);
+                        // One whole-trip offer, so every trip shares its one fare.
+                        tripLeg.SetFareType(request.Legs[0].FareType);
+                        tripBooking.AddLeg(tripLeg);
                     }
                 }
                 else
@@ -320,7 +323,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                         var summary = legSummaries[i];
                         var legResult = ticket.Legs[i];
 
-                        tripBooking.AddLeg(new TripBookingLeg(
+                        var leg = new TripBookingLeg(
                             tripBooking.Id,
                             i,
                             summary.Origin,
@@ -329,7 +332,9 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                             summary.AirlineCode,
                             summary.AirlineName,
                             summary.FlightNumber,
-                            legResult.FlightId));
+                            legResult.FlightId);
+                        leg.SetFareType(i < request.Legs.Count ? request.Legs[i].FareType : null);
+                        tripBooking.AddLeg(leg);
                     }
                 }
 

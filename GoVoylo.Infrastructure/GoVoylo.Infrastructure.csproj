@@ -35,6 +35,8 @@
     <EmbeddedResource Include="SeedData\airports.json" />
     <!-- GoVoylo logo printed on the e-ticket PDF (see QuestPdfETicketGenerator). -->
     <EmbeddedResource Include="Documents\Assets\govoylo-logo.svg" LogicalName="GoVoylo.Infrastructure.Documents.govoylo-logo.svg" />
+    <!-- Airline brand marks by IATA code, the same set the app bundles (airlineLogos.ts). -->
+    <EmbeddedResource Include="Documents\Assets\airline-logos.json" LogicalName="GoVoylo.Infrastructure.Documents.airline-logos.json" />
   </ItemGroup>
 
 </Project>
