@@ -807,7 +807,10 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                     seg.FlightDesignator.FlightNumber,
                     ParseDateTime(seg.DepartureDateTime),
                     ParseDateTime(seg.ArrivalDateTime),
-                    seg.DurationMinutes)))
+                    seg.DurationMinutes,
+                    new SupplierAirportDto(seg.Departure.Name, seg.Departure.City, seg.Departure.Terminal, seg.Departure.CountryCode),
+                    new SupplierAirportDto(seg.Arrival.Name, seg.Arrival.City, seg.Arrival.Terminal, seg.Arrival.CountryCode),
+                    seg.Stops)))
                 .ToList();
 
             var passengers = (air?.TravellerInfos ?? new List<TripjackBookingTravellerInfoWire>())
@@ -815,7 +818,20 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                     t.Title ?? string.Empty,
                     t.FirstName ?? string.Empty,
                     t.LastName ?? string.Empty,
-                    PaxTypeLabel(t.PaxType)))
+                    PaxTypeLabel(t.PaxType),
+                    t.PnrDetails.Keys
+                        .Union(t.TicketNumberDetails?.Keys ?? Enumerable.Empty<string>())
+                        .Select(route => new SupplierPassengerTicketDto(
+                            route,
+                            t.PnrDetails.GetValueOrDefault(route),
+                            t.TicketNumberDetails?.GetValueOrDefault(route),
+                            SsrText(t.SeatInfos, route, preferCode: true),
+                            SsrText(t.MealInfos, route),
+                            SsrText(t.BaggageInfos, route)))
+                        .ToList(),
+                    t.FareDetail?.CabinClass,
+                    t.FareDetail?.BaggageInfo?.CheckInBaggage,
+                    t.FareDetail?.BaggageInfo?.CabinBaggage))
                 .ToList();
 
             var fare = air?.TotalPriceInfo?.TotalFareDetail?.FareComponent;
@@ -826,7 +842,9 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 fare?.TaxesAndFees,
                 fare?.TotalFare ?? details.Order?.Amount,
                 "INR",
-                Array.Empty<SupplierCancellationRuleDto>());
+                Array.Empty<SupplierCancellationRuleDto>(),
+                details.Order?.DeliveryInfo?.Emails.FirstOrDefault(),
+                details.Order?.DeliveryInfo?.Contacts.FirstOrDefault());
         }
 
         // Tripjack's Amendment Charges call — "Does not apply any changes" per its own
@@ -897,6 +915,20 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
             }
 
             return new SupplierCancellationQuoteDto(total, fees, refund, IsEstimate: false);
+        }
+
+        // A booked seat reads best as its code ("14A"); a meal or baggage add-on by
+        // its description ("VEG BIRYANI Combo", "Excess Baggage - 3 Kg").
+        private static string? SsrText(
+            Dictionary<string, TripjackBookedSsrWire>? infos, string route, bool preferCode = false)
+        {
+            if (infos == null || !infos.TryGetValue(route, out var ssr))
+            {
+                return null;
+            }
+
+            var text = preferCode ? ssr.Code ?? ssr.Description : ssr.Description ?? ssr.Code;
+            return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
         }
 
         private static string PaxTypeLabel(string? paxType) => (paxType ?? "ADULT").ToUpperInvariant() switch

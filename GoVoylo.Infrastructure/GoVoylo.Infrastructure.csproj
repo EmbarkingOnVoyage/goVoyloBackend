@@ -17,6 +17,7 @@
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.10" />
     <PackageReference Include="MongoDB.Driver" Version="3.10.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="QuestPDF" Version="2026.9.1" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
   </ItemGroup>
 
@@ -31,6 +32,8 @@
          this for a real CSV-driven import later is a drop-in replacement."
          Embedded into the DLL so it works the same on every deploy target. -->
     <EmbeddedResource Include="SeedData\airports.json" />
+    <!-- GoVoylo logo printed on the e-ticket PDF (see QuestPdfETicketGenerator). -->
+    <EmbeddedResource Include="Documents\Assets\govoylo-logo.svg" LogicalName="GoVoylo.Infrastructure.Documents.govoylo-logo.svg" />
   </ItemGroup>
 
 </Project>

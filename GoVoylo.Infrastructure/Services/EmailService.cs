@@ -1,4 +1,4 @@
-﻿using GoVoylo.Application.Interfaces;
+using GoVoylo.Application.Interfaces;
 using Microsoft.Extensions.Options;
 using MailKit.Net.Smtp;
 using MailKit.Security;
@@ -132,5 +132,36 @@ namespace GoVoylo.Infrastructure.Services
 
             await client.DisconnectAsync(true);
         }
-    }
+
+        public async Task SendETicketAsync(
+            string email, string recipientName, string bookingRefNo, string routeSummary, byte[] pdf, string fileName)
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress("GoVoylo", _smtpSettings.SenderEmail));
+            message.To.Add(MailboxAddress.Parse(email));
+            message.Subject = $"Your e-ticket for {routeSummary} — Booking {bookingRefNo}";
+
+            var name = System.Net.WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(recipientName) ? "there" : recipientName);
+            var builder = new BodyBuilder
+            {
+                TextBody = $"Hi {recipientName},\n\n" +
+                    $"Your booking {bookingRefNo} ({routeSummary}) is confirmed and ticketed. " +
+                    "Your e-ticket is attached as a PDF — please carry it, with a valid photo ID, when you travel.\n\n" +
+                    "Have a great trip!\n— GoVoylo",
+                HtmlBody = $"<p>Hi {name},</p>" +
+                    $"<p>Your booking <strong>{System.Net.WebUtility.HtmlEncode(bookingRefNo)}</strong> " +
+                    $"({System.Net.WebUtility.HtmlEncode(routeSummary)}) is confirmed and ticketed.</p>" +
+                    "<p>Your e-ticket is attached as a PDF — please carry it, with a valid photo ID, when you travel.</p>" +
+                    "<p>Have a great trip!<br/>— GoVoylo</p>"
+            };
+            builder.Attachments.Add(fileName, pdf, new ContentType("application", "pdf"));
+            message.Body = builder.ToMessageBody();
+
+            using var client = new SmtpClient();
+            await client.ConnectAsync(_smtpSettings.Host, _smtpSettings.Port, SecureSocketOptions.StartTls);
+            await client.AuthenticateAsync(_smtpSettings.Username, _smtpSettings.Password);
+            await client.SendAsync(message);
+            await client.DisconnectAsync(true);
+        }
+}
 }

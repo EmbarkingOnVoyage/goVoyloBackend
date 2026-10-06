@@ -198,6 +198,15 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
 
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("city")]
+        public string? City { get; set; }
+
+        [JsonPropertyName("terminal")]
+        public string? Terminal { get; set; }
+
+        [JsonPropertyName("countryCode")]
+        public string? CountryCode { get; set; }
     }
 
     public class TripjackPriceWire
@@ -627,6 +636,18 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         public decimal Amount { get; set; }
     }
 
+    public class TripjackBookedSsrWire
+    {
+        [JsonPropertyName("code")]
+        public string? Code { get; set; }
+
+        [JsonPropertyName("desc")]
+        public string? Description { get; set; }
+
+        [JsonPropertyName("amount")]
+        public decimal? Amount { get; set; }
+    }
+
     public class TripjackDeliveryInfoWire
     {
         [JsonPropertyName("emails")]
@@ -816,6 +837,24 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         // Flyshop's own per-leg AirlinePnr — see TripBookingLeg.MarkTicketed).
         [JsonPropertyName("pnrDetails")]
         public Dictionary<string, string> PnrDetails { get; set; } = new();
+
+        // Keyed by route like PnrDetails -> the passenger's e-ticket number.
+        [JsonPropertyName("ticketNumberDetails")]
+        public Dictionary<string, string>? TicketNumberDetails { get; set; }
+
+        // Paid add-ons booked for this passenger, keyed by route.
+        [JsonPropertyName("ssrSeatInfos")]
+        public Dictionary<string, TripjackBookedSsrWire>? SeatInfos { get; set; }
+
+        [JsonPropertyName("ssrMealInfos")]
+        public Dictionary<string, TripjackBookedSsrWire>? MealInfos { get; set; }
+
+        [JsonPropertyName("ssrBaggageInfos")]
+        public Dictionary<string, TripjackBookedSsrWire>? BaggageInfos { get; set; }
+
+        // Cabin class (cc) and free baggage (bI) of the passenger's fare.
+        [JsonPropertyName("fd")]
+        public TripjackFareDetailWire? FareDetail { get; set; }
 
         [JsonPropertyName("ti")]
         public string? Title { get; set; }
