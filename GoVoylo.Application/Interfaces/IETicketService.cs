@@ -6,5 +6,10 @@ namespace GoVoylo.Application.Interfaces
     public interface IETicketService
     {
         Task SendAsync(TripBooking booking, CancellationToken cancellationToken);
+
+        // The same PDF, for the app's Download Ticket button.
+        Task<ETicketFile> BuildPdfAsync(TripBooking booking, CancellationToken cancellationToken);
     }
+
+    public record ETicketFile(byte[] Content, string FileName, string RouteSummary);
 }

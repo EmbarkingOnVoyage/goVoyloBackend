@@ -8,6 +8,7 @@ using GoVoylo.Application.Features.Flights.Queries.GetFareCalendar;
 using GoVoylo.Application.Features.Flights.Queries.GetFareRules;
 using GoVoylo.Application.Features.Flights.Queries.GetFlightAncillaries;
 using GoVoylo.Application.Features.Flights.Queries.GetCancellationQuote;
+using GoVoylo.Application.Features.Flights.Queries.GetETicket;
 using GoVoylo.Application.Features.Flights.Queries.GetMyTripBookings;
 using GoVoylo.Application.Features.Flights.Queries.GetSeatMap;
 using GoVoylo.Application.Features.Flights.Queries.GetTripBookingDetails;
@@ -144,6 +145,15 @@ namespace GoVoylo.Api.Controllers
         {
             var result = await _mediator.Send(new GetTripBookingDetailsQuery(tripBookingId, _currentUser.UserId));
             return Ok(result);
+        }
+
+        // The booking's e-ticket PDF (same as the one emailed after ticketing).
+        [Authorize]
+        [HttpGet("mybookings/{tripBookingId}/eticket")]
+        public async Task<IActionResult> GetMyBookingETicket(Guid tripBookingId)
+        {
+            var file = await _mediator.Send(new GetETicketQuery(tripBookingId, _currentUser.UserId));
+            return File(file.Content, "application/pdf", file.FileName);
         }
 
         // Read-only: what cancelling (the whole booking, or ?legIndex= one leg) would refund.

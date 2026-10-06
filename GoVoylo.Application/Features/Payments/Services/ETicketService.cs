@@ -40,6 +40,22 @@ namespace GoVoylo.Application.Features.Payments.Services
                 return;
             }
 
+            var file = await BuildPdfAsync(booking, user, cancellationToken);
+
+            await _emailService.SendETicketAsync(
+                user.Email,
+                $"{user.FirstName} {user.LastName}".Trim(),
+                booking.BookingRefNo,
+                file.RouteSummary,
+                file.Content,
+                file.FileName);
+        }
+
+        public async Task<ETicketFile> BuildPdfAsync(TripBooking booking, CancellationToken cancellationToken) =>
+            await BuildPdfAsync(booking, await _userRepository.GetByIdAsync(booking.UserId), cancellationToken);
+
+        private async Task<ETicketFile> BuildPdfAsync(TripBooking booking, User? user, CancellationToken cancellationToken)
+        {
             SupplierBookingDetailsDto? details = null;
             try
             {
@@ -49,24 +65,19 @@ namespace GoVoylo.Application.Features.Payments.Services
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // The ticket still goes out, from what was stored at booking time.
+                // The ticket is still built, from what was stored at booking time.
                 _logger.LogWarning(ex,
                     "Supplier booking details failed for trip booking {TripBookingId}; e-ticket built from stored data.",
                     booking.Id);
             }
 
             var phone = details?.ContactPhone
-                ?? (string.IsNullOrWhiteSpace(user.Phone) ? null : $"{user.PhoneCountryCode}{user.Phone}");
-            var ticket = Build(booking, details, details?.ContactEmail ?? user.Email, phone);
-            var pdf = _pdfGenerator.Generate(ticket);
-
-            await _emailService.SendETicketAsync(
-                user.Email,
-                $"{user.FirstName} {user.LastName}".Trim(),
-                booking.BookingRefNo,
-                string.Join(", ", ticket.Trips.Select(t => RouteText(t.Segments))),
-                pdf,
-                $"GoVoylo-ETicket-{booking.BookingRefNo}.pdf");
+                ?? (string.IsNullOrWhiteSpace(user?.Phone) ? null : $"{user.PhoneCountryCode}{user.Phone}");
+            var ticket = Build(booking, details, details?.ContactEmail ?? user?.Email, phone);
+            return new ETicketFile(
+                _pdfGenerator.Generate(ticket),
+                $"GoVoylo-ETicket-{booking.BookingRefNo}.pdf",
+                string.Join(", ", ticket.Trips.Select(t => RouteText(t.Segments))));
         }
 
         private static ETicketDocumentDto Build(
