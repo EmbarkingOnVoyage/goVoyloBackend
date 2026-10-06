@@ -5,6 +5,8 @@ using Microsoft.Extensions.Options;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using ZXing;
+using ZXing.Common;
 
 namespace GoVoylo.Infrastructure.Documents
 {
@@ -221,7 +223,14 @@ namespace GoVoylo.Infrastructure.Documents
                                     Field(row.RelativeItem(), "EXTRA BAGGAGE", route.ExtraBaggage ?? "–");
                                 });
                                 r.Item().PaddingTop(4).LineHorizontal(1).LineColor(Border);
-                                r.Item().PaddingTop(4).Element(c => Field(c, "E-TICKET NO.", route.TicketNumber ?? "–"));
+                                r.Item().PaddingTop(4).Row(ticketRow =>
+                                {
+                                    ticketRow.RelativeItem().Element(c => Field(c, "E-TICKET NO.", route.TicketNumber ?? "–"));
+                                    if (Barcode(route.TicketNumber) is { } barcode)
+                                    {
+                                        ticketRow.ConstantItem(150).AlignRight().AlignMiddle().Height(26).Svg(barcode);
+                                    }
+                                });
                             });
                         }
                     });
@@ -360,6 +369,30 @@ namespace GoVoylo.Infrastructure.Documents
                 DateTime.SpecifyKind(utc, DateTimeKind.Utc),
                 TimeZoneInfo.FindSystemTimeZoneById(OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata"));
             return ist.ToString("ddd, d MMM yyyy, HH:mm", India);
+        }
+
+        // Code 128 of the e-ticket number, as vector SVG (no native dependency).
+        private static string? Barcode(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            try
+            {
+                var writer = new BarcodeWriterSvg
+                {
+                    Format = BarcodeFormat.CODE_128,
+                    Options = new EncodingOptions { Width = 300, Height = 52, Margin = 0, PureBarcode = true }
+                };
+                return writer.Write(value.Trim()).Content;
+            }
+            catch (Exception)
+            {
+                // A value Code 128 can't encode just goes without a barcode.
+                return null;
+            }
         }
 
         private static string? LoadLogo()
