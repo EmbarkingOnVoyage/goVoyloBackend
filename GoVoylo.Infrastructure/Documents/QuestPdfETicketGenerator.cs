@@ -226,7 +226,8 @@ namespace GoVoylo.Infrastructure.Documents
                                 r.Item().PaddingTop(4).Row(ticketRow =>
                                 {
                                     ticketRow.RelativeItem().Element(c => Field(c, "E-TICKET NO.", route.TicketNumber ?? "–"));
-                                    if (Barcode(route.TicketNumber) is { } barcode)
+                                    // The e-ticket number, or the route's PNR when the supplier gave none.
+                                    if (Barcode(route.TicketNumber ?? route.Pnr) is { } barcode)
                                     {
                                         ticketRow.ConstantItem(150).AlignRight().AlignMiddle().Height(26).Svg(barcode);
                                     }
@@ -306,7 +307,7 @@ namespace GoVoylo.Infrastructure.Documents
             });
 
         private static void ImportantInformation(IContainer container) =>
-            container.Background("#FFF9E6").Border(1).BorderColor("#F5E3A3").CornerRadius(8).Padding(10).Column(column =>
+            container.ShowEntire().Background("#FFF9E6").Border(1).BorderColor("#F5E3A3").CornerRadius(8).Padding(10).Column(column =>
             {
                 column.Item().Text("IMPORTANT INFORMATION").FontSize(8).SemiBold().FontColor(Muted);
                 foreach (var line in new[]
@@ -360,7 +361,8 @@ namespace GoVoylo.Infrastructure.Documents
         private static string Duration(int minutes) => minutes <= 0 ? "" : $"{minutes / 60}h {minutes % 60}m";
 
         private static string Money(decimal amount, string currencyCode) =>
-            (currencyCode == "INR" ? "₹" : currencyCode + " ") + Math.Round(amount).ToString("N0", India);
+            (currencyCode == "INR" ? "₹" : currencyCode + " ") +
+            Math.Round(amount, MidpointRounding.AwayFromZero).ToString("N0", India);
 
         // Stored UTC → India time, as the booking was made from India.
         private static string BookedOn(DateTime utc)
@@ -371,7 +373,7 @@ namespace GoVoylo.Infrastructure.Documents
             return ist.ToString("ddd, d MMM yyyy, HH:mm", India);
         }
 
-        // Code 128 of the e-ticket number, as vector SVG (no native dependency).
+        // Code 128 as vector SVG (no native dependency).
         private static string? Barcode(string? value)
         {
             if (string.IsNullOrWhiteSpace(value))

@@ -130,6 +130,8 @@ namespace GoVoylo.Application.Features.Payments.Services
                 .ToList();
 
             var tripRoutes = tripDtos.Select(t => $"{t.Segments[0].From.Code}-{t.Segments[^1].To.Code}").ToList();
+            string? TripPnr(string route) => tripDtos.ElementAtOrDefault(tripRoutes.IndexOf(route))?.Pnr
+                ?? booking.AirlinePnr;
             var passengerDtos = passengers.Count > 0
                 ? passengers
                     .Select(p => new ETicketPassengerDto(
@@ -137,8 +139,10 @@ namespace GoVoylo.Application.Features.Payments.Services
                         p.PaxType,
                         (p.Tickets is { Count: > 0 }
                             ? p.Tickets.Select(t => new ETicketPassengerRouteDto(
-                                t.Route, CabinText(p.CabinClass), t.Seat, t.Meal, t.ExtraBaggage, t.TicketNumber))
-                            : tripRoutes.Select(r => new ETicketPassengerRouteDto(r, CabinText(p.CabinClass), null, null, null, null)))
+                                t.Route, CabinText(p.CabinClass), t.Seat, t.Meal, t.ExtraBaggage, t.TicketNumber,
+                                t.Pnr ?? TripPnr(t.Route)))
+                            : tripRoutes.Select(r => new ETicketPassengerRouteDto(
+                                r, CabinText(p.CabinClass), null, null, null, null, TripPnr(r))))
                         .ToList()))
                     .ToList()
                 : booking.PassengerNames
@@ -146,7 +150,7 @@ namespace GoVoylo.Application.Features.Payments.Services
                     .Select(name => new ETicketPassengerDto(
                         name,
                         "Adult",
-                        tripRoutes.Select(r => new ETicketPassengerRouteDto(r, null, null, null, null, null)).ToList()))
+                        tripRoutes.Select(r => new ETicketPassengerRouteDto(r, null, null, null, null, null, TripPnr(r))).ToList()))
                     .ToList();
 
             // One baggage row per passenger type and trip.
