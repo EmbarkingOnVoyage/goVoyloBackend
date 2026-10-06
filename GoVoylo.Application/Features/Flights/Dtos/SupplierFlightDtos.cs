@@ -260,6 +260,8 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     // ===== Post-booking: full booking details and cancellation quote (My Trips) =====
 
     // TripIndex: which trip of the booking the flight belongs to (0 outbound, 1 return, ...).
+    // The airport fields are optional — what the supplier echoes back (Tripjack
+    // Booking Details does; Flyshop's Air_Reprint only gives "CITY (CODE)").
     public record SupplierBookingSegmentDto(
         int TripIndex,
         string Origin,
@@ -269,10 +271,34 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string FlightNumber,
         DateTime DepartureDateTime,
         DateTime ArrivalDateTime,
-        int DurationMinutes);
+        int DurationMinutes,
+        SupplierAirportDto? OriginAirport = null,
+        SupplierAirportDto? DestinationAirport = null,
+        int Stops = 0);
 
-    // PaxType: "Adult" / "Child" / "Infant".
-    public record SupplierBookingPassengerDto(string Title, string FirstName, string LastName, string PaxType);
+    public record SupplierAirportDto(string? Name, string? City, string? Terminal, string? CountryCode);
+
+    // One passenger's ticket on one route ("DEL-BOM"): PNR, e-ticket number and
+    // any paid seat / meal / extra baggage booked on it.
+    public record SupplierPassengerTicketDto(
+        string Route,
+        string? Pnr,
+        string? TicketNumber,
+        string? Seat,
+        string? Meal,
+        string? ExtraBaggage);
+
+    // PaxType: "Adult" / "Child" / "Infant". The rest is optional, filled where
+    // the supplier returns it.
+    public record SupplierBookingPassengerDto(
+        string Title,
+        string FirstName,
+        string LastName,
+        string PaxType,
+        IReadOnlyList<SupplierPassengerTicketDto>? Tickets = null,
+        string? CabinClass = null,
+        string? CheckInBaggage = null,
+        string? CabinBaggage = null);
 
     // A supplier's own cancellation rule for one passenger type (Flyshop's
     // Air_Reprint CancellationCharges) — used to estimate a refund when the supplier
@@ -288,7 +314,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         decimal? TaxesAndFees,
         decimal? TotalFare,
         string CurrencyCode,
-        IReadOnlyList<SupplierCancellationRuleDto> CancellationRules);
+        IReadOnlyList<SupplierCancellationRuleDto> CancellationRules,
+        // The booking's contact details as the supplier holds them.
+        string? ContactEmail = null,
+        string? ContactPhone = null);
 
     // Origin/Destination/DepartureDate narrow the quote to one trip of the booking
     // (leg-only cancellation); all null means the whole booking.

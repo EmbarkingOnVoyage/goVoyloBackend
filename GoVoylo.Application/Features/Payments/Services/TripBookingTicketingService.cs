@@ -2,6 +2,7 @@ using GoVoylo.Application.Features.Flights.Dtos;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Entities;
 using GoVoylo.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace GoVoylo.Application.Features.Payments.Services
 {
@@ -10,15 +11,25 @@ namespace GoVoylo.Application.Features.Payments.Services
         private readonly ITripBookingRepository _tripBookingRepository;
         private readonly IFlightSupplierClientResolver _supplierClientResolver;
         private readonly IEncryptionService _encryptionService;
+        private readonly IETicketService _eTicketService;
+        private readonly ILogger<TripBookingTicketingService> _logger;
+
+        // Air_Ticketing / Tripjack status for an issued ticket. 44 (paid, still
+        // ticketing) has no ticket to send yet.
+        private const string StatusTicketed = "11";
 
         public TripBookingTicketingService(
             ITripBookingRepository tripBookingRepository,
             IFlightSupplierClientResolver supplierClientResolver,
-            IEncryptionService encryptionService)
+            IEncryptionService encryptionService,
+            IETicketService eTicketService,
+            ILogger<TripBookingTicketingService> logger)
         {
             _tripBookingRepository = tripBookingRepository;
             _supplierClientResolver = supplierClientResolver;
             _encryptionService = encryptionService;
+            _eTicketService = eTicketService;
+            _logger = logger;
         }
 
         public async Task TicketAsync(TripBooking booking, string clientRefNo, CancellationToken cancellationToken)
@@ -73,6 +84,20 @@ namespace GoVoylo.Application.Features.Payments.Services
             }
 
             await _tripBookingRepository.UpdateAsync(booking, cancellationToken);
+
+            // Best-effort: the booking is ticketed and paid for whatever happens to
+            // the email, so a PDF or mail failure is logged, never surfaced.
+            if (ticket.StatusId == StatusTicketed)
+            {
+                try
+                {
+                    await _eTicketService.SendAsync(booking, cancellationToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogError(ex, "E-ticket email failed for trip booking {TripBookingId}.", booking.Id);
+                }
+            }
         }
     }
 }

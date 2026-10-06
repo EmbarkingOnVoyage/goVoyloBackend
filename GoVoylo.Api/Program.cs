@@ -94,6 +94,10 @@ public class Program
         builder.Services.AddScoped<IBookFlightRepository, BookFlightRepository>();
         builder.Services.AddScoped<IOtpRepository, OtpRepository>();
         builder.Services.AddScoped<IEmailService, EmailService>();
+        builder.Services.AddScoped<GoVoylo.Application.Interfaces.IETicketPdfGenerator,
+            GoVoylo.Infrastructure.Documents.QuestPdfETicketGenerator>();
+        builder.Services.AddScoped<GoVoylo.Application.Interfaces.IETicketService,
+            GoVoylo.Application.Features.Payments.Services.ETicketService>();
         builder.Services.AddScoped<IUserRepository, UserRepository>();
         builder.Services.AddScoped<IPasswordService, PasswordService>();
         builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
@@ -128,6 +132,8 @@ public class Program
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
         builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
+        builder.Services.Configure<GoVoylo.Infrastructure.Documents.ETicketSettings>(
+            builder.Configuration.GetSection("ETicketSettings"));
 
         builder.Services.AddMemoryCache();
         builder.Services.AddSingleton<IFlightSearchSessionStore, InMemoryFlightSearchSessionStore>();

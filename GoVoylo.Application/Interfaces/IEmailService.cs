@@ -13,5 +13,9 @@ namespace GoVoylo.Application.Interfaces
 
         public Task SendBookingConfirmationAsync(
             string email, string recipientName, string bookingRefNo, string? airlinePnr, string? recordLocator);
+
+        // The ticketed booking's e-ticket, attached as a PDF. routeSummary: "DEL–BOM, BOM–DEL".
+        public Task SendETicketAsync(
+            string email, string recipientName, string bookingRefNo, string routeSummary, byte[] pdf, string fileName);
     }
 }
