@@ -71,6 +71,10 @@ namespace GoVoylo.Domain.Entities
         {
         }
 
+        // For a leg saved before the supplier issued any FlightId (a temp booking
+        // ticketed directly after payment, with no hold in between).
+        public void AssignFlightId(string flightId) => FlightId = flightId;
+
         public void MarkTicketed(string? airlinePnr, string? crsPnr, string? recordLocator)
         {
             AirlinePnr = airlinePnr;

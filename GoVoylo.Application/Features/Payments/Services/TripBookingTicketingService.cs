@@ -71,12 +71,19 @@ namespace GoVoylo.Application.Features.Payments.Services
             // booking-level fields above only ever hold the first leg's values, so each
             // leg needs its own PNR recorded for a later leg-specific cancellation to
             // send the right one. Matched by FlightId since that's the one identifier
-            // both sides share.
+            // both sides share. A leg saved before any FlightId existed (Flyshop's
+            // unheld temp booking) takes its result by index instead — Air_Ticketing
+            // keeps the order the legs were sent to Air_TempBooking in.
             var legResultsByFlightId = ticket.Legs
                 .GroupBy(l => l.FlightId)
                 .ToDictionary(g => g.Key, g => g.First());
             foreach (var leg in booking.Legs)
             {
+                if (string.IsNullOrEmpty(leg.FlightId) && ticket.Legs.ElementAtOrDefault(leg.LegIndex) is { } indexedResult)
+                {
+                    leg.AssignFlightId(indexedResult.FlightId);
+                }
+
                 if (legResultsByFlightId.TryGetValue(leg.FlightId, out var legResult))
                 {
                     leg.MarkTicketed(legResult.AirlinePnr, legResult.CrsPnr, legResult.RecordLocator);
