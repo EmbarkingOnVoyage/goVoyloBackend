@@ -81,6 +81,16 @@ namespace GoVoylo.Application.Features.Flights.Commands.CancelTripBooking
                     "This booking is paid and the airline is still issuing the ticket. Please try again later.");
             }
 
+            // Awaiting payment with no PNR: nothing is held with the airline (a
+            // Flyshop temp booking, or a fare the supplier couldn't hold), so there's
+            // nothing to release there — it's just dropped here.
+            if (booking.StatusId == StatusBlocked && string.IsNullOrWhiteSpace(booking.AirlinePnr) && !request.LegIndex.HasValue)
+            {
+                booking.MarkReleased();
+                await _tripBookingRepository.UpdateAsync(booking, cancellationToken);
+                return new CancelTripBookingResponseDto(true, booking.LocalStatus);
+            }
+
             if (string.IsNullOrWhiteSpace(booking.AirlinePnr))
             {
                 throw new BusinessRuleException(

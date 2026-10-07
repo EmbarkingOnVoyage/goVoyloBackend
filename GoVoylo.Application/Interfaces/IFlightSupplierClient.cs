@@ -35,14 +35,15 @@ namespace GoVoylo.Application.Interfaces
         Task<SupplierTempBookingResultDto> CreateTempBookingAsync(
             SupplierTempBookingRequestDto request, CancellationToken cancellationToken);
 
-        // Places a reversible Block_Ticket hold (Ticketing_Type "0"), cancellable via
-        // Air_ReleasePNR — not a final purchase. See FLIGHT_ANCILLARIES_SCOPE.MD for
-        // the fuller writeup of the hold → pay → ticket flow.
+        // Holds the temp booking until payment where the supplier's flow uses a hold
+        // (Tripjack), reporting Status 33 either way — not a final purchase. Flyshop
+        // places no hold: its certified flow tickets the temp booking directly after
+        // AddPayment (see FlyshopClient.CreateBlockTicketAsync).
         Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
             string bookingRefNo, CancellationToken cancellationToken);
 
         // Debits GoVoylo's real Flyshop agency wallet balance against an existing
-        // Block_Ticket hold's Booking_RefNo — a real settlement charge, not a sandbox
+        // temp booking's Booking_RefNo — a real settlement charge, not a sandbox
         // echo. Must succeed before BookTicketAsync will; see AddPaymentRequestWire's
         // own doc comment for the wire contract (sourced from Flyshop's "Client 2.6
         // Air" Postman collection, AddPayment endpoint).
@@ -53,10 +54,10 @@ namespace GoVoylo.Application.Interfaces
         Task<SupplierPaymentResultDto> AddPaymentAsync(
             string bookingRefNo, string clientRefNo, string? deferredBookPayload, CancellationToken cancellationToken);
 
-        // Converts an already-paid-for Block_Ticket hold into a real, essentially
+        // Converts an already-paid-for temp booking or hold into a real, essentially
         // final airline PNR (Ticketing_Type "1"). Only call this after AddPaymentAsync
         // has succeeded for the same bookingRefNo — Flyshop's own Air_Ticketing
-        // rejects Book_Ticket against a hold with no registered payment.
+        // rejects Book_Ticket against a booking with no registered payment.
         // With a deferredBookPayload (see AddPaymentAsync), this makes the instant
         // booking itself rather than ticketing an existing hold.
         Task<SupplierTicketingResultDto> BookTicketAsync(

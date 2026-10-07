@@ -715,9 +715,8 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
         [JsonPropertyName("Booking_RefNo")]
         public string BookingRefNo { get; set; } = string.Empty;
 
-        // Deliberately hardcoded to "0" (Block_Ticket) at the call site — see
-        // IFlightSupplierClient.CreateBlockTicketAsync's own doc comment for why
-        // Book_Ticket (real purchase + Add_Payment wallet debit) isn't wired up.
+        // "1" (Book_Ticket) after AddPayment; "0" (Block_Ticket hold) is no longer
+        // sent — see FlyshopClient.CreateBlockTicketAsync.
         [JsonPropertyName("Ticketing_Type")]
         public string TicketingType { get; set; } = "0";
     }

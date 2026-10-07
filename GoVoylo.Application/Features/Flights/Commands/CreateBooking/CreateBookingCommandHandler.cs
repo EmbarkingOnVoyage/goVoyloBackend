@@ -9,11 +9,10 @@ using MediatR;
 
 namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
 {
-    // Creates a Flyshop temp booking across every leg and immediately places a
-    // Block_Ticket hold on it (see IFlightSupplierClient.CreateBlockTicketAsync
-    // for why this never calls Book_Ticket). The hold is reversible via
-    // Air_ReleasePNR (see IFlightSupplierClient.ReleaseHoldAsync) rather than a
-    // final purchase.
+    // Creates a supplier temp booking across every leg, held until payment where
+    // the supplier holds (see IFlightSupplierClient.CreateBlockTicketAsync) — never
+    // a final purchase. Book_Ticket runs only once payment verifies (see
+    // TripBookingTicketingService).
     public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand, CreateBookingResponseDto>
     {
         // Air_Ticketing's own docs: Status_Id 22 is the only failure code —
@@ -318,10 +317,16 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                 }
                 else
                 {
-                    for (var i = 0; i < legSummaries.Count && i < ticket.Legs.Count; i++)
+                    // No legs back at all means nothing is ticketed or held yet
+                    // (Flyshop's temp booking awaiting payment) — every leg is saved
+                    // without a FlightId, filled in once Air_Ticketing runs.
+                    var legCount = ticket.Legs.Count == 0
+                        ? legSummaries.Count
+                        : Math.Min(legSummaries.Count, ticket.Legs.Count);
+                    for (var i = 0; i < legCount; i++)
                     {
                         var summary = legSummaries[i];
-                        var legResult = ticket.Legs[i];
+                        var legResult = ticket.Legs.ElementAtOrDefault(i);
 
                         var leg = new TripBookingLeg(
                             tripBooking.Id,
@@ -332,7 +337,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                             summary.AirlineCode,
                             summary.AirlineName,
                             summary.FlightNumber,
-                            legResult.FlightId);
+                            legResult?.FlightId ?? string.Empty);
                         leg.SetFareType(i < request.Legs.Count ? request.Legs[i].FareType : null);
                         tripBooking.AddLeg(leg);
                     }

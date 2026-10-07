@@ -292,11 +292,18 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             return new SupplierTempBookingResultDto(wireResponse.BookingRefNo);
         }
 
+        // Flyshop's certification requires its direct booking flow (Air_TempBooking →
+        // AddPayment → Air_Ticketing "1"), not a Block_Ticket ("0") hold first — so
+        // nothing is placed here. The temp booking is reported as Status 33 (awaiting
+        // payment, as VerifyRazorpayPaymentCommandHandler expects) with no legs:
+        // Flight_Ids only exist once Air_Ticketing runs after payment.
         public Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
             string bookingRefNo, CancellationToken cancellationToken) =>
-            TicketAsync(bookingRefNo, ticketingType: "0", cancellationToken);
+            Task.FromResult(new SupplierTicketingResultDto(
+                bookingRefNo, "33", null, null, null, null, null, Array.Empty<SupplierTicketingLegResultDto>()));
 
-        // Flyshop always holds first, so deferredBookPayload is always null here.
+        // Flyshop's temp booking is ticketed directly, so deferredBookPayload is
+        // always null here.
         public Task<SupplierTicketingResultDto> BookTicketAsync(
             string bookingRefNo, string? deferredBookPayload, CancellationToken cancellationToken) =>
             TicketAsync(bookingRefNo, ticketingType: "1", cancellationToken);
