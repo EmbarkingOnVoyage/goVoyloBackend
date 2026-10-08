@@ -38,6 +38,11 @@ namespace GoVoylo.Domain.Entities
         // refunded — see ConvenienceFeeCalculator.
         public decimal ConvenienceFee { get; private set; }
 
+        // What the customer was actually charged through Razorpay, once verified.
+        // Can be more than PayableAmount: Flyshop's TotalAmount leaves out the
+        // add-ons (meals, seats, baggage) the app prices itself.
+        public decimal? AmountPaid { get; private set; }
+
         // Comma-joined "First Last" — display only, not used for cancellation.
         public string PassengerNames { get; private set; } = null!;
 
@@ -118,6 +123,20 @@ namespace GoVoylo.Domain.Entities
 
         // What the customer pays: the supplier total plus the convenience fee.
         public decimal PayableAmount => TotalAmount + ConvenienceFee;
+
+        // What to show as paid: the verified charge, else (older bookings, or not
+        // paid yet) the supplier total plus the convenience fee.
+        public decimal TotalPaid => AmountPaid ?? PayableAmount;
+
+        public void RecordPayment(decimal amountPaid)
+        {
+            if (amountPaid <= 0)
+            {
+                throw new ArgumentException("Amount paid must be positive.", nameof(amountPaid));
+            }
+
+            AmountPaid = amountPaid;
+        }
 
         // Populates the in-memory Legs collection when reading back from storage —
         // TripBookingLeg has no EF navigation back to TripBooking (this codebase

@@ -58,4 +58,30 @@ public class TripBookingTests
 
         act.Should().Throw<ArgumentException>();
     }
+
+    [Fact]
+    public void TotalPaid_UsesTheVerifiedCharge_WhichIncludesAppPricedAddOns()
+    {
+        var booking = CreateDeferredBooking();
+        booking.SetConvenienceFee(15.89m);
+
+        booking.TotalPaid.Should().Be(1604.39m);
+
+        // Fare 1,588.50 + meals 800 + fee 15.89, charged through Razorpay.
+        booking.RecordPayment(2404.39m);
+
+        booking.AmountPaid.Should().Be(2404.39m);
+        booking.TotalPaid.Should().Be(2404.39m);
+        booking.PayableAmount.Should().Be(1604.39m);
+    }
+
+    [Fact]
+    public void RecordPayment_RejectsNonPositive()
+    {
+        var booking = CreateDeferredBooking();
+
+        var act = () => booking.RecordPayment(0m);
+
+        act.Should().Throw<ArgumentException>();
+    }
 }

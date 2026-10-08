@@ -247,7 +247,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         // What the supplier said it will refund once cancelled; null if it didn't say.
         decimal? RefundAmount,
         // GoVoylo's non-refundable convenience fee, paid on top of TotalAmount.
-        decimal ConvenienceFee = 0m);
+        decimal ConvenienceFee = 0m,
+        // Everything the customer paid (fare, add-ons and convenience fee) — see
+        // TripBooking.TotalPaid.
+        decimal TotalPaid = 0m);
 
     public record TripBookingSegmentDto(
         int LegIndex,

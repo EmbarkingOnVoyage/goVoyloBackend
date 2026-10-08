@@ -119,7 +119,7 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetCancellationQuote
             // that leg's fare as the supplier reports it.
             var amountPaid = request.LegIndex.HasValue || booking.TotalAmount <= 0m
                 ? quote.TotalFare
-                : booking.PayableAmount;
+                : booking.TotalPaid;
 
             return new CancellationQuoteDto(
                 amountPaid,
