@@ -1260,7 +1260,9 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                         price.FareIdentifier,
                         price.SpecialReturnId,
                         price.MatchingSpecialReturnIds,
-                        TotalForPassengers(price, request, c => c.BaseFare));
+                        TotalForPassengers(price, request, c => c.BaseFare),
+                        TotalForPassengers(price, OnePassenger(request, child: false), c => c.BaseFare),
+                        TotalForPassengers(price, OnePassenger(request, child: true), c => c.BaseFare));
                 })
                 .ToList();
 
@@ -1306,6 +1308,10 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                 + (request.ChildCount > 0 ? PerPax("CHILD") * request.ChildCount : 0m)
                 + (request.InfantCount > 0 ? PerPax("INFANT") * request.InfantCount : 0m);
         }
+
+        // The search request narrowed to a single adult or child, to price one passenger.
+        private static FlightSearchRequestDto OnePassenger(FlightSearchRequestDto request, bool child) =>
+            request with { AdultCount = child ? 0 : 1, ChildCount = child ? 1 : 0, InfantCount = 0 };
 
         private static TripjackFareDetailWire? GetAdultFareDetail(TripjackPriceWire? price) =>
             price?.FareDetailsByPaxType.TryGetValue("ADULT", out var detail) == true ? detail : null;

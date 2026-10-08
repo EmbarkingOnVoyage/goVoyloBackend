@@ -120,6 +120,7 @@ public class Program
         builder.Services.AddScoped<IAirportRepository, AirportRepository>();
         builder.Services.AddScoped<IRecentAirportSearchRepository, RecentAirportSearchRepository>();
         builder.Services.AddScoped<ITripBookingRepository, TripBookingRepository>();
+        builder.Services.AddScoped<IConvenienceFeeRuleRepository, ConvenienceFeeRuleRepository>();
         builder.Services.AddSingleton<IAirportCacheService, AirportCacheService>();
         builder.Services.AddScoped<AirportImportService>();
         builder.Services.AddSingleton<AuditLogQueue>();
@@ -207,6 +208,8 @@ public class Program
         // this API wires the Application layer's services itself and never calls it.
         builder.Services.AddScoped<GoVoylo.Application.Interfaces.ITripBookingTicketingService,
             GoVoylo.Application.Features.Payments.Services.TripBookingTicketingService>();
+        builder.Services.AddScoped<GoVoylo.Application.Interfaces.IConvenienceFeeService,
+            GoVoylo.Application.Features.Pricing.Services.ConvenienceFeeService>();
 
         builder.Services.AddHttpClient<IHolidayCalendarService, GoogleHolidayCalendarClient>();
 

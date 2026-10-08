@@ -69,7 +69,7 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetTripBookingDetails
                             .ToList(),
                         details.BaseFare,
                         details.TaxesAndFees,
-                        booking.TotalAmount);
+                        booking.PayableAmount);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -86,7 +86,7 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetTripBookingDetails
                 Array.Empty<TripBookingPassengerDto>(),
                 null,
                 null,
-                booking.TotalAmount);
+                booking.PayableAmount);
         }
     }
 }

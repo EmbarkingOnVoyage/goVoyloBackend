@@ -31,7 +31,8 @@ public class CreateRazorpayOrderCommandHandler : IRequestHandler<CreateRazorpayO
         // The amount comes from the app, so it's checked against the booking we
         // recorded at hold time: the caller must own a booking that is still held,
         // and can't be charged less than its supplier-confirmed total (which already
-        // includes any priced SSRs for Tripjack). Paying a little more than that is
+        // includes any priced SSRs for Tripjack) plus GoVoylo's convenience fee, which
+        // the server worked out at booking. Paying a little more than that is
         // allowed because Flyshop's recorded total doesn't include add-ons the app
         // prices on its side.
         var booking = await _tripBookingRepository.GetByBookingRefNoAsync(request.BookingReference, cancellationToken);
@@ -46,7 +47,7 @@ public class CreateRazorpayOrderCommandHandler : IRequestHandler<CreateRazorpayO
         }
 
         if (!string.Equals(request.Currency, booking.CurrencyCode, StringComparison.OrdinalIgnoreCase)
-            || Math.Round(request.Amount) < Math.Round(booking.TotalAmount))
+            || Math.Round(request.Amount) < Math.Round(booking.PayableAmount))
         {
             throw new BusinessRuleException("payment_amount_mismatch", "The payment amount doesn't match this booking.");
         }

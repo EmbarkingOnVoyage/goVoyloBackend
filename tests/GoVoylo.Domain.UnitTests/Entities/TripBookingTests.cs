@@ -37,4 +37,25 @@ public class TripBookingTests
         booking.StatusId.Should().Be("22");
         booking.DeferredSupplierPayloadEncrypted.Should().BeNull();
     }
+
+    [Fact]
+    public void PayableAmount_AddsTheConvenienceFee()
+    {
+        var booking = CreateDeferredBooking();
+
+        booking.SetConvenienceFee(15.89m);
+
+        booking.ConvenienceFee.Should().Be(15.89m);
+        booking.PayableAmount.Should().Be(1604.39m);
+    }
+
+    [Fact]
+    public void SetConvenienceFee_RejectsNegative()
+    {
+        var booking = CreateDeferredBooking();
+
+        var act = () => booking.SetConvenienceFee(-1m);
+
+        act.Should().Throw<ArgumentException>();
+    }
 }

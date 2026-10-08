@@ -34,6 +34,10 @@ namespace GoVoylo.Domain.Entities
         public decimal TotalAmount { get; private set; }
         public string CurrencyCode { get; private set; } = null!;
 
+        // GoVoylo's convenience fee, charged on top of TotalAmount and never
+        // refunded — see ConvenienceFeeCalculator.
+        public decimal ConvenienceFee { get; private set; }
+
         // Comma-joined "First Last" — display only, not used for cancellation.
         public string PassengerNames { get; private set; } = null!;
 
@@ -101,6 +105,19 @@ namespace GoVoylo.Domain.Entities
         }
 
         public void AddLeg(TripBookingLeg leg) => _legs.Add(leg);
+
+        public void SetConvenienceFee(decimal convenienceFee)
+        {
+            if (convenienceFee < 0)
+            {
+                throw new ArgumentException("Convenience fee can't be negative.", nameof(convenienceFee));
+            }
+
+            ConvenienceFee = convenienceFee;
+        }
+
+        // What the customer pays: the supplier total plus the convenience fee.
+        public decimal PayableAmount => TotalAmount + ConvenienceFee;
 
         // Populates the in-memory Legs collection when reading back from storage —
         // TripBookingLeg has no EF navigation back to TripBooking (this codebase

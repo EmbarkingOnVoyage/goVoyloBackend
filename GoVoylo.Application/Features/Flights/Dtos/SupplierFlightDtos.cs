@@ -32,7 +32,12 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         IReadOnlyList<string>? MatchingSpecialReturnIds = null,
         // Base fare (before taxes and fees) of BookingTotalAmount — every searched
         // passenger. The rest of BookingTotalAmount is taxes and fees.
-        decimal BookingBaseAmount = 0m);
+        decimal BookingBaseAmount = 0m,
+        // Base fare of this fare for one adult / one child (a child the fare doesn't
+        // price separately pays the adult fare) — what the convenience fee is a
+        // percentage of. 0 when the supplier didn't split it.
+        decimal AdultBaseFare = 0m,
+        decimal ChildBaseFare = 0m);
 
     public record SupplierFlightOptionDto(
         string FlightKey,
@@ -89,7 +94,14 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         // Set only for a whole-trip offer (e.g. a Tripjack international return):
         // one entry per trip, so the booking is saved as DEL-DXB + DXB-DEL rather
         // than one DEL-DEL leg.
-        IReadOnlyList<FlightOfferSessionTrip>? Trips = null);
+        IReadOnlyList<FlightOfferSessionTrip>? Trips = null,
+        // The search's TripType (see TripTypes) and every fare's per-passenger base
+        // fare, kept server-side so the convenience fee charged at booking can't be
+        // influenced by the app.
+        string TripType = "",
+        IReadOnlyList<FlightOfferSessionFare>? Fares = null);
+
+    public record FlightOfferSessionFare(string FareId, decimal AdultBaseFare, decimal ChildBaseFare);
 
     public record FlightOfferSessionTrip(
         string Origin,

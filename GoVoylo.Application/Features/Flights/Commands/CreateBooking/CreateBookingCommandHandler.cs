@@ -5,6 +5,7 @@ using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Common;
 using GoVoylo.Domain.Entities;
 using GoVoylo.Domain.Interfaces;
+using GoVoylo.Domain.Pricing;
 using MediatR;
 
 namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
@@ -27,6 +28,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
         private readonly ISavedTravelerRepository _savedTravelerRepository;
         private readonly ITravelerPassportRepository _passportRepository;
         private readonly IEncryptionService _encryptionService;
+        private readonly IConvenienceFeeService _convenienceFeeService;
 
         public CreateBookingCommandHandler(
             IFlightSupplierClientResolver supplierClientResolver,
@@ -36,7 +38,8 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
             ITripBookingRepository tripBookingRepository,
             ISavedTravelerRepository savedTravelerRepository,
             ITravelerPassportRepository passportRepository,
-            IEncryptionService encryptionService)
+            IEncryptionService encryptionService,
+            IConvenienceFeeService convenienceFeeService)
         {
             _supplierClientResolver = supplierClientResolver;
             _sessionStore = sessionStore;
@@ -46,6 +49,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
             _savedTravelerRepository = savedTravelerRepository;
             _passportRepository = passportRepository;
             _encryptionService = encryptionService;
+            _convenienceFeeService = convenienceFeeService;
         }
 
         public async Task<CreateBookingResponseDto> Handle(
@@ -107,6 +111,10 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                 };
                 fareChangedLegs.Add(i);
             }
+
+            // Worked out before anything is booked with the supplier, from the base
+            // fares and trip type the search session recorded server-side.
+            var convenienceFee = await CalculateConvenienceFeeAsync(request, legSummaries, cancellationToken);
 
             // A seat/meal/baggage SSR_Key returned by Air_GetSeatMap or Air_GetSSR is
             // only valid against the exact Flight_Key that request was repriced
@@ -260,6 +268,8 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                     passengerNames,
                     paxIds);
 
+                tripBooking.SetConvenienceFee(convenienceFee);
+
                 if (tempBooking.DeferredBookPayload != null)
                 {
                     tripBooking.SetDeferredSupplierPayload(
@@ -361,7 +371,46 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                 ticket.CrsPnr,
                 ticket.RecordLocator,
                 ticket.FailureRemark,
-                ticket.ConfirmedTotalAmount);
+                ticket.ConfirmedTotalAmount,
+                convenienceFee);
+        }
+
+        // One journey per leg, or per trip of a whole-trip offer (its base fare split
+        // evenly across trips, since the supplier prices the offer as one). The trip
+        // type is RoundTrip only for two journeys found by a round-trip search; any
+        // other multi-journey booking is MultiCity — the app searches multi-city
+        // legs one at a time, so those sessions say OneWay.
+        private async Task<decimal> CalculateConvenienceFeeAsync(
+            CreateBookingCommand request, IReadOnlyList<FlightOfferSession> legSummaries, CancellationToken cancellationToken)
+        {
+            var journeys = new List<JourneyBaseFare>();
+            for (var i = 0; i < legSummaries.Count; i++)
+            {
+                var session = legSummaries[i];
+                var fareId = request.Legs[i].FareId ?? session.FareId;
+                var fare = session.Fares?.FirstOrDefault(f => f.FareId == fareId)
+                    ?? session.Fares?.FirstOrDefault(f => f.FareId == session.FareId);
+                var tripCount = Math.Max(1, session.Trips?.Count ?? 1);
+                for (var t = 0; t < tripCount; t++)
+                {
+                    journeys.Add(new JourneyBaseFare(
+                        (fare?.AdultBaseFare ?? 0m) / tripCount,
+                        (fare?.ChildBaseFare ?? 0m) / tripCount));
+                }
+            }
+
+            var tripType = journeys.Count == 1
+                ? TripTypes.OneWay
+                : journeys.Count == 2 && legSummaries.Any(s => s.TripType == TripTypes.RoundTrip)
+                    ? TripTypes.RoundTrip
+                    : TripTypes.MultiCity;
+
+            return await _convenienceFeeService.CalculateAsync(
+                tripType,
+                journeys,
+                request.Travelers.Count(t => MapPaxType(t.PaxType) == 0),
+                request.Travelers.Count(t => MapPaxType(t.PaxType) == 1),
+                cancellationToken);
         }
 
         // Fills passport details from a saved co-traveller's passport on file — see

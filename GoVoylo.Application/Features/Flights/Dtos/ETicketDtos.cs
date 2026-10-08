@@ -68,5 +68,6 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         decimal? TaxesAndFees,
         decimal? AddOns,
         decimal Total,
-        string CurrencyCode);
+        string CurrencyCode,
+        decimal? ConvenienceFee = null);
 }
