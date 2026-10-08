@@ -759,8 +759,18 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                 searchRequest == null ? 0m : TotalForPassengers(fare, adultFareDetail, searchRequest),
                 BookingBaseAmount: searchRequest == null
                     ? 0m
-                    : TotalForPassengers(fare, adultFareDetail, searchRequest, d => d.BasicAmount));
+                    : TotalForPassengers(fare, adultFareDetail, searchRequest, d => d.BasicAmount),
+                AdultBaseFare: searchRequest == null
+                    ? 0m
+                    : TotalForPassengers(fare, adultFareDetail, OnePassenger(searchRequest, child: false), d => d.BasicAmount),
+                ChildBaseFare: searchRequest == null
+                    ? 0m
+                    : TotalForPassengers(fare, adultFareDetail, OnePassenger(searchRequest, child: true), d => d.BasicAmount));
         }
+
+        // The search request narrowed to a single adult or child, to price one passenger.
+        private static FlightSearchRequestDto OnePassenger(FlightSearchRequestDto request, bool child) =>
+            request with { AdultCount = child ? 0 : 1, ChildCount = child ? 1 : 0, InfantCount = 0 };
 
         private static SupplierFlightSegmentDto MapSegment(SegmentWire segment) => new(
             segment.Origin,

@@ -36,7 +36,11 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string? SpecialReturnId,
         IReadOnlyList<string> MatchingSpecialReturnIds,
         // See SupplierFareOptionDto.BookingBaseAmount; 0 when the supplier didn't split it.
-        decimal BookingBaseAmount = 0m);
+        decimal BookingBaseAmount = 0m,
+        // See SupplierFareOptionDto.AdultBaseFare/ChildBaseFare — lets the app show
+        // the convenience fee before booking.
+        decimal AdultBaseFare = 0m,
+        decimal ChildBaseFare = 0m);
 
     public record FlightOfferDto(
         Guid OfferId,
@@ -176,7 +180,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         // The supplier-confirmed amount to charge — see
         // SupplierTicketingResultDto.ConfirmedTotalAmount. Null means charge the
         // searched price as before.
-        decimal? ConfirmedTotalAmount = null);
+        decimal? ConfirmedTotalAmount = null,
+        // GoVoylo's convenience fee, charged on top of the fare total — calculated
+        // here from the convenience fee rules, not taken from the app.
+        decimal ConvenienceFee = 0m);
 
     public record FareRuleDto(string SegmentId, string FareRuleName, string FareRuleDesc);
 
@@ -238,7 +245,9 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         IReadOnlyList<TripBookingLegDto> Legs,
         DateTime? CancelledAt,
         // What the supplier said it will refund once cancelled; null if it didn't say.
-        decimal? RefundAmount);
+        decimal? RefundAmount,
+        // GoVoylo's non-refundable convenience fee, paid on top of TotalAmount.
+        decimal ConvenienceFee = 0m);
 
     public record TripBookingSegmentDto(
         int LegIndex,
