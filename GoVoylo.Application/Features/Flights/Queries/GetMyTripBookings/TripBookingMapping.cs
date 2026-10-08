@@ -34,6 +34,7 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetMyTripBookings
                     l.IsCancelled))
                 .ToList(),
             b.CancelledAt,
-            b.RefundAmount);
+            b.RefundAmount,
+            b.ConvenienceFee);
     }
 }

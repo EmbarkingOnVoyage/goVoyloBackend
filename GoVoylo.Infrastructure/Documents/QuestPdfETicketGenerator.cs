@@ -432,6 +432,10 @@ namespace GoVoylo.Infrastructure.Documents
                 {
                     AmountRow(card, "Add-Ons", null, Money(addOns, payment.CurrencyCode));
                 }
+                if (payment.ConvenienceFee is { } convenienceFee)
+                {
+                    AmountRow(card, "Convenience Fee", null, Money(convenienceFee, payment.CurrencyCode));
+                }
                 card.Item().PaddingTop(1).LineHorizontal(0.75f).LineColor(Border);
                 card.Item().PaddingTop(1.5f).LineHorizontal(0.75f).LineColor(Border);
                 card.Item().PaddingTop(8).Row(row =>

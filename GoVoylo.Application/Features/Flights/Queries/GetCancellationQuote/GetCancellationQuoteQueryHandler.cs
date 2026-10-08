@@ -115,10 +115,11 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetCancellationQuote
             }
 
             // A whole-booking cancel shows what the customer actually paid (including
-            // add-ons); a leg-only one shows that leg's fare as the supplier reports it.
+            // add-ons and the non-refundable convenience fee); a leg-only one shows
+            // that leg's fare as the supplier reports it.
             var amountPaid = request.LegIndex.HasValue || booking.TotalAmount <= 0m
                 ? quote.TotalFare
-                : booking.TotalAmount;
+                : booking.PayableAmount;
 
             return new CancellationQuoteDto(
                 amountPaid,

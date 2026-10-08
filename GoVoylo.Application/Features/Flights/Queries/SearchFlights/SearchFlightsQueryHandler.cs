@@ -93,7 +93,11 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                         firstSegment?.FlightNumber ?? string.Empty,
                         flight.TotalAmount,
                         flight.CurrencyCode,
-                        MapTrips(flight.Segments));
+                        MapTrips(flight.Segments),
+                        request.Request.TripType,
+                        flight.Fares
+                            .Select(f => new FlightOfferSessionFare(f.FareId, f.AdultBaseFare, f.ChildBaseFare))
+                            .ToList());
 
                     var offerId = await _sessionStore.SaveAsync(session, cancellationToken);
 
@@ -125,7 +129,9 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                                 f.FareIdentifier,
                                 f.SpecialReturnId,
                                 f.MatchingSpecialReturnIds ?? Array.Empty<string>(),
-                                f.BookingBaseAmount))
+                                f.BookingBaseAmount,
+                                f.AdultBaseFare,
+                                f.ChildBaseFare))
                             .ToList(),
                         flight.TripLegIndex,
                         client.SupplierCode));
