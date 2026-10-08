@@ -67,7 +67,12 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasDefaultValue(0m)
                 .IsRequired();
 
+            builder.Property(x => x.AmountPaid)
+                .HasColumnName("amount_paid")
+                .HasColumnType("numeric(12,2)");
+
             builder.Ignore(x => x.PayableAmount);
+            builder.Ignore(x => x.TotalPaid);
 
             builder.Property(x => x.CurrencyCode)
                 .HasColumnName("currency_code")
