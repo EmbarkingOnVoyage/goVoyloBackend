@@ -180,8 +180,10 @@ namespace GoVoylo.Application.Features.Payments.Services
                     string.IsNullOrWhiteSpace(p.CabinBaggage) ? "–" : p.CabinBaggage!)))
                 .ToList();
 
-            var addOns = details?.TotalFare is { } supplierTotal && booking.TotalAmount - supplierTotal >= 1m
-                ? booking.TotalAmount - supplierTotal
+            // Whatever was paid beyond the supplier's fare and the convenience fee.
+            var paidForFlights = booking.TotalPaid - booking.ConvenienceFee;
+            var addOns = details?.TotalFare is { } supplierTotal && paidForFlights - supplierTotal >= 1m
+                ? paidForFlights - supplierTotal
                 : (decimal?)null;
 
             var passengerSummary = passengerDtos.Count > 1
@@ -202,7 +204,7 @@ namespace GoVoylo.Application.Features.Payments.Services
                     details?.BaseFare,
                     details?.TaxesAndFees,
                     addOns,
-                    booking.PayableAmount,
+                    booking.TotalPaid,
                     booking.CurrencyCode,
                     booking.ConvenienceFee > 0m ? booking.ConvenienceFee : null),
                 contactEmail,

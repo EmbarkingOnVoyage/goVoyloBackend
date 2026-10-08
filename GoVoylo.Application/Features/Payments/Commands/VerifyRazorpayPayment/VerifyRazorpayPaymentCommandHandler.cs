@@ -56,6 +56,14 @@ public class VerifyRazorpayPaymentCommandHandler : IRequestHandler<VerifyRazorpa
         // this lookup is never ambiguous between BookingPayment and TripBooking.
         var booking = await _tripBookingRepository.GetByBookingRefNoAsync(payment.BookingReference, cancellationToken);
 
+        // Saved before ticketing, so a booking that then fails to ticket still
+        // shows what the customer paid.
+        if (booking != null)
+        {
+            booking.RecordPayment(payment.TotalAmount);
+            await _tripBookingRepository.UpdateAsync(booking, cancellationToken);
+        }
+
         if (booking != null && booking.StatusId == StatusBlocked)
         {
             await _ticketingService.TicketAsync(booking, payment.Id.ToString(), cancellationToken);
