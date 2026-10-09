@@ -14,5 +14,8 @@ namespace GoVoylo.Application.Features.Traveler.Commands.UpdateTraveler
         string? Nationality,
         string? City,
         string? State,
-        bool AutoAddTravelInsurance) : IRequest<TravelerDto>;
+        bool AutoAddTravelInsurance,
+        string? Email = null,
+        string? Phone = null,
+        string? PhoneCountryCode = null) : IRequest<TravelerDto>;
 }

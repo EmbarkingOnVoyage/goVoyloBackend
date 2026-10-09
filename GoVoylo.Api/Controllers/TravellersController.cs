@@ -63,7 +63,10 @@ namespace GoVoylo.Api.Controllers
                 request.Nationality,
                 request.City,
                 request.State,
-                request.AutoAddTravelInsurance);
+                request.AutoAddTravelInsurance,
+                request.Email,
+                request.Phone,
+                request.PhoneCountryCode);
 
             var result = await _mediator.Send(command);
             return Ok(result);
@@ -83,7 +86,10 @@ namespace GoVoylo.Api.Controllers
                 request.Nationality,
                 request.City,
                 request.State,
-                request.AutoAddTravelInsurance);
+                request.AutoAddTravelInsurance,
+                request.Email,
+                request.Phone,
+                request.PhoneCountryCode);
 
             var result = await _mediator.Send(command);
             return Ok(result);
@@ -221,7 +227,10 @@ namespace GoVoylo.Api.Controllers
         string? Nationality,
         string? City,
         string? State,
-        bool AutoAddTravelInsurance);
+        bool AutoAddTravelInsurance,
+        string? Email = null,
+        string? Phone = null,
+        string? PhoneCountryCode = null);
 
     public record PassportRequest(
         string PassportNumber, string IssuingCountry, DateTime ExpiryDate, DateTime? IssueDate = null);

@@ -64,6 +64,18 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasColumnName("state")
                 .HasMaxLength(100);
 
+            builder.Property(x => x.Email)
+                .HasColumnName("email")
+                .HasMaxLength(256);
+
+            builder.Property(x => x.Phone)
+                .HasColumnName("phone")
+                .HasMaxLength(20);
+
+            builder.Property(x => x.PhoneCountryCode)
+                .HasColumnName("phone_country_code")
+                .HasMaxLength(5);
+
             builder.Property(x => x.AutoAddTravelInsurance)
                 .HasColumnName("auto_add_travel_insurance")
                 .HasDefaultValue(false)

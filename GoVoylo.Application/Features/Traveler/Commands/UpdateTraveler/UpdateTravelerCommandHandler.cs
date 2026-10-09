@@ -33,7 +33,10 @@ namespace GoVoylo.Application.Features.Traveler.Commands.UpdateTraveler
                 request.Nationality,
                 request.City,
                 request.State,
-                request.AutoAddTravelInsurance);
+                request.AutoAddTravelInsurance,
+                request.Email,
+                request.Phone,
+                request.PhoneCountryCode);
 
             await _travelerRepository.UpdateAsync(traveler);
 

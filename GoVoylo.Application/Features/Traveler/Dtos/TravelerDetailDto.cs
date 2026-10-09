@@ -17,7 +17,10 @@ namespace GoVoylo.Application.Features.Traveler.Dtos
         PassportDto? Passport,
         IReadOnlyList<VisaDto> Visas,
         IReadOnlyList<FrequentFlyerDto> FrequentFlyers,
-        IReadOnlyList<EmergencyContactDto> EmergencyContacts);
+        IReadOnlyList<EmergencyContactDto> EmergencyContacts,
+        string? Email = null,
+        string? Phone = null,
+        string? PhoneCountryCode = null);
 
     public record PassportDto(
         Guid Id,

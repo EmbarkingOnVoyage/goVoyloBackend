@@ -15,6 +15,12 @@ namespace GoVoylo.Domain.Entities
         public string? SeatPreference { get; private set; } // window | aisle | middle
         public string? City { get; private set; }
         public string? State { get; private set; }
+
+        // Optional contact details for this traveller (the booking's own contact is
+        // the account holder's — see CreateBookingCommand.PassengerEmail/Mobile).
+        public string? Email { get; private set; }
+        public string? Phone { get; private set; }
+        public string? PhoneCountryCode { get; private set; }
         public bool AutoAddTravelInsurance { get; private set; }
         public bool IsDeleted { get; private set; }
         public DateTime UpdatedAt { get; private set; }
@@ -29,7 +35,10 @@ namespace GoVoylo.Domain.Entities
             string? nationality,
             string? city = null,
             string? state = null,
-            bool autoAddTravelInsurance = false)
+            bool autoAddTravelInsurance = false,
+            string? email = null,
+            string? phone = null,
+            string? phoneCountryCode = null)
         {
             UserId = userId;
             TravelerType = travelerType;
@@ -41,6 +50,7 @@ namespace GoVoylo.Domain.Entities
             City = city;
             State = state;
             AutoAddTravelInsurance = autoAddTravelInsurance;
+            SetContact(email, phone, phoneCountryCode);
             UpdatedAt = DateTime.UtcNow;
         }
 
@@ -58,7 +68,10 @@ namespace GoVoylo.Domain.Entities
             string? nationality,
             string? city,
             string? state,
-            bool autoAddTravelInsurance)
+            bool autoAddTravelInsurance,
+            string? email = null,
+            string? phone = null,
+            string? phoneCountryCode = null)
         {
             TravelerType = travelerType;
             FirstName = firstName;
@@ -69,7 +82,18 @@ namespace GoVoylo.Domain.Entities
             City = city;
             State = state;
             AutoAddTravelInsurance = autoAddTravelInsurance;
+            SetContact(email, phone, phoneCountryCode);
             UpdatedAt = DateTime.UtcNow;
+        }
+
+        // Blank values clear the field; a phone without a country code is Indian.
+        private void SetContact(string? email, string? phone, string? phoneCountryCode)
+        {
+            Email = string.IsNullOrWhiteSpace(email) ? null : email.Trim();
+            Phone = string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+            PhoneCountryCode = Phone == null
+                ? null
+                : string.IsNullOrWhiteSpace(phoneCountryCode) ? "+91" : phoneCountryCode.Trim();
         }
 
         public void UpdatePreferences(string? mealPreference, string? seatPreference)
