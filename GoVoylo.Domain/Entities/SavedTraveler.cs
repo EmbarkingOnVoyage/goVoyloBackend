@@ -21,6 +21,10 @@ namespace GoVoylo.Domain.Entities
         public string? Email { get; private set; }
         public string? Phone { get; private set; }
         public string? PhoneCountryCode { get; private set; }
+
+        // The signed-in customer themselves (one per account). Their email is always
+        // the account's sign-in email — the primary email — and they can't be removed.
+        public bool IsAccountHolder { get; private set; }
         public bool AutoAddTravelInsurance { get; private set; }
         public bool IsDeleted { get; private set; }
         public DateTime UpdatedAt { get; private set; }
@@ -100,6 +104,18 @@ namespace GoVoylo.Domain.Entities
         {
             MealPreference = mealPreference;
             SeatPreference = seatPreference;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        // Makes this the account holder's own traveller, with the account email as
+        // its (primary) email.
+        public void MarkAsAccountHolder(string? accountEmail)
+        {
+            IsAccountHolder = true;
+            if (!string.IsNullOrWhiteSpace(accountEmail))
+            {
+                Email = accountEmail.Trim();
+            }
             UpdatedAt = DateTime.UtcNow;
         }
 

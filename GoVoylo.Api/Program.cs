@@ -208,6 +208,7 @@ public class Program
         // this API wires the Application layer's services itself and never calls it.
         builder.Services.AddScoped<GoVoylo.Application.Interfaces.ITripBookingTicketingService,
             GoVoylo.Application.Features.Payments.Services.TripBookingTicketingService>();
+        builder.Services.AddScoped<GoVoylo.Application.Features.Traveler.Services.AccountHolderTravelerService>();
         builder.Services.AddScoped<GoVoylo.Application.Interfaces.IConvenienceFeeService,
             GoVoylo.Application.Features.Pricing.Services.ConvenienceFeeService>();
 

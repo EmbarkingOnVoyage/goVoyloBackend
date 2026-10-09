@@ -66,7 +66,8 @@ namespace GoVoylo.Api.Controllers
                 request.AutoAddTravelInsurance,
                 request.Email,
                 request.Phone,
-                request.PhoneCountryCode);
+                request.PhoneCountryCode,
+                request.IsAccountHolder);
 
             var result = await _mediator.Send(command);
             return Ok(result);
@@ -230,7 +231,8 @@ namespace GoVoylo.Api.Controllers
         bool AutoAddTravelInsurance,
         string? Email = null,
         string? Phone = null,
-        string? PhoneCountryCode = null);
+        string? PhoneCountryCode = null,
+        bool IsAccountHolder = false);
 
     public record PassportRequest(
         string PassportNumber, string IssuingCountry, DateTime ExpiryDate, DateTime? IssueDate = null);

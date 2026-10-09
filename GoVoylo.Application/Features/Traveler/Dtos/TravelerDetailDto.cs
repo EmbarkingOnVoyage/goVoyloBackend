@@ -20,7 +20,8 @@ namespace GoVoylo.Application.Features.Traveler.Dtos
         IReadOnlyList<EmergencyContactDto> EmergencyContacts,
         string? Email = null,
         string? Phone = null,
-        string? PhoneCountryCode = null);
+        string? PhoneCountryCode = null,
+        bool IsAccountHolder = false);
 
     public record PassportDto(
         Guid Id,
