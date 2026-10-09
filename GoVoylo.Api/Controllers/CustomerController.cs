@@ -5,6 +5,7 @@ using GoVoylo.Application.Features.Customer.Commands.DeleteCustomerAccount;
 using GoVoylo.Application.Features.Customer.Commands.DeleteCustomerAddress;
 using GoVoylo.Application.Features.Customer.Commands.DeleteProfileImage;
 using GoVoylo.Application.Features.Customer.Commands.UpdateCustomerAddress;
+using GoVoylo.Application.Features.Customer.Commands.UpdateContactDetails;
 using GoVoylo.Application.Features.Customer.Commands.UpdateCustomerProfile;
 using GoVoylo.Application.Features.Customer.Commands.UpdateExtendedProfile;
 using GoVoylo.Application.Features.Customer.Commands.UpdateGstDetails;
@@ -59,6 +60,17 @@ namespace GoVoylo.Api.Controllers
         {
             var command = new UpdateCustomerProfileCommand(
                 _currentUser.UserId, request.FirstName, request.LastName, request.Phone);
+
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+
+        // Booking contact (mobile, and an email only for an account without one),
+        // asked for on Traveller Details when the profile is missing them.
+        [HttpPut("profile/contact")]
+        public async Task<IActionResult> UpdateContactDetails([FromBody] UpdateContactDetailsRequest request)
+        {
+            var command = new UpdateContactDetailsCommand(_currentUser.UserId, request.Phone, request.Email);
 
             var result = await _mediator.Send(command);
             return Ok(result);
@@ -252,6 +264,8 @@ namespace GoVoylo.Api.Controllers
     }
 
     public record UpdateProfileRequest(string FirstName, string LastName, string? Phone);
+
+    public record UpdateContactDetailsRequest(string Phone, string? Email);
 
     public record UpdateExtendedProfileRequest(
         string? Gender,
