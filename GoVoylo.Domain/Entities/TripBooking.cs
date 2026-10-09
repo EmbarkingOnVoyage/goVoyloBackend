@@ -111,6 +111,10 @@ namespace GoVoylo.Domain.Entities
 
         public void AddLeg(TripBookingLeg leg) => _legs.Add(leg);
 
+        // Guest checkout booking claimed by the account that signed in with the
+        // guest's email.
+        public void MoveToUser(Guid userId) => UserId = userId;
+
         public void SetConvenienceFee(decimal convenienceFee)
         {
             if (convenienceFee < 0)

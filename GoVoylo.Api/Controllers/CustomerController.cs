@@ -1,3 +1,4 @@
+using GoVoylo.Api.Authorization;
 using GoVoylo.Application.Features.Customer.Commands.AddCustomerAddress;
 using GoVoylo.Application.Features.Customer.Commands.AddGstDetails;
 using GoVoylo.Application.Features.Customer.Commands.ChangePassword;
@@ -48,6 +49,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpGet("full-profile")]
         public async Task<IActionResult> GetFullProfile()
         {
@@ -55,6 +57,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpPut("profile")]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
         {
@@ -76,6 +79,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpPut("profile/details")]
         public async Task<IActionResult> UpdateExtendedProfile([FromBody] UpdateExtendedProfileRequest request)
         {
@@ -98,6 +102,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
         {
@@ -108,6 +113,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(new { message = "Password updated successfully." });
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpPost("profile/image")]
         public async Task<IActionResult> UploadProfileImage(IFormFile file)
         {
@@ -119,6 +125,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(new { imageUrl });
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpDelete("profile/image")]
         public async Task<IActionResult> DeleteProfileImage()
         {
@@ -126,6 +133,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(new { message = "Image removed successfully." });
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpDelete("account")]
         public async Task<IActionResult> DeleteAccount()
         {
@@ -133,6 +141,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(new { message = "Account deleted successfully." });
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpGet("activity")]
         public async Task<IActionResult> GetActivity()
         {
@@ -140,6 +149,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpGet("dashboard")]
         public async Task<IActionResult> GetDashboard()
         {
@@ -147,6 +157,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpGet("preferences")]
         public async Task<IActionResult> GetPreferences()
         {
@@ -154,6 +165,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpPut("preferences")]
         public async Task<IActionResult> UpdatePreferences([FromBody] UpdatePreferencesRequest request)
         {
@@ -162,6 +174,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpGet("notification-preferences")]
         public async Task<IActionResult> GetNotificationPreferences()
         {
@@ -169,6 +182,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpPut("notification-preferences")]
         public async Task<IActionResult> UpdateNotificationPreferences(
             [FromBody] UpdateNotificationPreferencesRequest request)
@@ -184,6 +198,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpGet("address")]
         public async Task<IActionResult> GetAddresses()
         {
@@ -191,6 +206,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpPost("address")]
         public async Task<IActionResult> AddAddress([FromBody] AddressRequest request)
         {
@@ -209,6 +225,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpPut("address/{id}")]
         public async Task<IActionResult> UpdateAddress(Guid id, [FromBody] AddressRequest request)
         {
@@ -228,6 +245,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpDelete("address/{id}")]
         public async Task<IActionResult> DeleteAddress(Guid id)
         {
@@ -235,6 +253,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(new { message = "Address removed successfully." });
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpGet("gst")]
         public async Task<IActionResult> GetGstDetails()
         {
@@ -242,6 +261,7 @@ namespace GoVoylo.Api.Controllers
             return result == null ? NotFound() : Ok(result);
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpPost("gst")]
         public async Task<IActionResult> AddGstDetails([FromBody] GstDetailsRequest request)
         {
@@ -252,6 +272,7 @@ namespace GoVoylo.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Policy = AuthPolicies.RegisteredUser)]
         [HttpPut("gst")]
         public async Task<IActionResult> UpdateGstDetails([FromBody] GstDetailsRequest request)
         {

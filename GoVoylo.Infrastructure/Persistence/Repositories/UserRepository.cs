@@ -23,6 +23,14 @@ namespace GoVoylo.Infrastructure.Persistence.Repositories
                 .FirstOrDefaultAsync(x => x.Email == email);
         }
 
+        public async Task<IReadOnlyList<User>> GetGuestsByEmailAsync(string email)
+        {
+            var guestEmail = email.Trim().ToLowerInvariant();
+            return await _context.Users
+                .Where(x => x.Status == User.GuestStatus && x.GuestEmail == guestEmail)
+                .ToListAsync();
+        }
+
         public async Task<User?> GetByIdAsync(Guid id)
         {
             return await _context.Users

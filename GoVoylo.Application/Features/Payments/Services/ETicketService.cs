@@ -34,7 +34,7 @@ namespace GoVoylo.Application.Features.Payments.Services
             // Sent to the account's own email — the same address the booking was
             // made with in the app (and the hold email goes to).
             var user = await _userRepository.GetByIdAsync(booking.UserId);
-            if (string.IsNullOrWhiteSpace(user?.Email))
+            if (string.IsNullOrWhiteSpace(user?.ContactEmail))
             {
                 _logger.LogWarning("No email on file for trip booking {TripBookingId}; e-ticket not sent.", booking.Id);
                 return;
@@ -43,7 +43,7 @@ namespace GoVoylo.Application.Features.Payments.Services
             var file = await BuildPdfAsync(booking, user, cancellationToken);
 
             await _emailService.SendETicketAsync(
-                user.Email,
+                user.ContactEmail,
                 $"{user.FirstName} {user.LastName}".Trim(),
                 booking.BookingRefNo,
                 file.RouteSummary,
@@ -73,7 +73,7 @@ namespace GoVoylo.Application.Features.Payments.Services
 
             var phone = details?.ContactPhone
                 ?? (string.IsNullOrWhiteSpace(user?.Phone) ? null : $"{user.PhoneCountryCode}{user.Phone}");
-            var ticket = Build(booking, details, details?.ContactEmail ?? user?.Email, phone);
+            var ticket = Build(booking, details, details?.ContactEmail ?? user?.ContactEmail, phone);
             return new ETicketFile(
                 _pdfGenerator.Generate(ticket),
                 $"GoVoylo-ETicket-{booking.BookingRefNo}.pdf",

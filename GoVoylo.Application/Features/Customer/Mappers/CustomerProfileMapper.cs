@@ -13,7 +13,8 @@ namespace GoVoylo.Application.Features.Customer.Mappers
                 user.Id,
                 user.FirstName,
                 user.LastName,
-                user.Email,
+                // A guest's checkout email, so the booking flow has its contact.
+                user.ContactEmail,
                 user.Phone,
                 user.IsEmailVerified,
                 user.IsPhoneVerified,

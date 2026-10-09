@@ -226,12 +226,12 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
             if (ticket.StatusId != TicketingFailedStatusId)
             {
                 var user = await _userRepository.GetByIdAsync(request.UserId);
-                if (!string.IsNullOrWhiteSpace(user?.Email))
+                if (!string.IsNullOrWhiteSpace(user?.ContactEmail))
                 {
                     try
                     {
                         await _emailService.SendBookingConfirmationAsync(
-                            user.Email,
+                            user.ContactEmail,
                             $"{user.FirstName} {user.LastName}".Trim(),
                             ticket.BookingRefNo,
                             ticket.AirlinePnr,

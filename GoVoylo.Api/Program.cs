@@ -59,7 +59,10 @@ public class Program
                     ClockSkew = TimeSpan.Zero
                 };
             });
-        builder.Services.AddAuthorization();
+        builder.Services.AddAuthorization(options =>
+            options.AddPolicy(GoVoylo.Api.Authorization.AuthPolicies.RegisteredUser, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireAssertion(context => !context.User.IsInRole(GoVoylo.Api.Authorization.AuthPolicies.GuestRole))));
         builder.Services.AddOpenApi(options =>
         {
             options.AddDocumentTransformer((document, context, cancellationToken) =>
@@ -209,6 +212,7 @@ public class Program
         builder.Services.AddScoped<GoVoylo.Application.Interfaces.ITripBookingTicketingService,
             GoVoylo.Application.Features.Payments.Services.TripBookingTicketingService>();
         builder.Services.AddScoped<GoVoylo.Application.Features.Traveler.Services.AccountHolderTravelerService>();
+        builder.Services.AddScoped<GoVoylo.Application.Features.Authentication.Services.GuestAccountMerger>();
         builder.Services.AddScoped<GoVoylo.Application.Interfaces.IConvenienceFeeService,
             GoVoylo.Application.Features.Pricing.Services.ConvenienceFeeService>();
 

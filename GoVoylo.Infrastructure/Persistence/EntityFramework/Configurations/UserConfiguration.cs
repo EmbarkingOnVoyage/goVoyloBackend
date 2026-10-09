@@ -145,6 +145,15 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasDefaultValue(false)
                 .IsRequired();
 
+            builder.Property(x => x.GuestEmail)
+                .HasColumnName("guest_email")
+                .HasMaxLength(255);
+
+            builder.HasIndex(x => x.GuestEmail, "ix_gv_users_guest_email");
+
+            builder.Ignore(x => x.IsGuest);
+            builder.Ignore(x => x.ContactEmail);
+
             //// Email OR Phone must be present
             //builder.HasCheckConstraint(
             //    "chk_users_has_identifier",
