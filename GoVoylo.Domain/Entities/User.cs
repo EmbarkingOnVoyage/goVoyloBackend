@@ -121,6 +121,20 @@ namespace GoVoylo.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
         }
 
+        // The booking contact: always sets the mobile; sets the email only when the
+        // account has none (it's the sign-in identity, so an existing one never
+        // changes here). A newly added email isn't verified.
+        public void SetContactDetails(string phone, string? email)
+        {
+            Phone = phone;
+            if (Email == null && !string.IsNullOrWhiteSpace(email))
+            {
+                Email = email.Trim();
+                IsEmailVerified = false;
+            }
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         public void ChangePasswordHash(string newPasswordHash)
         {
             PasswordHash = newPasswordHash;
