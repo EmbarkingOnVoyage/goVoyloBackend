@@ -87,7 +87,10 @@ namespace GoVoylo.Application.Features.Traveler.Queries.GetTravelerById
                     f.AirlineCode,
                     MaskingHelper.MaskKeepLast4(_encryptionService.Decrypt(f.MembershipNumberEncrypted)))).ToList(),
                 emergencyContacts.Select(e => new EmergencyContactDto(
-                    e.Id, e.Name, e.Relationship, e.Phone, e.PhoneCountryCode, e.Email)).ToList());
+                    e.Id, e.Name, e.Relationship, e.Phone, e.PhoneCountryCode, e.Email)).ToList(),
+                traveler.Email,
+                traveler.Phone,
+                traveler.PhoneCountryCode);
         }
     }
 }
