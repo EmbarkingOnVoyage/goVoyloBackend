@@ -13,5 +13,6 @@ namespace GoVoylo.Application.Features.Traveler.Dtos
         bool AutoAddTravelInsurance,
         string? Email = null,
         string? Phone = null,
-        string? PhoneCountryCode = null);
+        string? PhoneCountryCode = null,
+        bool IsAccountHolder = false);
 }

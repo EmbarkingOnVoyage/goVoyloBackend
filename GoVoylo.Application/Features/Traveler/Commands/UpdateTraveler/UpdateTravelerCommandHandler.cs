@@ -1,6 +1,7 @@
 using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Features.Traveler.Dtos;
 using GoVoylo.Application.Features.Traveler.Mappers;
+using GoVoylo.Application.Features.Traveler.Services;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
 
@@ -9,10 +10,14 @@ namespace GoVoylo.Application.Features.Traveler.Commands.UpdateTraveler
     public class UpdateTravelerCommandHandler : IRequestHandler<UpdateTravelerCommand, TravelerDto>
     {
         private readonly ISavedTravelerRepository _travelerRepository;
+        private readonly AccountHolderTravelerService _accountHolderTravelers;
 
-        public UpdateTravelerCommandHandler(ISavedTravelerRepository travelerRepository)
+        public UpdateTravelerCommandHandler(
+            ISavedTravelerRepository travelerRepository,
+            AccountHolderTravelerService accountHolderTravelers)
         {
             _travelerRepository = travelerRepository;
+            _accountHolderTravelers = accountHolderTravelers;
         }
 
         public async Task<TravelerDto> Handle(UpdateTravelerCommand request, CancellationToken cancellationToken)
@@ -37,6 +42,12 @@ namespace GoVoylo.Application.Features.Traveler.Commands.UpdateTraveler
                 request.Email,
                 request.Phone,
                 request.PhoneCountryCode);
+
+            // The account holder's email stays the account's primary email.
+            if (traveler.IsAccountHolder)
+            {
+                traveler.MarkAsAccountHolder(await _accountHolderTravelers.AccountEmailAsync(request.UserId));
+            }
 
             await _travelerRepository.UpdateAsync(traveler);
 

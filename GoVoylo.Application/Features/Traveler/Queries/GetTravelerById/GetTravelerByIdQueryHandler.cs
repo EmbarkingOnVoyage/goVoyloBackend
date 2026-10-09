@@ -90,7 +90,8 @@ namespace GoVoylo.Application.Features.Traveler.Queries.GetTravelerById
                     e.Id, e.Name, e.Relationship, e.Phone, e.PhoneCountryCode, e.Email)).ToList(),
                 traveler.Email,
                 traveler.Phone,
-                traveler.PhoneCountryCode);
+                traveler.PhoneCountryCode,
+                traveler.IsAccountHolder);
         }
     }
 }

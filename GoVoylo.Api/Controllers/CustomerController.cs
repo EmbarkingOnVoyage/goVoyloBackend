@@ -265,7 +265,7 @@ namespace GoVoylo.Api.Controllers
 
     public record UpdateProfileRequest(string FirstName, string LastName, string? Phone);
 
-    public record UpdateContactDetailsRequest(string Phone, string? Email);
+    public record UpdateContactDetailsRequest(string? Phone, string? Email);
 
     public record UpdateExtendedProfileRequest(
         string? Gender,

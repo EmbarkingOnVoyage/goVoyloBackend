@@ -20,7 +20,8 @@ namespace GoVoylo.Application.Features.Traveler.Mappers
                 traveler.AutoAddTravelInsurance,
                 traveler.Email,
                 traveler.Phone,
-                traveler.PhoneCountryCode);
+                traveler.PhoneCountryCode,
+                traveler.IsAccountHolder);
         }
     }
 }
