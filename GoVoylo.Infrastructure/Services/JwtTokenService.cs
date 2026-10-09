@@ -22,7 +22,15 @@ namespace GoVoylo.Infrastructure.Services
             _configuration = configuration;
         }
 
-        public string GenerateToken(User user, IEnumerable<string> roles)
+        public const string GuestRole = "guest";
+
+        public string GenerateGuestToken(User guest, TimeSpan lifetime) =>
+            Build(guest, new[] { GuestRole }, DateTime.UtcNow.Add(lifetime));
+
+        public string GenerateToken(User user, IEnumerable<string> roles) =>
+            Build(user, roles, DateTime.UtcNow.AddMinutes(_configuration.GetValue<int>("Jwt:ExpiryMinutes")));
+
+        private string Build(User user, IEnumerable<string> roles, DateTime expires)
         {
             // Get JWT secret from .env
             var secretKey =
@@ -37,8 +45,6 @@ namespace GoVoylo.Infrastructure.Services
             // Get normal configuration from appsettings.json
             var issuer = _configuration["Jwt:Issuer"];
             var audience = _configuration["Jwt:Audience"];
-            var expiryMinutes =
-                _configuration.GetValue<int>("Jwt:ExpiryMinutes");
 
             var claims = new List<Claim>
             {
@@ -48,7 +54,7 @@ namespace GoVoylo.Infrastructure.Services
 
                 new Claim(
                     ClaimTypes.Email,
-                    user.Email ?? string.Empty),
+                    user.ContactEmail ?? string.Empty),
 
                 new Claim(
                     ClaimTypes.Name,
@@ -68,7 +74,7 @@ namespace GoVoylo.Infrastructure.Services
                 issuer: issuer,
                 audience: audience,
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
+                expires: expires,
                 signingCredentials: credentials);
 
             return new JwtSecurityTokenHandler()
