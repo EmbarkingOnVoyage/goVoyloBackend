@@ -119,6 +119,15 @@ namespace GoVoylo.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
         }
 
+        // Guest checkout traveller claimed by the account that signed in with the
+        // guest's email. That account's own "You" stays its account holder.
+        public void MoveToUser(Guid userId)
+        {
+            UserId = userId;
+            IsAccountHolder = false;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         public void SoftDelete()
         {
             IsDeleted = true;

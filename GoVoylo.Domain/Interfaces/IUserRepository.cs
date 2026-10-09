@@ -9,6 +9,8 @@ namespace GoVoylo.Domain.Interfaces
     {
         Task<User?> GetByEmailAsync(string email);
         Task<User?> GetByIdAsync(Guid id);
+        // Unmerged guest checkouts made with this email.
+        Task<IReadOnlyList<User>> GetGuestsByEmailAsync(string email);
         Task SaveAsync(User user);
         Task UpdateAsync(User user);
         Task<(IReadOnlyList<User> Users, int TotalCount)> SearchAsync(

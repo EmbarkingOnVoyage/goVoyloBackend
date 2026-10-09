@@ -1,5 +1,6 @@
 using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Features.Authentication.Dtos;
+using GoVoylo.Application.Features.Authentication.Services;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Common;
 using GoVoylo.Domain.Entities;
@@ -19,6 +20,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
         private readonly IUserRoleRepository _userRoleRepository;
         private readonly IRoleRepository _roleRepository;
         private readonly IAuditService _auditService;
+        private readonly GuestAccountMerger _guestAccountMerger;
 
         public LoginWithOtpCommandHandler(
             IOtpRepository otpRepository,
@@ -28,7 +30,8 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
             IRefreshTokenRepository refreshTokenRepository,
             IUserRoleRepository userRoleRepository,
             IRoleRepository roleRepository,
-            IAuditService auditService)
+            IAuditService auditService,
+            GuestAccountMerger guestAccountMerger)
         {
             _otpRepository = otpRepository;
             _userRepository = userRepository;
@@ -38,6 +41,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
             _userRoleRepository = userRoleRepository;
             _roleRepository = roleRepository;
             _auditService = auditService;
+            _guestAccountMerger = guestAccountMerger;
         }
 
         public async Task<LoginResponseDto> Handle(LoginWithOtpCommand request, CancellationToken cancellationToken)
@@ -91,6 +95,9 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
                 _auditService.Log(user.Id, AuditEventTypes.LoginFailed);
                 throw new ForbiddenException("account_inactive", "User account is not active.");
             }
+
+            // Bookings made as a guest with this email now belong to the account.
+            await _guestAccountMerger.MergeIntoAsync(user, cancellationToken);
 
             // 3. Issue access + refresh tokens, same as password login
             var roles = await _userRoleRepository.GetRoleNamesForUserAsync(user.Id);

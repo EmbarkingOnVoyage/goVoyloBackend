@@ -4,9 +4,11 @@ using GoVoylo.Application.Features.Authentication.Commands.Logout;
 using GoVoylo.Application.Features.Authentication.Commands.RefreshToken;
 using GoVoylo.Application.Features.Authentication.Commands.Register;
 using GoVoylo.Application.Features.Authentication.Commands.SendOtp;
+using GoVoylo.Application.Features.Authentication.Commands.StartGuestSession;
 using GoVoylo.Application.Features.Authentication.Commands.VerifyOtp;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace GoVoylo.Api.Controllers
 {
@@ -68,6 +70,15 @@ namespace GoVoylo.Api.Controllers
 
         [HttpPost("login-otp")]
         public async Task<IActionResult> LoginWithOtp(LoginWithOtpCommand command)
+        {
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+
+        // Guest checkout: a short-lived token for booking without signing in.
+        [HttpPost("guest")]
+        [EnableRateLimiting("HeavyTrafficPolicy")]
+        public async Task<IActionResult> StartGuestSession(StartGuestSessionCommand command)
         {
             var result = await _mediator.Send(command);
             return Ok(result);

@@ -1,3 +1,4 @@
+using GoVoylo.Api.Authorization;
 using GoVoylo.Application.Features.Traveler.Commands.AddEmergencyContact;
 using GoVoylo.Application.Features.Traveler.Commands.AddFrequentFlyer;
 using GoVoylo.Application.Features.Traveler.Commands.AddPassport;
@@ -67,7 +68,8 @@ namespace GoVoylo.Api.Controllers
                 request.Email,
                 request.Phone,
                 request.PhoneCountryCode,
-                request.IsAccountHolder);
+                // A guest checkout has no account to be the holder of.
+                request.IsAccountHolder && !User.IsInRole(AuthPolicies.GuestRole));
 
             var result = await _mediator.Send(command);
             return Ok(result);

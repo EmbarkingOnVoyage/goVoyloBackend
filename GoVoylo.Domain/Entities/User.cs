@@ -58,6 +58,20 @@ namespace GoVoylo.Domain.Entities
 
         public bool AutoAddTravelInsurance { get; private set; }
 
+        public const string GuestStatus = "guest";
+        public const string MergedGuestStatus = "merged";
+
+        // Guest checkout: the email typed at checkout. It's kept out of Email (the
+        // unique sign-in identity), so a guest record never claims an address;
+        // signing in with this email later moves the guest's travellers and
+        // bookings into that account (see GuestAccountMerger).
+        public string? GuestEmail { get; private set; }
+
+        public bool IsGuest => Status == GuestStatus;
+
+        // Where booking emails go: the account email, or a guest's checkout email.
+        public string? ContactEmail => Email ?? GuestEmail;
+
 
         public User(
         string email,
@@ -113,6 +127,27 @@ namespace GoVoylo.Domain.Entities
         {
         }
 
+        // One per guest checkout, so a guest session only ever sees what it
+        // created itself — never another checkout's data under the same email.
+        public static User CreateGuest(string email, string phone) => new User
+        {
+            Id = Guid.NewGuid(),
+            GuestEmail = email.Trim().ToLowerInvariant(),
+            Phone = phone.Trim(),
+            FirstName = "Guest",
+            LastName = string.Empty,
+            Status = GuestStatus,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+
+        // The guest's travellers and bookings now belong to the signed-in account.
+        public void MarkGuestMerged()
+        {
+            Status = MergedGuestStatus;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         public void UpdateProfile(string firstName, string lastName, string? phone)
         {
             FirstName = firstName;
@@ -130,7 +165,8 @@ namespace GoVoylo.Domain.Entities
             {
                 Phone = phone;
             }
-            if (Email == null && !string.IsNullOrWhiteSpace(email))
+            // A guest's email stays in GuestEmail: Email is a real account's identity.
+            if (Email == null && !IsGuest && !string.IsNullOrWhiteSpace(email))
             {
                 Email = email.Trim();
                 IsEmailVerified = false;
