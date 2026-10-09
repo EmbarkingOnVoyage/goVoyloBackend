@@ -54,7 +54,7 @@ namespace GoVoylo.Application.Features.Customer.Commands.UpdateContactDetails
                 }
             }
 
-            user.SetContactDetails(request.Phone.Trim(), email);
+            user.SetContactDetails(request.Phone?.Trim(), email);
             await _userRepository.UpdateAsync(user);
 
             _auditService.Log(user.Id, AuditEventTypes.ProfileUpdated);

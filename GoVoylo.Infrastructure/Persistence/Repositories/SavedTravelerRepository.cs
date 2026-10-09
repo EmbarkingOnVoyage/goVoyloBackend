@@ -24,7 +24,8 @@ namespace GoVoylo.Infrastructure.Persistence.Repositories
         {
             return await _context.SavedTravelers
                 .Where(x => x.UserId == userId && !x.IsDeleted)
-                .OrderBy(x => x.FirstName)
+                .OrderByDescending(x => x.IsAccountHolder)
+                .ThenBy(x => x.FirstName)
                 .ThenBy(x => x.LastName)
                 .ToListAsync();
         }

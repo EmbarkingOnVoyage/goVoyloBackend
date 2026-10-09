@@ -81,6 +81,17 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasDefaultValue(false)
                 .IsRequired();
 
+            builder.Property(x => x.IsAccountHolder)
+                .HasColumnName("is_account_holder")
+                .HasDefaultValue(false)
+                .IsRequired();
+
+            // At most one live account-holder traveller per customer. Named, so EF keeps
+            // it separate from ix_saved_travelers_user on the same column.
+            builder.HasIndex(x => x.UserId, "ux_saved_travelers_account_holder")
+                .IsUnique()
+                .HasFilter("is_account_holder AND NOT is_deleted");
+
             builder.Property(x => x.IsDeleted)
                 .HasColumnName("is_deleted")
                 .HasDefaultValue(false)

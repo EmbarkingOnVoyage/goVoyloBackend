@@ -24,6 +24,13 @@ namespace GoVoylo.Application.Features.Traveler.Commands.DeleteTraveler
                 throw new NotFoundException("Traveler not found.");
             }
 
+            if (traveler.IsAccountHolder)
+            {
+                throw new BusinessRuleException(
+                    "account_holder_not_removable",
+                    "You can't remove yourself from your travellers.");
+            }
+
             traveler.SoftDelete();
             await _travelerRepository.UpdateAsync(traveler);
 
