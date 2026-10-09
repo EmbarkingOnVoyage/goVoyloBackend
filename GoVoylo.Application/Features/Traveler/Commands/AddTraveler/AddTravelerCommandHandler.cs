@@ -49,7 +49,10 @@ namespace GoVoylo.Application.Features.Traveler.Commands.AddTraveler
                 request.Nationality,
                 request.City,
                 request.State,
-                request.AutoAddTravelInsurance);
+                request.AutoAddTravelInsurance,
+                request.Email,
+                request.Phone,
+                request.PhoneCountryCode);
 
             await _travelerRepository.AddAsync(traveler);
 

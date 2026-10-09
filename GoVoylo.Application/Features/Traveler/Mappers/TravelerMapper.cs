@@ -17,7 +17,10 @@ namespace GoVoylo.Application.Features.Traveler.Mappers
                 traveler.Nationality,
                 traveler.City,
                 traveler.State,
-                traveler.AutoAddTravelInsurance);
+                traveler.AutoAddTravelInsurance,
+                traveler.Email,
+                traveler.Phone,
+                traveler.PhoneCountryCode);
         }
     }
 }

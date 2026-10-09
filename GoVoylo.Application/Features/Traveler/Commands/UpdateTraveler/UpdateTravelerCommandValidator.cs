@@ -19,6 +19,16 @@ namespace GoVoylo.Application.Features.Traveler.Commands.UpdateTraveler
             RuleFor(x => x.DateOfBirth)
                 .LessThanOrEqualTo(DateTime.UtcNow.Date)
                 .WithMessage("Date of birth cannot be in the future.");
+
+            RuleFor(x => x.Email)
+                .EmailAddress().MaximumLength(256)
+                .When(x => !string.IsNullOrWhiteSpace(x.Email));
+            RuleFor(x => x.Phone)
+                .Matches(@"^\d{6,15}$").WithMessage("Mobile number must be 6 to 15 digits.")
+                .When(x => !string.IsNullOrWhiteSpace(x.Phone));
+            RuleFor(x => x.PhoneCountryCode)
+                .Matches(@"^\+\d{1,4}$").WithMessage("Country code must look like +91.")
+                .When(x => !string.IsNullOrWhiteSpace(x.PhoneCountryCode));
         }
     }
 }
