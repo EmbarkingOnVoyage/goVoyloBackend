@@ -232,6 +232,11 @@ namespace GoVoylo.Application.Features.Payments.Services
             {
                 return "Regular Fare";
             }
+            // Tripjack's own zero-cancellation-fee fare.
+            if (key == "TJ_FLEX")
+            {
+                return "Flex Fare";
+            }
             // "OFFER_FARE_WITH_PNR" / "..._WITHOUT_PNR" are both an offer fare to the traveller.
             foreach (var suffix in new[] { "_WITH_PNR", "_WITHOUT_PNR" })
             {
@@ -241,7 +246,7 @@ namespace GoVoylo.Application.Features.Payments.Services
                 }
             }
             var words = string.Join(' ', key.Split('_', StringSplitOptions.RemoveEmptyEntries)
-                .Select(w => w is "SME" or "LCC" ? w : CultureInfo.InvariantCulture.TextInfo.ToTitleCase(w.ToLowerInvariant())));
+                .Select(w => w is "SME" or "LCC" or "NDC" or "GDS" ? w : CultureInfo.InvariantCulture.TextInfo.ToTitleCase(w.ToLowerInvariant())));
             return words.EndsWith("Fare", StringComparison.Ordinal) ? words : $"{words} Fare";
         }
 
