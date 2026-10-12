@@ -83,6 +83,19 @@ namespace GoVoylo.Infrastructure.Persistence.Repositories
             return bookings;
         }
 
+        public async Task<IReadOnlyList<TripBooking>> GetUnpaidHoldsCreatedBeforeAsync(
+            DateTime cutoffUtc, CancellationToken cancellationToken)
+        {
+            return await _context.TripBookings
+                .Where(x => x.StatusId == "33"
+                    && x.LocalStatus == TripBooking.StatusActive
+                    && x.AmountPaid == null
+                    && x.CreatedAt < cutoffUtc)
+                .OrderBy(x => x.CreatedAt)
+                .Take(100)
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task UpdateAsync(TripBooking booking, CancellationToken cancellationToken)
         {
             _context.TripBookings.Update(booking);

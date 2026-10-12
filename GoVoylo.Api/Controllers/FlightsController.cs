@@ -125,9 +125,10 @@ namespace GoVoylo.Api.Controllers
 
         [Authorize]
         [HttpPost("bookings/release")]
-        public async Task<IActionResult> ReleaseHold([FromBody] ReleaseHoldCommand command)
+        public async Task<IActionResult> ReleaseHold([FromBody] ReleaseHoldRequest request)
         {
-            var result = await _mediator.Send(command);
+            var result = await _mediator.Send(
+                new ReleaseHoldCommand(_currentUser.UserId, request.BookingRefNo, request.AirlinePnr));
             return Ok(result);
         }
 
