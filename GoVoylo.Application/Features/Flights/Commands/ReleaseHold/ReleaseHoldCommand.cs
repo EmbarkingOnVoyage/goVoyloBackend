@@ -3,13 +3,17 @@ using MediatR;
 
 namespace GoVoylo.Application.Features.Flights.Commands.ReleaseHold
 {
-    // Releases a Block_Ticket hold (Ticketing_Type "0") that was never converted to a
-    // real ticket, via Air_ReleasePNR. Separate from CancelBookingCommand because
-    // Flyshop rejects Air_TicketCancellation outright for an un-ticketed hold (confirmed
-    // against live UAT: Err007 "Please check your RefNo Status") — see
-    // FLIGHT_ANCILLARIES_SCOPE.MD. The caller supplies the identifiers returned earlier
-    // from CreateBookingCommand's response, since bookings aren't persisted anywhere yet.
+    // Gives up a hold whose checkout didn't end in a payment (Razorpay closed,
+    // payment failed or unverified): releases it with the supplier when there's
+    // an airline PNR (Air_ReleasePNR for Flyshop — Air_TicketCancellation rejects
+    // un-ticketed holds with Err007, see FLIGHT_ANCILLARIES_SCOPE.MD) and marks
+    // the TripBooking Released so My Trips stops showing it as on hold. Holds with
+    // no PNR (Flyshop direct temp bookings, Tripjack fares that can't be held)
+    // have nothing to release with the supplier and are just marked Released.
     public record ReleaseHoldCommand(
+        Guid UserId,
         string BookingRefNo,
-        string AirlinePnr) : IRequest<ReleaseHoldResponseDto>;
+        string? AirlinePnr) : IRequest<ReleaseHoldResponseDto>;
+
+    public record ReleaseHoldRequest(string BookingRefNo, string? AirlinePnr);
 }

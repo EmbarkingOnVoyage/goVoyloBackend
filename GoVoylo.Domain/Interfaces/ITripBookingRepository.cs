@@ -13,5 +13,9 @@ namespace GoVoylo.Domain.Interfaces
         Task<IReadOnlyList<TripBooking>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken);
 
         Task UpdateAsync(TripBooking booking, CancellationToken cancellationToken);
+
+        // Still-active holds (status 33) with no payment recorded, created before
+        // the cutoff — checkouts that were abandoned without a release call.
+        Task<IReadOnlyList<TripBooking>> GetUnpaidHoldsCreatedBeforeAsync(DateTime cutoffUtc, CancellationToken cancellationToken);
     }
 }

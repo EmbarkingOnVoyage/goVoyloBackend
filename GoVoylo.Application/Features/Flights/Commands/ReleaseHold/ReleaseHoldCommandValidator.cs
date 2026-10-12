@@ -7,7 +7,6 @@ namespace GoVoylo.Application.Features.Flights.Commands.ReleaseHold
         public ReleaseHoldCommandValidator()
         {
             RuleFor(x => x.BookingRefNo).NotEmpty();
-            RuleFor(x => x.AirlinePnr).NotEmpty();
         }
     }
 }
