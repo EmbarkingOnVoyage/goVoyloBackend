@@ -217,6 +217,8 @@ namespace GoVoylo.Domain.Entities
         {
             LocalStatus = StatusReleased;
             CancelledAt = DateTime.UtcNow;
+            // Nothing will be booked from it any more, and it carries passport numbers.
+            DeferredSupplierPayloadEncrypted = null;
         }
     }
 }

@@ -4,6 +4,8 @@ using GoVoylo.Domain.Interfaces;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Features.Payments.Dtos;
+using GoVoylo.Domain.Entities;
+using Microsoft.Extensions.Logging;
 
 namespace GoVoylo.Application.Features.Payments.Commands.VerifyRazorpayPayment;
 
@@ -18,17 +20,20 @@ public class VerifyRazorpayPaymentCommandHandler : IRequestHandler<VerifyRazorpa
     private readonly IRazorpayClient _razorpayClient;
     private readonly ITripBookingRepository _tripBookingRepository;
     private readonly ITripBookingTicketingService _ticketingService;
+    private readonly ILogger<VerifyRazorpayPaymentCommandHandler> _logger;
 
     public VerifyRazorpayPaymentCommandHandler(
         IPaymentRepository paymentRepository,
         IRazorpayClient razorpayClient,
         ITripBookingRepository tripBookingRepository,
-        ITripBookingTicketingService ticketingService)
+        ITripBookingTicketingService ticketingService,
+        ILogger<VerifyRazorpayPaymentCommandHandler> logger)
     {
         _paymentRepository = paymentRepository;
         _razorpayClient = razorpayClient;
         _tripBookingRepository = tripBookingRepository;
         _ticketingService = ticketingService;
+        _logger = logger;
     }
 
     public async Task<PaymentResponseDto> Handle(VerifyRazorpayPaymentCommand request, CancellationToken cancellationToken)
@@ -64,7 +69,16 @@ public class VerifyRazorpayPaymentCommandHandler : IRequestHandler<VerifyRazorpa
             await _tripBookingRepository.UpdateAsync(booking, cancellationToken);
         }
 
-        if (booking != null && booking.StatusId == StatusBlocked)
+        // A hold released before this payment arrived (an abandoned checkout the
+        // expiry job gave up on) has nothing left to ticket: the payment stays
+        // recorded on it for a manual refund.
+        if (booking != null && booking.StatusId == StatusBlocked && booking.LocalStatus != TripBooking.StatusActive)
+        {
+            _logger.LogError(
+                "Payment {PaymentId} verified for released booking {BookingRefNo}; not ticketing — refund needed.",
+                payment.Id, booking.BookingRefNo);
+        }
+        else if (booking != null && booking.StatusId == StatusBlocked)
         {
             await _ticketingService.TicketAsync(booking, payment.Id.ToString(), cancellationToken);
         }

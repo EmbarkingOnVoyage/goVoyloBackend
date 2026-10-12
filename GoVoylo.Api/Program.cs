@@ -133,6 +133,9 @@ public class Program
         builder.Services.Configure<PassportExpiryAlertOptions>(
             builder.Configuration.GetSection("PassportExpiryAlert"));
         builder.Services.AddHostedService<PassportExpiryAlertBackgroundService>();
+        builder.Services.Configure<UnpaidHoldExpiryOptions>(
+            builder.Configuration.GetSection("UnpaidHoldExpiry"));
+        builder.Services.AddHostedService<UnpaidHoldExpiryBackgroundService>();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
         builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
