@@ -79,6 +79,7 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                 {
                     var firstSegment = flight.Segments.FirstOrDefault();
                     var lastSegment = flight.Segments.LastOrDefault();
+                    var trips = MapTrips(flight.Segments);
 
                     var session = new FlightOfferSession(
                         client.SupplierCode,
@@ -86,14 +87,14 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                         flight.FlightKey,
                         flight.FareId,
                         firstSegment?.Origin ?? string.Empty,
-                        lastSegment?.Destination ?? string.Empty,
+                        TripDestination(firstSegment, lastSegment, trips, request.Request.Segments),
                         firstSegment?.DepartureDateTime ?? default,
                         flight.AirlineCode,
                         flight.AirlineName,
                         firstSegment?.FlightNumber ?? string.Empty,
                         flight.TotalAmount,
                         flight.CurrencyCode,
-                        MapTrips(flight.Segments),
+                        trips,
                         request.Request.TripType,
                         flight.Fares
                             .Select(f => new FlightOfferSessionFare(f.FareId, f.AdultBaseFare, f.ChildBaseFare))
@@ -143,6 +144,28 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
             var sortedOffers = offers.OrderBy(o => o.TotalAmount).ToList();
 
             return new FlightSearchResponseDto(sortedOffers);
+        }
+
+        // Where the booking's single leg is recorded as going. A combined out-and-back
+        // fare (Flyshop Booking_Type 2 leaves every segment's TripIndex 0, so MapTrips
+        // can't split it) starts and ends at the same airport; it's recorded against
+        // its turnaround point — the first searched leg's destination — so My Trips
+        // reads DEL → GOI rather than DEL → DEL. Everything else keeps its last arrival.
+        private static string TripDestination(
+            SupplierFlightSegmentDto? firstSegment,
+            SupplierFlightSegmentDto? lastSegment,
+            IReadOnlyList<FlightOfferSessionTrip>? trips,
+            IReadOnlyList<FlightSearchSegmentDto> searchedLegs)
+        {
+            var destination = lastSegment?.Destination ?? string.Empty;
+            if (trips == null
+                && firstSegment != null
+                && searchedLegs.Count > 1
+                && string.Equals(destination, firstSegment.Origin, StringComparison.OrdinalIgnoreCase))
+            {
+                return searchedLegs[0].Destination;
+            }
+            return destination;
         }
 
         // One entry per trip of a whole-trip offer (see FlightOfferSession.Trips);
