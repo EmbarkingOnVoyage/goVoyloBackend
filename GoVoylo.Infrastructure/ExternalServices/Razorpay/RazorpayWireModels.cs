@@ -31,4 +31,32 @@ namespace GoVoylo.Infrastructure.ExternalServices.Razorpay
         [JsonPropertyName("status")]
         public string? Status { get; set; }
     }
+
+    // GET /payments/{id}?expand[]=card — only the fields that say how it was paid.
+    public class PaymentResponseWire
+    {
+        [JsonPropertyName("method")]
+        public string? Method { get; set; }
+
+        [JsonPropertyName("bank")]
+        public string? Bank { get; set; }
+
+        [JsonPropertyName("wallet")]
+        public string? Wallet { get; set; }
+
+        [JsonPropertyName("card")]
+        public PaymentCardWire? Card { get; set; }
+    }
+
+    public class PaymentCardWire
+    {
+        [JsonPropertyName("network")]
+        public string? Network { get; set; }
+
+        [JsonPropertyName("type")]
+        public string? Type { get; set; }
+
+        [JsonPropertyName("issuer")]
+        public string? Issuer { get; set; }
+    }
 }

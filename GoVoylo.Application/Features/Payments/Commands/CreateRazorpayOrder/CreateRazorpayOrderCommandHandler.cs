@@ -15,15 +15,18 @@ public class CreateRazorpayOrderCommandHandler : IRequestHandler<CreateRazorpayO
     private readonly IPaymentRepository _paymentRepository;
     private readonly IRazorpayClient _razorpayClient;
     private readonly ITripBookingRepository _tripBookingRepository;
+    private readonly IAccessAuditService _accessAuditService;
 
     public CreateRazorpayOrderCommandHandler(
         IPaymentRepository paymentRepository,
         IRazorpayClient razorpayClient,
-        ITripBookingRepository tripBookingRepository)
+        ITripBookingRepository tripBookingRepository,
+        IAccessAuditService accessAuditService)
     {
         _paymentRepository = paymentRepository;
         _razorpayClient = razorpayClient;
         _tripBookingRepository = tripBookingRepository;
+        _accessAuditService = accessAuditService;
     }
 
     public async Task<RazorpayOrderResponseDto> Handle(CreateRazorpayOrderCommand request, CancellationToken cancellationToken)
@@ -70,6 +73,10 @@ public class CreateRazorpayOrderCommandHandler : IRequestHandler<CreateRazorpayO
             payment.SetGatewayOrder(order.OrderId);
             await _paymentRepository.UpdateAsync(payment, cancellationToken);
         }
+
+        // One access-audit row per attempt: where this "Pay Now" came from.
+        _accessAuditService.LogPaymentStarted(
+            request.UserId, request.BookingReference, order.OrderId, request.Amount, request.Currency);
 
         return new RazorpayOrderResponseDto(
             order.OrderId, order.Amount, order.Currency, _razorpayClient.KeyId, request.BookingReference);

@@ -25,6 +25,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.SocialLogin
         private readonly IUserRoleRepository _userRoleRepository;
         private readonly IRoleRepository _roleRepository;
         private readonly IAuditService _auditService;
+        private readonly IAccessAuditService _accessAuditService;
         private readonly GuestAccountMerger _guestAccountMerger;
 
         public SocialLoginCommandHandler(
@@ -37,6 +38,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.SocialLogin
             IUserRoleRepository userRoleRepository,
             IRoleRepository roleRepository,
             IAuditService auditService,
+            IAccessAuditService accessAuditService,
             GuestAccountMerger guestAccountMerger)
         {
             _verifier = verifier;
@@ -48,6 +50,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.SocialLogin
             _userRoleRepository = userRoleRepository;
             _roleRepository = roleRepository;
             _auditService = auditService;
+            _accessAuditService = accessAuditService;
             _guestAccountMerger = guestAccountMerger;
         }
 
@@ -128,6 +131,8 @@ namespace GoVoylo.Application.Features.Authentication.Commands.SocialLogin
                 _refreshTokenService.GetExpiryDate()));
 
             _auditService.Log(user.Id, AuditEventTypes.LoginSuccess);
+
+            _accessAuditService.LogSignIn(user.Id, request.Provider.Trim().ToLowerInvariant());
 
             return new LoginResponseDto
             {

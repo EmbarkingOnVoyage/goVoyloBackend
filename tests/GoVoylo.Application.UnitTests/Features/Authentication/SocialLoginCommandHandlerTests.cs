@@ -18,6 +18,8 @@ namespace GoVoylo.Application.UnitTests.Features.Authentication
         private readonly IUserRoleRepository _userRoles = Substitute.For<IUserRoleRepository>();
         private readonly SocialLoginCommandHandler _handler;
 
+        private readonly IAccessAuditService _access = Substitute.For<IAccessAuditService>();
+
         public SocialLoginCommandHandlerTests()
         {
             var travelers = Substitute.For<ISavedTravelerRepository>();
@@ -41,6 +43,7 @@ namespace GoVoylo.Application.UnitTests.Features.Authentication
                 _userRoles,
                 Substitute.For<IRoleRepository>(),
                 Substitute.For<IAuditService>(),
+                _access,
                 new GuestAccountMerger(_users, travelers, bookings, NullLogger<GuestAccountMerger>.Instance));
         }
 
@@ -62,6 +65,7 @@ namespace GoVoylo.Application.UnitTests.Features.Authentication
             result.Id.Should().Be(account.Id);
             result.AccessToken.Should().Be("access");
             await _identities.DidNotReceive().AddAsync(Arg.Any<AuthIdentity>(), Arg.Any<CancellationToken>());
+            _access.Received(1).LogSignIn(account.Id, "google");
         }
 
         [Fact]
