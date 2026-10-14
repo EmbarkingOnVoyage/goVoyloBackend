@@ -53,6 +53,7 @@ namespace GoVoylo.Application.Features.Traveler.Commands.AddTraveler
                 {
                     sameIdentity.MarkAsAccountHolder(await _accountHolderTravelers.AccountEmailAsync(request.UserId));
                     await _travelerRepository.UpdateAsync(sameIdentity);
+                    await _accountHolderTravelers.UpdateProfileFromAsync(sameIdentity);
                     return TravelerMapper.ToDto(sameIdentity);
                 }
             }
@@ -88,6 +89,7 @@ namespace GoVoylo.Application.Features.Traveler.Commands.AddTraveler
             }
 
             await _travelerRepository.AddAsync(traveler);
+            await _accountHolderTravelers.UpdateProfileFromAsync(traveler);
 
             return TravelerMapper.ToDto(traveler);
         }

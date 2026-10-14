@@ -1,4 +1,5 @@
 using FluentAssertions;
+using GoVoylo.Application.Features.Traveler.Commands.AddTraveler;
 using GoVoylo.Application.Features.Traveler.Services;
 using GoVoylo.Domain.Entities;
 using GoVoylo.Domain.Interfaces;
@@ -82,5 +83,45 @@ namespace GoVoylo.Application.UnitTests.Features.Traveler
             await _userRepository.DidNotReceive().GetByIdAsync(Arg.Any<Guid>());
             await _travelerRepository.DidNotReceive().AddAsync(Arg.Any<SavedTraveler>());
         }
-    }
+    
+        [Fact]
+        public async Task AddingYourself_UpdatesTheProfile()
+        {
+            // A new Google account: names only, no date of birth.
+            var user = new User("pankaj@example.com", "pankaj", "");
+            _userRepository.GetByIdAsync(user.Id).Returns(user);
+            var handler = new AddTravelerCommandHandler(_travelerRepository, _service);
+
+            await handler.Handle(new AddTravelerCommand(
+                user.Id, "adult", "Pankaj", "Tayade", new DateTime(1987, 3, 3), "Male", "India", "Pune", "Maharashtra",
+                false, "other@example.com", "9123456781", "+91", IsAccountHolder: true), CancellationToken.None);
+
+            user.FirstName.Should().Be("Pankaj");
+            user.LastName.Should().Be("Tayade");
+            user.Gender.Should().Be("Male");
+            user.DateOfBirth.Should().Be(new DateTime(1987, 3, 3));
+            user.Nationality.Should().Be("India");
+            user.CityOfResidence.Should().Be("Pune");
+            user.State.Should().Be("Maharashtra");
+            user.Phone.Should().Be("9123456781");
+            user.Email.Should().Be("pankaj@example.com");
+            await _userRepository.Received(1).UpdateAsync(user);
+            _saved.Single().Email.Should().Be("pankaj@example.com");
+        }
+
+        [Fact]
+        public async Task AddingACoTraveller_LeavesTheProfileAlone()
+        {
+            var user = UserWith("Pankaj", "Tayade", null);
+            var handler = new AddTravelerCommandHandler(_travelerRepository, _service);
+
+            await handler.Handle(new AddTravelerCommand(
+                user.Id, "adult", "Riya", "Tayade", new DateTime(1990, 5, 5), "Female", "India", null, null, false),
+                CancellationToken.None);
+
+            user.FirstName.Should().Be("Pankaj");
+            user.DateOfBirth.Should().BeNull();
+            await _userRepository.DidNotReceive().UpdateAsync(Arg.Any<User>());
+        }
+}
 }

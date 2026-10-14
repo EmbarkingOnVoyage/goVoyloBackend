@@ -174,6 +174,31 @@ namespace GoVoylo.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
         }
 
+        // The customer saved or edited themselves as a traveller ("(You)"): the
+        // profile takes the same name, gender, date of birth and nationality, and
+        // the city, state and mobile when the traveller has them. A changed mobile
+        // is no longer verified. The email (sign-in identity) never changes here.
+        public void UpdateFromAccountHolderTraveler(
+            string firstName, string lastName, string? gender, DateTime dateOfBirth, string? nationality,
+            string? city, string? state, string? phone, string? phoneCountryCode)
+        {
+            FirstName = firstName.Trim();
+            LastName = lastName.Trim();
+            if (!string.IsNullOrWhiteSpace(gender)) Gender = gender;
+            DateOfBirth = dateOfBirth.Date;
+            if (!string.IsNullOrWhiteSpace(nationality)) Nationality = nationality;
+            if (!string.IsNullOrWhiteSpace(city)) CityOfResidence = city;
+            if (!string.IsNullOrWhiteSpace(state)) State = state;
+            if (!string.IsNullOrWhiteSpace(phone))
+            {
+                var trimmed = phone.Trim();
+                if (trimmed != Phone) IsPhoneVerified = false;
+                Phone = trimmed;
+                if (!string.IsNullOrWhiteSpace(phoneCountryCode)) PhoneCountryCode = phoneCountryCode;
+            }
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         public void ChangePasswordHash(string newPasswordHash)
         {
             PasswordHash = newPasswordHash;

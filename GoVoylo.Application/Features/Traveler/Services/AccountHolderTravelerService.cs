@@ -65,6 +65,20 @@ namespace GoVoylo.Application.Features.Traveler.Services
             return await _travelerRepository.GetByUserIdAsync(userId);
         }
 
+        // "(You)" was added or edited: the profile follows (see
+        // User.UpdateFromAccountHolderTraveler).
+        public async Task UpdateProfileFromAsync(SavedTraveler traveler)
+        {
+            if (!traveler.IsAccountHolder) return;
+            var user = await _userRepository.GetByIdAsync(traveler.UserId);
+            if (user == null) return;
+
+            user.UpdateFromAccountHolderTraveler(
+                traveler.FirstName, traveler.LastName, traveler.Gender, traveler.DateOfBirth, traveler.Nationality,
+                traveler.City, traveler.State, traveler.Phone, traveler.PhoneCountryCode);
+            await _userRepository.UpdateAsync(user);
+        }
+
         // The account email is the account holder's primary email, whatever was sent.
         public async Task<string?> AccountEmailAsync(Guid userId) =>
             (await _userRepository.GetByIdAsync(userId))?.Email;

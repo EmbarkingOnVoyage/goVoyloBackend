@@ -50,6 +50,7 @@ namespace GoVoylo.Application.Features.Traveler.Commands.UpdateTraveler
             }
 
             await _travelerRepository.UpdateAsync(traveler);
+            await _accountHolderTravelers.UpdateProfileFromAsync(traveler);
 
             return TravelerMapper.ToDto(traveler);
         }
