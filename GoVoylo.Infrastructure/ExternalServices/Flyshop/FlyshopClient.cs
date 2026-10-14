@@ -484,6 +484,8 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             var paxCounts = passengers.GroupBy(p => p.PaxType).ToDictionary(g => g.Key, g => g.Count());
 
             var flights = pnrs.SelectMany(p => p.Flights).ToList();
+            // Travel_Type 0 is a domestic booking, so every airport is in India.
+            var country = reprint.TravelType == 0 ? "IN" : null;
             var segments = flights
                 .SelectMany((flight, tripIndex) => flight.Segments.Select(seg => new SupplierBookingSegmentDto(
                     tripIndex,
@@ -494,21 +496,45 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                     seg.FlightNumber ?? string.Empty,
                     ParseDate(seg.DepartureDateTime),
                     ParseDate(seg.ArrivalDateTime),
-                    DurationMinutes(seg.Duration))))
+                    DurationMinutes(seg.Duration),
+                    new SupplierAirportDto(null, AirportCity(seg.Origin), Blank(seg.OriginTerminal), country),
+                    new SupplierAirportDto(null, AirportCity(seg.Destination), Blank(seg.DestinationTerminal), country))))
                 .ToList();
 
-            // Per-passenger fare details × passengers of that type, over every flight.
-            var fareDetails = flights.SelectMany(f => f.Fares.Take(1)).SelectMany(f => f.FareDetails).ToList();
-            decimal ForAllPax(Func<ReprintFareDetailWire, decimal> amount) =>
-                fareDetails.Sum(d => amount(d) * paxCounts.GetValueOrDefault(d.PaxType, 0));
-            var baseFare = ForAllPax(d => d.BasicAmount);
-            var total = ForAllPax(d => d.TotalAmount);
+            // Each passenger's own fare on each PNR. Flights[].Fares can carry only
+            // some passenger types (seen on UAT: a 1 adult + 1 child booking with
+            // only the adult entry), so it's only the fallback. A passenger's own
+            // Total_Amount (via AirportTax_Amount)
+            // already includes the seats/meals/baggage booked for them; those are
+            // taken out so the ticket shows them as add-ons, not tax.
+            var paxFares = pnrs
+                .SelectMany(p => p.PaxTicketDetails)
+                .Select(p => (
+                    Fare: p.Fares?.FirstOrDefault()?.FareDetails.FirstOrDefault(),
+                    AddOns: (p.SsrDetails ?? new List<ReprintPaxSsrWire>()).Sum(s => s.TotalAmount)))
+                .ToList();
+            decimal? baseFare, total;
+            if (paxFares.Count > 0 && paxFares.All(f => f.Fare != null))
+            {
+                baseFare = paxFares.Sum(f => f.Fare!.BasicAmount);
+                total = paxFares.Sum(f => f.Fare!.TotalAmount - f.AddOns);
+            }
+            else
+            {
+                // Per-passenger fare details × passengers of that type, over every flight.
+                var flightFares = flights.SelectMany(f => f.Fares.Take(1)).SelectMany(f => f.FareDetails).ToList();
+                var pricedPaxTypes = flightFares.Select(d => d.PaxType).ToHashSet();
+                // Left out rather than shown wrong when some passengers aren't priced.
+                var splitIsComplete = flightFares.Count > 0 && paxCounts.Keys.All(pricedPaxTypes.Contains);
+                baseFare = splitIsComplete
+                    ? flightFares.Sum(d => d.BasicAmount * paxCounts.GetValueOrDefault(d.PaxType, 0))
+                    : null;
+                total = splitIsComplete
+                    ? flightFares.Sum(d => d.TotalAmount * paxCounts.GetValueOrDefault(d.PaxType, 0))
+                    : null;
+            }
 
-            // Seen on UAT: a 1 adult + 1 child booking whose Fares carried only the
-            // adult entry. The split would then cover only some of the passengers,
-            // so it's left out rather than shown wrong.
-            var pricedPaxTypes = fareDetails.Select(d => d.PaxType).ToHashSet();
-            var splitIsComplete = fareDetails.Count > 0 && paxCounts.Keys.All(pricedPaxTypes.Contains);
+            var fareDetails = flights.SelectMany(f => f.Fares.Take(1)).SelectMany(f => f.FareDetails).ToList();
 
             var rules = fareDetails
                 .SelectMany(d => (d.CancellationCharges ?? new List<ReprintCancellationChargeWire>())
@@ -522,13 +548,21 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             return new SupplierBookingDetailsDto(
                 segments,
                 passengers
-                    .Select(p => new SupplierBookingPassengerDto(
-                        p.Title ?? string.Empty, p.FirstName ?? string.Empty, p.LastName ?? string.Empty,
-                        FlyshopPaxTypeLabel(p.PaxType)))
+                    .Select(p =>
+                    {
+                        var fare = p.Fares?.FirstOrDefault()?.FareDetails.FirstOrDefault();
+                        return new SupplierBookingPassengerDto(
+                            p.Title ?? string.Empty, p.FirstName ?? string.Empty, p.LastName ?? string.Empty,
+                            FlyshopPaxTypeLabel(p.PaxType),
+                            PassengerTickets(pnrs, p),
+                            fare?.FareClasses?.FirstOrDefault()?.CabinClass,
+                            BaggageText(fare?.FreeBaggage?.CheckInBaggage),
+                            BaggageText(fare?.FreeBaggage?.HandBaggage));
+                    })
                     .ToList(),
-                splitIsComplete ? baseFare : null,
-                splitIsComplete ? total - baseFare : null,
-                splitIsComplete ? total : null,
+                baseFare,
+                total - baseFare,
+                total,
                 "INR",
                 rules);
         }
@@ -615,6 +649,74 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
             var close = text.LastIndexOf(')');
             return open >= 0 && close > open ? text.Substring(open + 1, close - open - 1).Trim() : text;
         }
+
+        // "MUMBAI (BOM) " → "Mumbai"; null when only a code is given.
+        private static string? AirportCity(string? value)
+        {
+            var text = (value ?? string.Empty).Trim();
+            var open = text.LastIndexOf('(');
+            var city = open > 0 ? text[..open].Trim() : null;
+            return string.IsNullOrEmpty(city)
+                ? null
+                : CultureInfo.InvariantCulture.TextInfo.ToTitleCase(city.ToLowerInvariant());
+        }
+
+        private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+        // "15KG" → "15 kg"; anything else as given.
+        private static string? BaggageText(string? value)
+        {
+            var text = Blank(value);
+            if (text == null)
+            {
+                return null;
+            }
+            var match = Regex.Match(text, @"^(\d+(?:\.\d+)?)\s*KGS?$", RegexOptions.IgnoreCase);
+            return match.Success ? $"{match.Groups[1].Value} kg" : text;
+        }
+
+        // One entry per flight the passenger is on (each PNR has its own copy of the
+        // passenger): its PNR, e-ticket number and the seats, meals and extra
+        // baggage booked on it.
+        private static List<SupplierPassengerTicketDto> PassengerTickets(IReadOnlyList<ReprintPnrWire> pnrs, ReprintPaxWire passenger)
+        {
+            var tickets = new List<SupplierPassengerTicketDto>();
+            foreach (var pnr in pnrs)
+            {
+                var pax = pnr.PaxTicketDetails.FirstOrDefault(p =>
+                    p.FirstName == passenger.FirstName && p.LastName == passenger.LastName && p.PaxType == passenger.PaxType);
+                if (pax == null)
+                {
+                    continue;
+                }
+                foreach (var flight in pnr.Flights.Where(f => f.Segments.Count > 0))
+                {
+                    // A PNR with one flight owns all of the passenger's entries on it.
+                    bool OnFlight(string? flightId) => pnr.Flights.Count == 1 || flightId == flight.FlightId;
+                    var ssrs = (pax.SsrDetails ?? new List<ReprintPaxSsrWire>()).Where(s => OnFlight(s.FlightId)).ToList();
+                    string? Join(IEnumerable<string?> values)
+                    {
+                        var list = values.Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v!.Trim()).Distinct().ToList();
+                        return list.Count == 0 ? null : string.Join(", ", list);
+                    }
+                    tickets.Add(new SupplierPassengerTicketDto(
+                        $"{AirportCode(flight.Segments[0].Origin)}-{AirportCode(flight.Segments[^1].Destination)}",
+                        Blank(pnr.AirlinePnr),
+                        Blank((pax.TicketDetails ?? new List<ReprintPaxTicketWire>())
+                            .FirstOrDefault(t => OnFlight(t.FlightId))?.TicketNumber),
+                        Join(ssrs.Where(s => s.SsrType == SsrTypeSeat).Select(s => s.SsrCode)),
+                        Join(ssrs.Where(s => s.SsrType is SsrTypeMeal or SsrTypeComplimentaryMeal).Select(s => s.SsrTypeDesc)),
+                        Join(ssrs.Where(s => s.SsrType == SsrTypeBaggage).Select(s => s.SsrTypeDesc))));
+                }
+            }
+            return tickets;
+        }
+
+        // Air_GetSSR's SSR_Type codes.
+        private const int SsrTypeBaggage = 0;
+        private const int SsrTypeMeal = 1;
+        private const int SsrTypeComplimentaryMeal = 2;
+        private const int SsrTypeSeat = 3;
 
         private static int DurationMinutes(string? hhmm) =>
             TimeSpan.TryParse(hhmm, CultureInfo.InvariantCulture, out var span) ? (int)span.TotalMinutes : 0;
