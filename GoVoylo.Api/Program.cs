@@ -12,6 +12,7 @@ using GoVoylo.Infrastructure.ExternalServices;
 using GoVoylo.Infrastructure.ExternalServices.Flyshop;
 using GoVoylo.Infrastructure.ExternalServices.Holidays;
 using GoVoylo.Infrastructure.ExternalServices.Razorpay;
+using GoVoylo.Infrastructure.ExternalServices.SocialAuth;
 using GoVoylo.Infrastructure.ExternalServices.Tripjack;
 using GoVoylo.Infrastructure.Jobs;
 using GoVoylo.Infrastructure.Logging;
@@ -102,6 +103,7 @@ public class Program
         builder.Services.AddScoped<GoVoylo.Application.Interfaces.IETicketService,
             GoVoylo.Application.Features.Payments.Services.ETicketService>();
         builder.Services.AddScoped<IUserRepository, UserRepository>();
+        builder.Services.AddScoped<IAuthIdentityRepository, AuthIdentityRepository>();
         builder.Services.AddScoped<IPasswordService, PasswordService>();
         builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
         builder.Services.AddScoped<IProfileImageStorageService, LocalProfileImageStorageService>();
@@ -220,6 +222,11 @@ public class Program
             GoVoylo.Application.Features.Pricing.Services.ConvenienceFeeService>();
 
         builder.Services.AddHttpClient<IHolidayCalendarService, GoogleHolidayCalendarClient>();
+
+        // Continue with Google / Apple / Facebook (SocialAuth section; a provider
+        // without client ids is off).
+        builder.Services.Configure<SocialAuthOptions>(builder.Configuration.GetSection("SocialAuth"));
+        builder.Services.AddHttpClient<ISocialTokenVerifier, SocialTokenVerifier>();
 
         builder.Services.Configure<RazorpayOptions>(builder.Configuration.GetSection("Razorpay"));
         builder.Services.AddHttpClient<IRazorpayClient, RazorpayClient>((sp, client) =>

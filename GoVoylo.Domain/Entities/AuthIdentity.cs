@@ -18,5 +18,20 @@ namespace GoVoylo.Domain.Entities
 
         // Navigation property
         public User User { get; private set; } = null!;
+
+        private AuthIdentity()
+        {
+        }
+
+        // A sign-in method linked to an account: "google" / "apple" / "facebook"
+        // with that provider's stable user id ("sub").
+        public AuthIdentity(Guid userId, string provider, string providerSubject)
+        {
+            Id = Guid.NewGuid();
+            UserId = userId;
+            Provider = provider;
+            ProviderSubject = providerSubject;
+            CreatedAt = DateTime.UtcNow;
+        }
     }
 }
