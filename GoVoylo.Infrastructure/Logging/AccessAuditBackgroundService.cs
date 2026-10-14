@@ -13,7 +13,7 @@ namespace GoVoylo.Infrastructure.Logging
     // Saves access-audit rows, looks up each IP's location and safety, and asks
     // Razorpay how a completed payment was made. Lookups are reused for the same
     // IP (a day in memory, a week from the table) to stay inside the
-    // IPQualityScore quota.
+    // proxycheck.io quota.
     public class AccessAuditBackgroundService : BackgroundService
     {
         private static readonly TimeSpan MemoryReuse = TimeSpan.FromHours(24);
@@ -153,7 +153,7 @@ namespace GoVoylo.Infrastructure.Logging
 
         private static void Apply(AccessAuditLog log, IpReputation r) => log.SetLookup(
             AccessAuditLog.LookupDone, r.City, r.Region, r.CountryCode, r.Isp, r.Latitude, r.Longitude,
-            r.IsVpn, r.IsProxy, r.IsTor, r.RecentAbuse, r.IsBot, r.FraudScore, r.IsSecure);
+            r.ConnectionType, r.IsVpn, r.IsProxy, r.IsTor, r.IsHosting, r.RiskScore, r.IsSecure);
 
         // Loopback, private (10/8, 172.16/12, 192.168/16, fc00::/7), link-local
         // and CGNAT (100.64/10) addresses can't be looked up.

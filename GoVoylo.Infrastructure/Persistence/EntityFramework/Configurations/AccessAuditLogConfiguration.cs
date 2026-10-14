@@ -36,12 +36,12 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
             builder.Property(x => x.Latitude).HasColumnName("latitude").HasColumnType("numeric(9,6)");
             builder.Property(x => x.Longitude).HasColumnName("longitude").HasColumnType("numeric(9,6)");
 
+            builder.Property(x => x.ConnectionType).HasColumnName("connection_type").HasMaxLength(30);
             builder.Property(x => x.IsVpn).HasColumnName("is_vpn");
             builder.Property(x => x.IsProxy).HasColumnName("is_proxy");
             builder.Property(x => x.IsTor).HasColumnName("is_tor");
-            builder.Property(x => x.RecentAbuse).HasColumnName("recent_abuse");
-            builder.Property(x => x.IsBot).HasColumnName("is_bot");
-            builder.Property(x => x.FraudScore).HasColumnName("fraud_score");
+            builder.Property(x => x.IsHosting).HasColumnName("is_hosting");
+            builder.Property(x => x.RiskScore).HasColumnName("risk_score");
             builder.Property(x => x.IsSecure).HasColumnName("is_secure");
             builder.Property(x => x.LookupStatus).HasColumnName("lookup_status").HasMaxLength(20).IsRequired();
 

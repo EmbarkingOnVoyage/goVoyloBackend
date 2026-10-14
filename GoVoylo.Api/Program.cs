@@ -12,7 +12,7 @@ using GoVoylo.Infrastructure.ExternalServices;
 using GoVoylo.Infrastructure.ExternalServices.Flyshop;
 using GoVoylo.Infrastructure.ExternalServices.Holidays;
 using GoVoylo.Infrastructure.ExternalServices.Razorpay;
-using GoVoylo.Infrastructure.ExternalServices.IpQualityScore;
+using GoVoylo.Infrastructure.ExternalServices.ProxyCheck;
 using GoVoylo.Infrastructure.ExternalServices.SocialAuth;
 using GoVoylo.Infrastructure.ExternalServices.Tripjack;
 using GoVoylo.Infrastructure.Jobs;
@@ -236,12 +236,12 @@ public class Program
         builder.Services.Configure<SocialAuthOptions>(builder.Configuration.GetSection("SocialAuth"));
         builder.Services.AddHttpClient<ISocialTokenVerifier, SocialTokenVerifier>();
 
-        // IP location / VPN / proxy / fraud score for the access audit. The API key
-        // is in the URL path, so this client's request logging is off.
-        builder.Services.Configure<IpQualityScoreOptions>(builder.Configuration.GetSection("IpQualityScore"));
-        builder.Services.AddHttpClient<IIpReputationClient, IpQualityScoreClient>(client =>
+        // IP location / VPN / proxy / risk score for the access audit. The API key
+        // goes in the query string, so this client's request logging is off.
+        builder.Services.Configure<ProxyCheckOptions>(builder.Configuration.GetSection("ProxyCheck"));
+        builder.Services.AddHttpClient<IIpReputationClient, ProxyCheckClient>(client =>
         {
-            client.BaseAddress = new Uri("https://ipqualityscore.com/");
+            client.BaseAddress = new Uri("https://proxycheck.io/");
             client.Timeout = TimeSpan.FromSeconds(10);
         }).RemoveAllLoggers();
 

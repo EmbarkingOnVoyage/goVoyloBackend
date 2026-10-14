@@ -4,6 +4,7 @@ using GoVoylo.Application.Features.Payments.Dtos;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Entities;
 using GoVoylo.Domain.Interfaces;
+using GoVoylo.Infrastructure.ExternalServices.ProxyCheck;
 using GoVoylo.Infrastructure.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
@@ -55,6 +56,58 @@ namespace GoVoylo.Api.IntegrationTests
         public void OnlyPublicAddresses_AreLookedUp(string ip, bool expected)
         {
             AccessAuditBackgroundService.IsPublic(ip).Should().Be(expected);
+        }
+
+        private static IpReputation? ParseProxyCheck(string json, string ip) =>
+            ProxyCheckClient.Parse(System.Text.Json.JsonDocument.Parse(json).RootElement, ip, 67);
+
+        [Fact]
+        public void AJioMobileAddress_IsSecure()
+        {
+            var r = ParseProxyCheck("""
+                { "status": "ok", "49.36.10.20": { "asn": "AS55836", "provider": "Reliance Jio Infocomm Limited",
+                  "isocode": "IN", "region": "Maharashtra", "city": "Navi Mumbai (Ghansoli)",
+                  "latitude": 19.1258, "longitude": 73.0004, "vpn": "no", "proxy": "no", "type": "Wireless", "risk": 0 } }
+                """, "49.36.10.20")!;
+
+            r.City.Should().Be("Navi Mumbai (Ghansoli)");
+            r.Region.Should().Be("Maharashtra");
+            r.CountryCode.Should().Be("IN");
+            r.Isp.Should().Be("Reliance Jio Infocomm Limited");
+            r.Latitude.Should().Be(19.1258m);
+            r.ConnectionType.Should().Be("Wireless");
+            r.IsSecure.Should().BeTrue();
+        }
+
+        [Fact]
+        public void ATorExit_IsNotSecure()
+        {
+            var r = ParseProxyCheck("""
+                { "status": "ok", "185.220.101.1": { "isocode": "DE", "city": "Hamburg", "proxy": "yes", "type": "TOR", "risk": 100 } }
+                """, "185.220.101.1")!;
+
+            r.IsTor.Should().BeTrue();
+            r.IsProxy.Should().BeTrue();
+            r.RiskScore.Should().Be(100);
+            r.IsSecure.Should().BeFalse();
+        }
+
+        [Fact]
+        public void AVpn_IsNotSecure()
+        {
+            var r = ParseProxyCheck("""
+                { "status": "ok", "2001:db8::1": { "isocode": "NL", "vpn": "yes", "proxy": "no", "type": "VPN", "risk": 33 } }
+                """, "2001:0db8::1")!;
+
+            r.IsVpn.Should().BeTrue();
+            r.IsSecure.Should().BeFalse();
+        }
+
+        [Fact]
+        public void ADeniedLookup_GivesNothing()
+        {
+            ParseProxyCheck("""{ "status": "denied", "message": "1,000 free queries exhausted." }""", "49.36.10.20")
+                .Should().BeNull();
         }
 
         [Fact]
@@ -149,7 +202,7 @@ namespace GoVoylo.Api.IntegrationTests
                 Calls++;
                 return Task.FromResult<IpReputation?>(new IpReputation(
                     "Pune", "Maharashtra", "IN", "Reliance Jio", 18.52m, 73.85m,
-                    false, false, false, false, false, 10, true));
+                    "Wireless", false, false, false, false, 0, true));
             }
         }
 

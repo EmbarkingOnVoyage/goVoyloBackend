@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GoVoylo.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20261014180145_AddAccessAuditLogs")]
+    [Migration("20261014181306_AddAccessAuditLogs")]
     partial class AddAccessAuditLogs
     {
         /// <inheritdoc />
@@ -47,6 +47,11 @@ namespace GoVoylo.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("city");
 
+                    b.Property<string>("ConnectionType")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("connection_type");
+
                     b.Property<string>("CountryCode")
                         .HasMaxLength(2)
                         .HasColumnType("character varying(2)")
@@ -69,10 +74,6 @@ namespace GoVoylo.Infrastructure.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("event_type");
 
-                    b.Property<int?>("FraudScore")
-                        .HasColumnType("integer")
-                        .HasColumnName("fraud_score");
-
                     b.Property<string>("GatewayOrderId")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -88,9 +89,9 @@ namespace GoVoylo.Infrastructure.Migrations
                         .HasColumnType("character varying(45)")
                         .HasColumnName("ip_address");
 
-                    b.Property<bool?>("IsBot")
+                    b.Property<bool?>("IsHosting")
                         .HasColumnType("boolean")
-                        .HasColumnName("is_bot");
+                        .HasColumnName("is_hosting");
 
                     b.Property<bool?>("IsProxy")
                         .HasColumnType("boolean")
@@ -142,14 +143,14 @@ namespace GoVoylo.Infrastructure.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("payment_status");
 
-                    b.Property<bool?>("RecentAbuse")
-                        .HasColumnType("boolean")
-                        .HasColumnName("recent_abuse");
-
                     b.Property<string>("Region")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("region");
+
+                    b.Property<int?>("RiskScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("risk_score");
 
                     b.Property<string>("SignInMethod")
                         .HasMaxLength(20)

@@ -43,14 +43,17 @@ namespace GoVoylo.Domain.Entities
         public decimal? Latitude { get; private set; }
         public decimal? Longitude { get; private set; }
 
+        // Residential | Wireless | Business | Hosting | VPN | TOR ... (proxycheck.io)
+        public string? ConnectionType { get; private set; }
         public bool? IsVpn { get; private set; }
         public bool? IsProxy { get; private set; }
         public bool? IsTor { get; private set; }
-        public bool? RecentAbuse { get; private set; }
-        public bool? IsBot { get; private set; }
-        public int? FraudScore { get; private set; }
-        // False when any of the flags above is set or the fraud score is high;
-        // null until the lookup has run.
+        // A data-centre address rather than a home, office or mobile connection.
+        public bool? IsHosting { get; private set; }
+        // 0-100: 0-33 low, 34-66 high, 67-100 very high (proxycheck.io).
+        public int? RiskScore { get; private set; }
+        // False on a VPN, proxy or Tor or with a very high risk score; null until
+        // the lookup has run.
         public bool? IsSecure { get; private set; }
         public string LookupStatus { get; private set; } = LookupPending;
 
@@ -91,8 +94,8 @@ namespace GoVoylo.Domain.Entities
 
         public void SetLookup(
             string status, string? city = null, string? region = null, string? countryCode = null, string? isp = null,
-            decimal? latitude = null, decimal? longitude = null, bool? isVpn = null, bool? isProxy = null,
-            bool? isTor = null, bool? recentAbuse = null, bool? isBot = null, int? fraudScore = null, bool? isSecure = null)
+            decimal? latitude = null, decimal? longitude = null, string? connectionType = null, bool? isVpn = null,
+            bool? isProxy = null, bool? isTor = null, bool? isHosting = null, int? riskScore = null, bool? isSecure = null)
         {
             LookupStatus = status;
             City = city;
@@ -101,12 +104,12 @@ namespace GoVoylo.Domain.Entities
             Isp = isp;
             Latitude = latitude;
             Longitude = longitude;
+            ConnectionType = connectionType;
             IsVpn = isVpn;
             IsProxy = isProxy;
             IsTor = isTor;
-            RecentAbuse = recentAbuse;
-            IsBot = isBot;
-            FraudScore = fraudScore;
+            IsHosting = isHosting;
+            RiskScore = riskScore;
             IsSecure = isSecure;
             UpdatedAt = DateTime.UtcNow;
         }
@@ -114,7 +117,7 @@ namespace GoVoylo.Domain.Entities
         // Copies a finished lookup of the same IP instead of paying for another.
         public void CopyLookupFrom(AccessAuditLog other) => SetLookup(
             other.LookupStatus, other.City, other.Region, other.CountryCode, other.Isp, other.Latitude, other.Longitude,
-            other.IsVpn, other.IsProxy, other.IsTor, other.RecentAbuse, other.IsBot, other.FraudScore, other.IsSecure);
+            other.ConnectionType, other.IsVpn, other.IsProxy, other.IsTor, other.IsHosting, other.RiskScore, other.IsSecure);
 
         // Required by EF Core
         private AccessAuditLog()

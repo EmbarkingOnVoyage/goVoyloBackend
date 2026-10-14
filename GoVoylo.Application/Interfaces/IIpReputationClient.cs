@@ -7,18 +7,18 @@ namespace GoVoylo.Application.Interfaces
         string? Isp,
         decimal? Latitude,
         decimal? Longitude,
+        string? ConnectionType,
         bool IsVpn,
         bool IsProxy,
         bool IsTor,
-        bool RecentAbuse,
-        bool IsBot,
-        int FraudScore,
+        bool IsHosting,
+        int RiskScore,
         bool IsSecure);
 
-    // Location and safety of an IP address (IPQualityScore).
+    // Location and safety of an IP address (proxycheck.io).
     public interface IIpReputationClient
     {
-        // False when no API key is set — lookups are then skipped.
+        // False when lookups are switched off — rows are then kept without them.
         bool IsConfigured { get; }
 
         // Null when the service didn't answer usefully.
