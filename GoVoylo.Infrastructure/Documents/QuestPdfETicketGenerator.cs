@@ -33,11 +33,14 @@ namespace GoVoylo.Infrastructure.Documents
         private const string OrangeSoft = "#FFF4EA";
         private const string HeaderGrey = "#EEF1F5";
         private const string Tagline = "#F5A100";
+        private const string DangerSoft = "#FFF3E8";
+        private const string DangerLine = "#FFE3C9";
 
         private static readonly CultureInfo India = CultureInfo.GetCultureInfo("en-IN");
         private static readonly TimeSpan IndiaOffset = TimeSpan.FromHours(5.5);
         private static readonly Lazy<string?> LogoSvg = new(() => LoadResource("govoylo-logo.svg"));
-        private static readonly Lazy<Dictionary<string, string>> AirlineLogos = new(LoadAirlineLogos);
+        private static readonly Lazy<Dictionary<string, string>> AirlineLogos = new(() => LoadSvgMap("airline-logos.json"));
+        private static readonly Lazy<Dictionary<string, string>> DangerIcons = new(() => LoadSvgMap("dangerous-goods-icons.json"));
 
         // Lucide icons (ISC licence) — the icon set the app itself uses.
         private const string PhoneIcon =
@@ -110,6 +113,8 @@ namespace GoVoylo.Infrastructure.Documents
                     column.Item().ShowEntire().Element(c => PaymentSummary(c, ticket));
                     column.Item().ShowEntire().Element(c => SharedOn(c, ticket));
                     column.Item().ShowEntire().Element(ImportantInformation);
+                    column.Item().ShowEntire().Element(c => DangerousGoods(c, ticket));
+                    column.Item().ShowEntire().Element(CompanyDetails);
                 });
 
                 page.Footer().PaddingTop(8).Column(footer =>
@@ -424,17 +429,19 @@ namespace GoVoylo.Infrastructure.Documents
                     AmountRow(card, "Base Fare", ticket.PassengerSummary == null ? null : $"({ticket.PassengerSummary})",
                         Money(baseFare, payment.CurrencyCode));
                 }
+                // The design indents the convenience fee under the base fare.
+                if (payment.ConvenienceFee is { } convenienceFee)
+                {
+                    AmountRow(card, "Convenience Fee", "(Non-Refundable)", Money(convenienceFee, payment.CurrencyCode), indent: 7);
+                }
                 if (payment.TaxesAndFees is { } taxes)
                 {
                     AmountRow(card, "Total Tax", null, Money(taxes, payment.CurrencyCode));
                 }
+                // Seats, meals and extra baggage bought with the booking.
                 if (payment.AddOns is { } addOns)
                 {
                     AmountRow(card, "Add-Ons", null, Money(addOns, payment.CurrencyCode));
-                }
-                if (payment.ConvenienceFee is { } convenienceFee)
-                {
-                    AmountRow(card, "Convenience Fee", null, Money(convenienceFee, payment.CurrencyCode));
                 }
                 card.Item().PaddingTop(1).LineHorizontal(0.75f).LineColor(Border);
                 card.Item().PaddingTop(1.5f).LineHorizontal(0.75f).LineColor(Border);
@@ -474,6 +481,9 @@ namespace GoVoylo.Infrastructure.Documents
                     column.Item().Text("IMPORTANT INFORMATION").FontSize(7).Bold().FontColor(Muted).LetterSpacing(0.06f);
                     foreach (var line in new[]
                              {
+                                 "Date & Time is calculated based on the local time of city/destination.",
+                                 "Please CheckIn atleast 2 hours prior to the departure for domestic flight and 3 hours prior to the departure of international flight.",
+                                 "For rescheduling/cancellation within 4 hours of departure time contact the airline directly",
                                  "Carry a valid photo ID that matches the ticket name.",
                                  "Check the airline baggage allowance and dimensions before travel.",
                                  "Airport and airline operational timings may change.",
@@ -488,6 +498,96 @@ namespace GoVoylo.Infrastructure.Documents
                         });
                     }
                 });
+
+        // "Dangerous goods & restricted articles": a 4-column grid of prohibited
+        // items, then the alcohol and power-bank rules.
+        private static void DangerousGoods(IContainer container, ETicketDocumentDto ticket)
+        {
+            var airlines = ticket.Trips.SelectMany(t => t.Segments).Select(s => s.AirlineName)
+                .Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
+            var careCentre = airlines.Count == 1 ? $"the {airlines[0]} Care Centre" : "the airline";
+            var items = new (string Icon, string Label)[]
+            {
+                ("explosives", "Explosives"), ("gases", "Gases"), ("flammable", "Flammable substances"), ("copra", "Dry coconut (Copra)"),
+                ("oxidizers", "Oxidizers and organic peroxides"), ("toxic", "Toxic and infectious substances"),
+                ("radioactive", "Radioactive materials"), ("corrosives", "Corrosives"),
+                ("misc", "Misc. dangerous goods"), ("satphone", "Satellite phones"), ("ecig", "E-cigarettes"), ("batteries", "Spillable batteries"),
+            };
+            container.Background(DangerSoft).Border(0.75f).BorderColor(DangerLine).CornerRadius(8)
+                .PaddingTop(13).PaddingBottom(4).PaddingHorizontal(10).Column(column =>
+                {
+                    column.Item().PaddingHorizontal(4).Text("DANGEROUS GOODS & RESTRICTED ARTICLES")
+                        .FontSize(7).Bold().FontColor(Muted).LetterSpacing(0.06f);
+                    column.Item().PaddingHorizontal(4).PaddingTop(6).PaddingBottom(9).Text(
+                            "Do not carry dangerous goods in your baggage or on your person. For more information regarding " +
+                            $"dangerous goods in baggage, please contact {careCentre}.")
+                        .FontSize(8).FontColor(Body).LineHeight(1.45f);
+                    column.Item().BorderTop(0.75f).BorderColor(DangerLine).Table(table =>
+                    {
+                        table.ColumnsDefinition(c =>
+                        {
+                            for (var i = 0; i < 4; i++)
+                            {
+                                c.RelativeColumn();
+                            }
+                        });
+                        for (var i = 0; i < items.Length; i++)
+                        {
+                            var (icon, label) = items[i];
+                            var cell = table.Cell().BorderBottom(0.75f).BorderColor(DangerLine);
+                            if (i % 4 < 3)
+                            {
+                                cell = cell.BorderRight(0.75f).BorderColor(DangerLine);
+                            }
+                            cell.MinHeight(39).PaddingVertical(5).PaddingLeft(8).PaddingRight(4).AlignMiddle().Row(row =>
+                            {
+                                row.ConstantItem(22).AlignMiddle().Height(22).Svg(DangerIcon(icon)).FitArea();
+                                row.RelativeItem().PaddingLeft(7).AlignMiddle().Text(label).FontSize(8.5f).Bold().FontColor(Body).LineHeight(1.15f);
+                            });
+                        }
+                        table.Cell().BorderRight(0.75f).BorderColor(DangerLine).PaddingVertical(8).PaddingLeft(8).PaddingRight(4).AlignMiddle().Row(row =>
+                        {
+                            row.ConstantItem(20).AlignMiddle().Height(20).Svg(DangerIcon("alcohol")).FitArea();
+                            row.RelativeItem().PaddingLeft(9).AlignMiddle().Column(text =>
+                            {
+                                text.Item().Text("Alcoholic beverages").FontSize(8.5f).Bold().FontColor(Body).LineHeight(1.15f);
+                                text.Item().Text("Subject to restrictions").FontSize(8.5f).FontColor(Body).LineHeight(1.15f);
+                            });
+                        });
+                        table.Cell().ColumnSpan(3).PaddingVertical(8).PaddingLeft(8).PaddingRight(6).AlignMiddle().Row(row =>
+                        {
+                            row.ConstantItem(20).AlignMiddle().Height(20).Svg(DangerIcon("powerbank")).FitArea();
+                            row.RelativeItem().PaddingLeft(14).AlignMiddle().Text(
+                                    "Batteries and power banks are allowed in carry-on baggage only. These cannot be stored in the " +
+                                    "overhead bins. Using or charging power banks onboard is not permitted. Insulated battery terminals " +
+                                    "and a restriction of no more than 2 batteries up to 100Wh each apply.")
+                                .FontSize(7.5f).FontColor(Body).LineHeight(1.45f);
+                        });
+                    });
+                });
+        }
+
+        // The company block that closes the ticket.
+        private static void CompanyDetails(IContainer container) =>
+            container.PaddingTop(4).BorderTop(0.75f).BorderColor("#98A5BF").PaddingTop(10).Column(column =>
+            {
+                column.Item().Text("Voylo Tech Pvt. Ltd.").FontSize(9).Bold().FontColor(Body);
+                column.Item().PaddingTop(2).Text(t =>
+                {
+                    t.DefaultTextStyle(s => s.FontSize(7.5f).FontColor(Muted));
+                    t.Span("Office: ").FontColor(Body);
+                    t.Span("Maruti Millennium Tower, S. No. 36/2, Office #712, Bangalore–Mumbai Highway, Above Yamaha Motors, Pune – 411045.");
+                });
+                column.Item().PaddingTop(1).Text(t =>
+                {
+                    t.DefaultTextStyle(s => s.FontSize(7.5f).FontColor(Muted));
+                    t.Span("Email: ").FontColor(Body);
+                    t.Span("info@govoylo.com");
+                    t.Span("  |  ").FontColor(Border);
+                    t.Span("Visit us: ").FontColor(Body);
+                    t.Span("govoylo.com");
+                });
+            });
 
         // --- Building blocks
 
@@ -504,10 +604,10 @@ namespace GoVoylo.Infrastructure.Documents
                 c.Item().PaddingTop(1).Text(value).FontSize(8.5f).FontColor(Body);
             });
 
-        private static void AmountRow(ColumnDescriptor column, string label, string? note, string value) =>
+        private static void AmountRow(ColumnDescriptor column, string label, string? note, string value, float indent = 0) =>
             column.Item().BorderBottom(0.75f).BorderColor(Border).PaddingVertical(6).Row(row =>
             {
-                row.RelativeItem().Text(t =>
+                row.RelativeItem().PaddingLeft(indent).Text(t =>
                 {
                     t.Span(label).FontSize(9.5f).FontColor(Body);
                     if (note != null)
@@ -615,9 +715,15 @@ namespace GoVoylo.Infrastructure.Documents
             return reader.ReadToEnd();
         }
 
-        private static Dictionary<string, string> LoadAirlineLogos() =>
-            LoadResource("airline-logos.json") is { } json
+        private static Dictionary<string, string> LoadSvgMap(string resource) =>
+            LoadResource(resource) is { } json
                 ? JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new()
                 : new();
+
+        // An empty box when an icon is missing, so a resource problem never breaks the PDF.
+        private static string DangerIcon(string name) =>
+            DangerIcons.Value.TryGetValue(name, out var svg)
+                ? svg
+                : "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"></svg>";
     }
 }
