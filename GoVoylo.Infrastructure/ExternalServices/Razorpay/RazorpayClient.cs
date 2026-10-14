@@ -47,6 +47,39 @@ namespace GoVoylo.Infrastructure.ExternalServices.Razorpay
             return new RazorpayOrderResult(wireResponse.Id, wireResponse.Amount, wireResponse.Currency);
         }
 
+        public async Task<RazorpayPaymentMethod?> GetPaymentMethodAsync(string paymentId, CancellationToken cancellationToken)
+        {
+            using var httpResponse = await _httpClient.GetAsync(
+                $"payments/{Uri.EscapeDataString(paymentId)}?expand[]=card", cancellationToken);
+            if (!httpResponse.IsSuccessStatusCode) return null;
+
+            var payment = await httpResponse.Content.ReadFromJsonAsync<PaymentResponseWire>(cancellationToken: cancellationToken);
+            if (payment == null || string.IsNullOrWhiteSpace(payment.Method)) return null;
+
+            return new RazorpayPaymentMethod(payment.Method, DescribeMethod(payment));
+        }
+
+        // "Visa credit card, HDFC", "netbanking SBIN", "wallet paytm" — never the
+        // card number or UPI id.
+        private static string? DescribeMethod(PaymentResponseWire payment)
+        {
+            switch (payment.Method)
+            {
+                case "card":
+                case "emi":
+                    if (payment.Card == null) return null;
+                    var card = string.Join(" ", new[] { payment.Card.Network, payment.Card.Type, "card" }
+                        .Where(part => !string.IsNullOrWhiteSpace(part)));
+                    return string.IsNullOrWhiteSpace(payment.Card.Issuer) ? card : $"{card}, {payment.Card.Issuer}";
+                case "netbanking":
+                    return payment.Bank;
+                case "wallet":
+                    return payment.Wallet;
+                default:
+                    return null;
+            }
+        }
+
         public bool VerifySignature(string orderId, string paymentId, string signature)
         {
             var payload = $"{orderId}|{paymentId}";

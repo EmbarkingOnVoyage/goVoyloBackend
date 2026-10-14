@@ -20,6 +20,7 @@ public class VerifyRazorpayPaymentCommandHandler : IRequestHandler<VerifyRazorpa
     private readonly IRazorpayClient _razorpayClient;
     private readonly ITripBookingRepository _tripBookingRepository;
     private readonly ITripBookingTicketingService _ticketingService;
+    private readonly IAccessAuditService _accessAuditService;
     private readonly ILogger<VerifyRazorpayPaymentCommandHandler> _logger;
 
     public VerifyRazorpayPaymentCommandHandler(
@@ -27,12 +28,14 @@ public class VerifyRazorpayPaymentCommandHandler : IRequestHandler<VerifyRazorpa
         IRazorpayClient razorpayClient,
         ITripBookingRepository tripBookingRepository,
         ITripBookingTicketingService ticketingService,
+        IAccessAuditService accessAuditService,
         ILogger<VerifyRazorpayPaymentCommandHandler> logger)
     {
         _paymentRepository = paymentRepository;
         _razorpayClient = razorpayClient;
         _tripBookingRepository = tripBookingRepository;
         _ticketingService = ticketingService;
+        _accessAuditService = accessAuditService;
         _logger = logger;
     }
 
@@ -48,11 +51,13 @@ public class VerifyRazorpayPaymentCommandHandler : IRequestHandler<VerifyRazorpa
         {
             payment.MarkAsFailed();
             await _paymentRepository.UpdateAsync(payment, cancellationToken);
+            _accessAuditService.LogPaymentCompleted(request.RazorpayOrderId, null, "Failed");
             throw new BusinessRuleException("invalid_payment_signature", "Payment signature verification failed.");
         }
 
         payment.MarkAsSucceeded(request.RazorpayPaymentId);
         await _paymentRepository.UpdateAsync(payment, cancellationToken);
+        _accessAuditService.LogPaymentCompleted(request.RazorpayOrderId, request.RazorpayPaymentId, "Succeeded");
 
         // The customer's Razorpay payment has genuinely succeeded by this point.
         // payment.BookingReference is the same Flyshop Booking_RefNo the hold was

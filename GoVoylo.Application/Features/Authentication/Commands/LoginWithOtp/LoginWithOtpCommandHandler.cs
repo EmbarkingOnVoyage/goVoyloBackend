@@ -20,6 +20,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
         private readonly IUserRoleRepository _userRoleRepository;
         private readonly IRoleRepository _roleRepository;
         private readonly IAuditService _auditService;
+        private readonly IAccessAuditService _accessAuditService;
         private readonly GuestAccountMerger _guestAccountMerger;
 
         public LoginWithOtpCommandHandler(
@@ -31,6 +32,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
             IUserRoleRepository userRoleRepository,
             IRoleRepository roleRepository,
             IAuditService auditService,
+            IAccessAuditService accessAuditService,
             GuestAccountMerger guestAccountMerger)
         {
             _otpRepository = otpRepository;
@@ -41,6 +43,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
             _userRoleRepository = userRoleRepository;
             _roleRepository = roleRepository;
             _auditService = auditService;
+            _accessAuditService = accessAuditService;
             _guestAccountMerger = guestAccountMerger;
         }
 
@@ -113,6 +116,8 @@ namespace GoVoylo.Application.Features.Authentication.Commands.LoginWithOtp
             await _refreshTokenRepository.SaveAsync(refreshToken);
 
             _auditService.Log(user.Id, AuditEventTypes.LoginSuccess);
+
+            _accessAuditService.LogSignIn(user.Id, "otp");
 
             return new LoginResponseDto
             {
