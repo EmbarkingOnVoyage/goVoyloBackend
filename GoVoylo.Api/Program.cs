@@ -12,6 +12,7 @@ using GoVoylo.Infrastructure.ExternalServices;
 using GoVoylo.Infrastructure.ExternalServices.Flyshop;
 using GoVoylo.Infrastructure.ExternalServices.Holidays;
 using GoVoylo.Infrastructure.ExternalServices.Razorpay;
+using GoVoylo.Infrastructure.ExternalServices.ProxyCheck;
 using GoVoylo.Infrastructure.ExternalServices.SocialAuth;
 using GoVoylo.Infrastructure.ExternalServices.Tripjack;
 using GoVoylo.Infrastructure.Jobs;
@@ -133,6 +134,12 @@ public class Program
         builder.Services.AddScoped<IAuditService, AuditService>();
         builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         builder.Services.AddHostedService<AuditLogBackgroundService>();
+        // Where sign-ins and payment attempts come from (gv_access_audit_logs).
+        builder.Services.AddSingleton<AccessAuditQueue>();
+        builder.Services.AddScoped<IClientRequestInfo, ClientRequestInfo>();
+        builder.Services.AddScoped<IAccessAuditService, AccessAuditService>();
+        builder.Services.AddScoped<IAccessAuditLogRepository, AccessAuditLogRepository>();
+        builder.Services.AddHostedService<AccessAuditBackgroundService>();
         builder.Services.Configure<PassportExpiryAlertOptions>(
             builder.Configuration.GetSection("PassportExpiryAlert"));
         builder.Services.AddHostedService<PassportExpiryAlertBackgroundService>();
@@ -228,6 +235,15 @@ public class Program
         // without client ids is off).
         builder.Services.Configure<SocialAuthOptions>(builder.Configuration.GetSection("SocialAuth"));
         builder.Services.AddHttpClient<ISocialTokenVerifier, SocialTokenVerifier>();
+
+        // IP location / VPN / proxy / risk score for the access audit. The API key
+        // goes in the query string, so this client's request logging is off.
+        builder.Services.Configure<ProxyCheckOptions>(builder.Configuration.GetSection("ProxyCheck"));
+        builder.Services.AddHttpClient<IIpReputationClient, ProxyCheckClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://proxycheck.io/");
+            client.Timeout = TimeSpan.FromSeconds(10);
+        }).RemoveAllLoggers();
 
         builder.Services.Configure<RazorpayOptions>(builder.Configuration.GetSection("Razorpay"));
         builder.Services.AddHttpClient<IRazorpayClient, RazorpayClient>((sp, client) =>

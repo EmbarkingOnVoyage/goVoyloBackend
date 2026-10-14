@@ -15,5 +15,9 @@ namespace GoVoylo.Application.Interfaces
         // using the account's key secret — this is what proves a checkout
         // success callback actually came from Razorpay and wasn't spoofed.
         bool VerifySignature(string orderId, string paymentId, string signature);
+
+        // How the customer paid (card / UPI / netbanking / wallet ...). Null when
+        // Razorpay can't be reached or doesn't know the payment.
+        Task<RazorpayPaymentMethod?> GetPaymentMethodAsync(string paymentId, CancellationToken cancellationToken);
     }
 }

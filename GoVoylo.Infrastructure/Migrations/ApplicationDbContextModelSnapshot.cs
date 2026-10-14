@@ -22,6 +22,168 @@ namespace GoVoylo.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("GoVoylo.Domain.Entities.AccessAuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<decimal?>("Amount")
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("BookingReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("booking_reference");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("city");
+
+                    b.Property<string>("ConnectionType")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("connection_type");
+
+                    b.Property<string>("CountryCode")
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)")
+                        .HasColumnName("country_code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("event_type");
+
+                    b.Property<string>("GatewayOrderId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("gateway_order_id");
+
+                    b.Property<string>("GatewayPaymentId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("gateway_payment_id");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<bool?>("IsHosting")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_hosting");
+
+                    b.Property<bool?>("IsProxy")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_proxy");
+
+                    b.Property<bool?>("IsSecure")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_secure");
+
+                    b.Property<bool?>("IsTor")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_tor");
+
+                    b.Property<bool?>("IsVpn")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_vpn");
+
+                    b.Property<string>("Isp")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("isp");
+
+                    b.Property<decimal?>("Latitude")
+                        .HasColumnType("numeric(9,6)")
+                        .HasColumnName("latitude");
+
+                    b.Property<decimal?>("Longitude")
+                        .HasColumnType("numeric(9,6)")
+                        .HasColumnName("longitude");
+
+                    b.Property<string>("LookupStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("lookup_status");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("payment_method");
+
+                    b.Property<string>("PaymentMethodDetail")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("payment_method_detail");
+
+                    b.Property<string>("PaymentStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("payment_status");
+
+                    b.Property<string>("Region")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("region");
+
+                    b.Property<int?>("RiskScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("risk_score");
+
+                    b.Property<string>("SignInMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("sign_in_method");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_access_audit_logs_created_at");
+
+                    b.HasIndex("GatewayOrderId")
+                        .HasDatabaseName("ix_access_audit_logs_gateway_order");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_access_audit_logs_user");
+
+                    b.HasIndex("IpAddress", "CreatedAt")
+                        .HasDatabaseName("ix_access_audit_logs_ip");
+
+                    b.ToTable("gv_access_audit_logs", (string)null);
+                });
+
             modelBuilder.Entity("GoVoylo.Domain.Entities.Airport", b =>
                 {
                     b.Property<Guid>("Id")

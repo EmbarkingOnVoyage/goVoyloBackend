@@ -21,6 +21,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Login
         private readonly IRefreshTokenRepository _refreshTokenRepository;
         private readonly IUserRoleRepository _userRoleRepository;
         private readonly IAuditService _auditService;
+        private readonly IAccessAuditService _accessAuditService;
 
         public LoginCommandHandler(
             IUserRepository userRepository,
@@ -29,7 +30,8 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Login
             IRefreshTokenService refreshTokenService,
             IRefreshTokenRepository refreshTokenRepository,
             IUserRoleRepository userRoleRepository,
-            IAuditService auditService)
+            IAuditService auditService,
+            IAccessAuditService accessAuditService)
         {
             _userRepository = userRepository;
             _jwtTokenService = jwtTokenService;
@@ -38,6 +40,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Login
             _refreshTokenRepository = refreshTokenRepository;
             _userRoleRepository = userRoleRepository;
             _auditService = auditService;
+            _accessAuditService = accessAuditService;
         }
 
         public async Task<LoginResponseDto> Handle(
@@ -108,6 +111,7 @@ namespace GoVoylo.Application.Features.Authentication.Commands.Login
 
             // 9. Audit successful login
             _auditService.Log(user.Id, AuditEventTypes.LoginSuccess);
+            _accessAuditService.LogSignIn(user.Id, "password");
 
             // 10. Return response
             return new LoginResponseDto
