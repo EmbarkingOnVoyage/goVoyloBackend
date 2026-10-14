@@ -880,10 +880,17 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
 
         [JsonPropertyName("AirPNRDetails")]
         public List<ReprintPnrWire> AirPnrDetails { get; set; } = new();
+
+        // 0 = domestic, 1 = international (as on Air_Search).
+        [JsonPropertyName("Travel_Type")]
+        public int TravelType { get; set; }
     }
 
     public class ReprintPnrWire
     {
+        [JsonPropertyName("Airline_PNR")]
+        public string? AirlinePnr { get; set; }
+
         [JsonPropertyName("Flights")]
         public List<ReprintFlightWire> Flights { get; set; } = new();
 
@@ -893,6 +900,9 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
 
     public class ReprintFlightWire
     {
+        [JsonPropertyName("Flight_Id")]
+        public string? FlightId { get; set; }
+
         [JsonPropertyName("Fares")]
         public List<ReprintFareWire> Fares { get; set; } = new();
 
@@ -918,8 +928,31 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
         [JsonPropertyName("Total_Amount")]
         public decimal TotalAmount { get; set; }
 
+        [JsonPropertyName("FareClasses")]
+        public List<ReprintFareClassWire>? FareClasses { get; set; }
+
+        [JsonPropertyName("Free_Baggage")]
+        public ReprintFreeBaggageWire? FreeBaggage { get; set; }
+
         [JsonPropertyName("CancellationCharges")]
         public List<ReprintCancellationChargeWire>? CancellationCharges { get; set; }
+    }
+
+    public class ReprintFareClassWire
+    {
+        // "ECONOMY", "BUSINESS", ...
+        [JsonPropertyName("CabinClass")]
+        public string? CabinClass { get; set; }
+    }
+
+    // e.g. "15KG" / "7KG".
+    public class ReprintFreeBaggageWire
+    {
+        [JsonPropertyName("Check_In_Baggage")]
+        public string? CheckInBaggage { get; set; }
+
+        [JsonPropertyName("Hand_Baggage")]
+        public string? HandBaggage { get; set; }
     }
 
     // ValueType 0 = fixed amount, 1 = percentage (the collection's own samples:
@@ -955,6 +988,12 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
         [JsonPropertyName("Destination")]
         public string? Destination { get; set; }
 
+        [JsonPropertyName("Origin_Terminal")]
+        public string? OriginTerminal { get; set; }
+
+        [JsonPropertyName("Destination_Terminal")]
+        public string? DestinationTerminal { get; set; }
+
         // MM/dd/yyyy HH:mm:ss
         [JsonPropertyName("Departure_DateTime")]
         public string? DepartureDateTime { get; set; }
@@ -980,6 +1019,48 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
 
         [JsonPropertyName("Pax_type")]
         public int PaxType { get; set; }
+
+        // This passenger's own fare on this PNR's flights (Flights[].Fares can
+        // leave out a passenger type).
+        [JsonPropertyName("Fares")]
+        public List<ReprintFareWire>? Fares { get; set; }
+
+        // Seats, meals and extra baggage booked for this passenger.
+        [JsonPropertyName("SSRDetails")]
+        public List<ReprintPaxSsrWire>? SsrDetails { get; set; }
+
+        [JsonPropertyName("TicketDetails")]
+        public List<ReprintPaxTicketWire>? TicketDetails { get; set; }
+    }
+
+    // SSR_Type as on Air_GetSSR: 0 baggage, 1 meal, 2 complimentary meal, 3 seat.
+    public class ReprintPaxSsrWire
+    {
+        [JsonPropertyName("Flight_ID")]
+        public string? FlightId { get; set; }
+
+        [JsonPropertyName("SSR_Type")]
+        public int SsrType { get; set; }
+
+        // Seat number for seats ("8A").
+        [JsonPropertyName("SSR_Code")]
+        public string? SsrCode { get; set; }
+
+        // "SEAT - 8A", "Jain Special + Beverage of choice", "15 Kg Excess Baggage"
+        [JsonPropertyName("SSR_TypeDesc")]
+        public string? SsrTypeDesc { get; set; }
+
+        [JsonPropertyName("Total_Amount")]
+        public decimal TotalAmount { get; set; }
+    }
+
+    public class ReprintPaxTicketWire
+    {
+        [JsonPropertyName("Flight_Id")]
+        public string? FlightId { get; set; }
+
+        [JsonPropertyName("Ticket_Number")]
+        public string? TicketNumber { get; set; }
     }
 
     // ===== Air_APIGetCancelPenalty — penalty applied to a cancellation already raised =====

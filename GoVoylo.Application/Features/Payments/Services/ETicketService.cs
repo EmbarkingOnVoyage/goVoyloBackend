@@ -180,10 +180,16 @@ namespace GoVoylo.Application.Features.Payments.Services
                     string.IsNullOrWhiteSpace(p.CabinBaggage) ? "–" : p.CabinBaggage!)))
                 .ToList();
 
-            // Whatever was paid beyond the supplier's fare and the convenience fee.
+            // Whatever was paid beyond the fare (base + taxes) and the convenience fee:
+            // seats, meals, extra baggage. Measured against base + taxes rather than
+            // the supplier's total, because Tripjack's total already includes the
+            // add-ons — the row would come out zero and the summary wouldn't add up.
             var paidForFlights = booking.TotalPaid - booking.ConvenienceFee;
-            var addOns = details?.TotalFare is { } supplierTotal && paidForFlights - supplierTotal >= 1m
-                ? paidForFlights - supplierTotal
+            var fare = details?.BaseFare is { } fareBase && details.TaxesAndFees is { } fareTaxes
+                ? fareBase + fareTaxes
+                : details?.TotalFare;
+            var addOns = fare is { } supplierFare && paidForFlights - supplierFare >= 1m
+                ? paidForFlights - supplierFare
                 : (decimal?)null;
 
             var passengerSummary = passengerDtos.Count > 1
