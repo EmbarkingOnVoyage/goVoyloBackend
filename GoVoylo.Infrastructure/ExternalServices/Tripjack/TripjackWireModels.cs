@@ -268,6 +268,11 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
         // Taxes and Fees.
         [JsonPropertyName("TAF")]
         public decimal TaxesAndFees { get; set; }
+
+        // Net Commission — only sent when the account has a commission set up
+        // (ours on UAT doesn't, so it reads 0).
+        [JsonPropertyName("NCM")]
+        public decimal NetCommission { get; set; }
     }
 
     public class TripjackBaggageInfoWire

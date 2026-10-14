@@ -37,7 +37,11 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         // price separately pays the adult fare) — what the convenience fee is a
         // percentage of. 0 when the supplier didn't split it.
         decimal AdultBaseFare = 0m,
-        decimal ChildBaseFare = 0m);
+        decimal ChildBaseFare = 0m,
+        // The supplier's commission to us on this fare: every searched passenger,
+        // and one adult. Part of it is given back as discount (CommissionPricing).
+        decimal BookingCommissionAmount = 0m,
+        decimal AdultCommission = 0m);
 
     public record SupplierFlightOptionDto(
         string FlightKey,
@@ -101,7 +105,15 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string TripType = "",
         IReadOnlyList<FlightOfferSessionFare>? Fares = null);
 
-    public record FlightOfferSessionFare(string FareId, decimal AdultBaseFare, decimal ChildBaseFare);
+    // BookingCommission / BookingDiscount: the commission on this fare (every searched
+    // passenger) and the part given as discount, fixed at search time so the price
+    // shown is the price charged.
+    public record FlightOfferSessionFare(
+        string FareId,
+        decimal AdultBaseFare,
+        decimal ChildBaseFare,
+        decimal BookingCommission = 0m,
+        decimal BookingDiscount = 0m);
 
     public record FlightOfferSessionTrip(
         string Origin,

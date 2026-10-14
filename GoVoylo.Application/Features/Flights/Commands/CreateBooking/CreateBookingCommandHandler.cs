@@ -115,6 +115,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
             // Worked out before anything is booked with the supplier, from the base
             // fares and trip type the search session recorded server-side.
             var convenienceFee = await CalculateConvenienceFeeAsync(request, legSummaries, cancellationToken);
+            var (commission, discount) = CommissionAndDiscount(request, legSummaries);
 
             // A seat/meal/baggage SSR_Key returned by Air_GetSeatMap or Air_GetSSR is
             // only valid against the exact Flight_Key that request was repriced
@@ -269,6 +270,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                     paxIds);
 
                 tripBooking.SetConvenienceFee(convenienceFee);
+                tripBooking.SetCommissionDiscount(commission, discount);
 
                 if (tempBooking.DeferredBookPayload != null)
                 {
@@ -371,8 +373,35 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                 ticket.CrsPnr,
                 ticket.RecordLocator,
                 ticket.FailureRemark,
-                ticket.ConfirmedTotalAmount,
+                // The fare as the app shows and charges it: the supplier's confirmed
+                // price plus the commission not given back as discount.
+                ticket.ConfirmedTotalAmount is { } confirmed ? confirmed + (commission - discount) : null,
                 convenienceFee);
+        }
+
+        // The fare each leg is booked on, as the search priced it (convenience fee and
+        // commission discount are both taken from it, never from the app).
+        private static FlightOfferSessionFare? BookedFare(CreateBookingCommand request, IReadOnlyList<FlightOfferSession> legSummaries, int i)
+        {
+            var session = legSummaries[i];
+            var fareId = request.Legs[i].FareId ?? session.FareId;
+            return session.Fares?.FirstOrDefault(f => f.FareId == fareId)
+                ?? session.Fares?.FirstOrDefault(f => f.FareId == session.FareId);
+        }
+
+        // Commission on the booked fares and the part given back as discount, as
+        // shown at search time (CommissionPricing).
+        private static (decimal Commission, decimal Discount) CommissionAndDiscount(
+            CreateBookingCommand request, IReadOnlyList<FlightOfferSession> legSummaries)
+        {
+            decimal commission = 0m, discount = 0m;
+            for (var i = 0; i < legSummaries.Count; i++)
+            {
+                var fare = BookedFare(request, legSummaries, i);
+                commission += fare?.BookingCommission ?? 0m;
+                discount += fare?.BookingDiscount ?? 0m;
+            }
+            return (commission, Math.Min(discount, commission));
         }
 
         // One journey per leg, or per trip of a whole-trip offer (its base fare split
@@ -387,9 +416,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
             for (var i = 0; i < legSummaries.Count; i++)
             {
                 var session = legSummaries[i];
-                var fareId = request.Legs[i].FareId ?? session.FareId;
-                var fare = session.Fares?.FirstOrDefault(f => f.FareId == fareId)
-                    ?? session.Fares?.FirstOrDefault(f => f.FareId == session.FareId);
+                var fare = BookedFare(request, legSummaries, i);
                 var tripCount = Math.Max(1, session.Trips?.Count ?? 1);
                 for (var t = 0; t < tripCount; t++)
                 {

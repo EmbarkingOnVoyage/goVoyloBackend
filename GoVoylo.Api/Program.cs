@@ -126,6 +126,7 @@ public class Program
         builder.Services.AddScoped<IRecentAirportSearchRepository, RecentAirportSearchRepository>();
         builder.Services.AddScoped<ITripBookingRepository, TripBookingRepository>();
         builder.Services.AddScoped<IConvenienceFeeRuleRepository, ConvenienceFeeRuleRepository>();
+        builder.Services.AddScoped<ICommissionDiscountRateRepository, CommissionDiscountRateRepository>();
         builder.Services.AddSingleton<IAirportCacheService, AirportCacheService>();
         builder.Services.AddScoped<AirportImportService>();
         builder.Services.AddSingleton<AuditLogQueue>();

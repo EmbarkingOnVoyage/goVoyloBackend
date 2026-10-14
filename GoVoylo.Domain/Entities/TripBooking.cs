@@ -38,6 +38,13 @@ namespace GoVoylo.Domain.Entities
         // refunded — see ConvenienceFeeCalculator.
         public decimal ConvenienceFee { get; private set; }
 
+        // The supplier's commission on the booked fares, and the part of it given to
+        // the customer as discount (see CommissionDiscountRate). Prices show
+        // TotalAmount + CommissionAmount struck out; the customer pays that minus
+        // DiscountAmount, so whatever commission isn't given back is charged on top.
+        public decimal CommissionAmount { get; private set; }
+        public decimal DiscountAmount { get; private set; }
+
         // What the customer was actually charged through Razorpay, once verified.
         // Can be more than PayableAmount: Flyshop's TotalAmount leaves out the
         // add-ons (meals, seats, baggage) the app prices itself.
@@ -125,8 +132,20 @@ namespace GoVoylo.Domain.Entities
             ConvenienceFee = convenienceFee;
         }
 
-        // What the customer pays: the supplier total plus the convenience fee.
-        public decimal PayableAmount => TotalAmount + ConvenienceFee;
+        public void SetCommissionDiscount(decimal commissionAmount, decimal discountAmount)
+        {
+            if (commissionAmount < 0 || discountAmount < 0 || discountAmount > commissionAmount)
+            {
+                throw new ArgumentException("Discount must be between 0 and the commission.");
+            }
+
+            CommissionAmount = commissionAmount;
+            DiscountAmount = discountAmount;
+        }
+
+        // What the customer pays: the supplier total, the commission not given back
+        // as discount, and the convenience fee.
+        public decimal PayableAmount => TotalAmount + (CommissionAmount - DiscountAmount) + ConvenienceFee;
 
         // What to show as paid: the verified charge, else (older bookings, or not
         // paid yet) the supplier total plus the convenience fee.

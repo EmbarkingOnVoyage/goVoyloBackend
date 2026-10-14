@@ -445,6 +445,10 @@ namespace GoVoylo.Infrastructure.Documents
                 {
                     AmountRow(card, "Add-Ons", null, Money(addOns, payment.CurrencyCode));
                 }
+                if (payment.Discount is { } discount)
+                {
+                    AmountRow(card, "Discount", null, "−" + Money(discount, payment.CurrencyCode), valueColor: Green);
+                }
                 card.Item().PaddingTop(1).LineHorizontal(0.75f).LineColor(Border);
                 card.Item().PaddingTop(1.5f).LineHorizontal(0.75f).LineColor(Border);
                 card.Item().PaddingTop(8).Row(row =>
@@ -606,7 +610,7 @@ namespace GoVoylo.Infrastructure.Documents
                 c.Item().PaddingTop(1).Text(value).FontSize(8.5f).FontColor(Body);
             });
 
-        private static void AmountRow(ColumnDescriptor column, string label, string? note, string value, float indent = 0) =>
+        private static void AmountRow(ColumnDescriptor column, string label, string? note, string value, float indent = 0, string valueColor = Body) =>
             column.Item().BorderBottom(0.75f).BorderColor(Border).PaddingVertical(6).Row(row =>
             {
                 row.RelativeItem().PaddingLeft(indent).Text(t =>
@@ -617,7 +621,7 @@ namespace GoVoylo.Infrastructure.Documents
                         t.Span($"  {note}").FontSize(7).FontColor(Muted);
                     }
                 });
-                row.AutoItem().Text(value).FontSize(9.5f).FontColor(Body);
+                row.AutoItem().Text(value).FontSize(9.5f).FontColor(valueColor);
             });
 
         private static void Chip(IContainer container, string text, string color, string background, string border) =>
