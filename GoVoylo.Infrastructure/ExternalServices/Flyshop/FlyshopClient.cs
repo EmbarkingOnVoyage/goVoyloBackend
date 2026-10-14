@@ -867,7 +867,20 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                     : TotalForPassengers(fare, adultFareDetail, OnePassenger(searchRequest, child: false), d => d.BasicAmount),
                 ChildBaseFare: searchRequest == null
                     ? 0m
-                    : TotalForPassengers(fare, adultFareDetail, OnePassenger(searchRequest, child: true), d => d.BasicAmount));
+                    : TotalForPassengers(fare, adultFareDetail, OnePassenger(searchRequest, child: true), d => d.BasicAmount),
+                BookingCommissionAmount: searchRequest == null ? 0m : CommissionForPassengers(fare, adultFareDetail, searchRequest),
+                AdultCommission: adultFareDetail?.NetCommission ?? 0m);
+        }
+
+        // Net_Commission per passenger of each PAX_Type, over every searched
+        // passenger. Unlike the fare itself, a passenger type the fare doesn't list
+        // earns nothing (an infant isn't commissioned at the adult rate).
+        private static decimal CommissionForPassengers(FareWire fare, FareDetailWire? adultFareDetail, FlightSearchRequestDto request)
+        {
+            decimal PerPax(int paxType) => fare.FareDetails.FirstOrDefault(f => f.PaxType == paxType)?.NetCommission ?? 0m;
+            return (adultFareDetail?.NetCommission ?? 0m) * request.AdultCount
+                + PerPax(1) * request.ChildCount
+                + PerPax(2) * request.InfantCount;
         }
 
         // The search request narrowed to a single adult or child, to price one passenger.

@@ -1262,7 +1262,9 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                         price.MatchingSpecialReturnIds,
                         TotalForPassengers(price, request, c => c.BaseFare),
                         TotalForPassengers(price, OnePassenger(request, child: false), c => c.BaseFare),
-                        TotalForPassengers(price, OnePassenger(request, child: true), c => c.BaseFare));
+                        TotalForPassengers(price, OnePassenger(request, child: true), c => c.BaseFare),
+                        TotalForPassengers(price, request, c => c.NetCommission),
+                        TotalForPassengers(price, OnePassenger(request, child: false), c => c.NetCommission));
                 })
                 .ToList();
 
