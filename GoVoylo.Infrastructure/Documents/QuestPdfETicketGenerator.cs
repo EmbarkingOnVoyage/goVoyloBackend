@@ -39,7 +39,9 @@ namespace GoVoylo.Infrastructure.Documents
         private static readonly CultureInfo India = CultureInfo.GetCultureInfo("en-IN");
         private static readonly TimeSpan IndiaOffset = TimeSpan.FromHours(5.5);
         private static readonly Lazy<string?> LogoSvg = new(() => LoadResource("govoylo-logo.svg"));
-        private static readonly Lazy<Dictionary<string, string>> AirlineLogos = new(() => LoadSvgMap("airline-logos.json"));
+        // GoVoylo.Api/AirlineLogos, copied next to the app on publish.
+        private static readonly string AirlineLogosPath = Path.Combine(AppContext.BaseDirectory, "AirlineLogos");
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string?> AirlineLogoCache = new();
         private static readonly Lazy<Dictionary<string, string>> DangerIcons = new(() => LoadSvgMap("dangerous-goods-icons.json"));
 
         // Lucide icons (ISC licence) — the icon set the app itself uses.
@@ -622,12 +624,13 @@ namespace GoVoylo.Infrastructure.Documents
             container.Background(background).Border(0.75f).BorderColor(border).CornerRadius(3)
                 .PaddingVertical(2).PaddingHorizontal(6).Text(text).FontSize(6.5f).Bold().FontColor(color).LetterSpacing(0.04f);
 
-        // The airline's own mark when bundled (same set as the app), else a plane badge.
+        // The airline's square mark (the same files the apps load from
+        // /airline-logos), else a plane badge.
         private static void AirlineMark(IContainer container, string airlineCode)
         {
-            if (AirlineLogos.Value.TryGetValue(airlineCode.ToUpperInvariant(), out var svg))
+            if (AirlineLogo(airlineCode) is { } svg)
             {
-                container.Width(46).Height(18).AlignMiddle().Svg(svg).FitArea();
+                container.Width(22).Height(22).AlignMiddle().Svg(svg).FitArea();
             }
             else
             {
@@ -719,6 +722,21 @@ namespace GoVoylo.Infrastructure.Documents
             LoadResource(resource) is { } json
                 ? JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new()
                 : new();
+
+        // "6E" → AirlineLogos/6E.svg; null when there's no file for the code.
+        private static string? AirlineLogo(string airlineCode)
+        {
+            var code = airlineCode.Trim().ToUpperInvariant();
+            if (code.Length != 2 || !code.All(char.IsLetterOrDigit))
+            {
+                return null;
+            }
+            return AirlineLogoCache.GetOrAdd(code, c =>
+            {
+                var path = Path.Combine(AirlineLogosPath, c + ".svg");
+                return File.Exists(path) ? File.ReadAllText(path) : null;
+            });
+        }
 
         // An empty box when an icon is missing, so a resource problem never breaks the PDF.
         private static string DangerIcon(string name) =>
