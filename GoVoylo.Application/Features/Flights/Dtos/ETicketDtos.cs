@@ -69,5 +69,8 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         decimal? AddOns,
         decimal Total,
         string CurrencyCode,
-        decimal? ConvenienceFee = null);
+        decimal? ConvenienceFee = null,
+        // Commission discount (CommissionPricing): BaseFare already includes our
+        // commission, and this is taken off it.
+        decimal? Discount = null);
 }

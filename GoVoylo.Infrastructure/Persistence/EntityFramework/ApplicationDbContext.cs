@@ -37,6 +37,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<TripBookingLeg> TripBookingLegs => Set<TripBookingLeg>();
     public DbSet<ConvenienceFeeTripRate> ConvenienceFeeTripRates => Set<ConvenienceFeeTripRate>();
     public DbSet<ConvenienceFeePaxBand> ConvenienceFeePaxBands => Set<ConvenienceFeePaxBand>();
+    public DbSet<CommissionDiscountRate> CommissionDiscountRates => Set<CommissionDiscountRate>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

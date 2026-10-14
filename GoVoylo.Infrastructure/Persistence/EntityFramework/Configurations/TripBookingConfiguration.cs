@@ -67,6 +67,18 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasDefaultValue(0m)
                 .IsRequired();
 
+            builder.Property(x => x.CommissionAmount)
+                .HasColumnName("commission_amount")
+                .HasColumnType("numeric(12,2)")
+                .HasDefaultValue(0m)
+                .IsRequired();
+
+            builder.Property(x => x.DiscountAmount)
+                .HasColumnName("discount_amount")
+                .HasColumnType("numeric(12,2)")
+                .HasDefaultValue(0m)
+                .IsRequired();
+
             builder.Property(x => x.AmountPaid)
                 .HasColumnName("amount_paid")
                 .HasColumnType("numeric(12,2)");

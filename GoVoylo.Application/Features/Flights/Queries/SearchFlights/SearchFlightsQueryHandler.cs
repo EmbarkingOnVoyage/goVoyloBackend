@@ -1,6 +1,8 @@
 using GoVoylo.Application.Features.Airports.Commands.SaveRecentAirportSearch;
 using GoVoylo.Application.Features.Flights.Dtos;
+using GoVoylo.Application.Features.Pricing.Services;
 using GoVoylo.Application.Interfaces;
+using GoVoylo.Domain.Interfaces;
 using MediatR;
 
 namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
@@ -10,15 +12,18 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
         private readonly IReadOnlyList<IFlightSupplierClient> _supplierClients;
         private readonly IFlightSearchSessionStore _sessionStore;
         private readonly ISender _mediator;
+        private readonly ICommissionDiscountRateRepository _discountRates;
 
         public SearchFlightsQueryHandler(
             IEnumerable<IFlightSupplierClient> supplierClients,
             IFlightSearchSessionStore sessionStore,
-            ISender mediator)
+            ISender mediator,
+            ICommissionDiscountRateRepository discountRates)
         {
             _supplierClients = supplierClients.ToList();
             _sessionStore = sessionStore;
             _mediator = mediator;
+            _discountRates = discountRates;
         }
 
         public async Task<FlightSearchResponseDto> Handle(
@@ -69,6 +74,8 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
             }
 
             var offers = new List<FlightOfferDto>();
+            // Share of each fare's commission given back as discount (CommissionPricing).
+            var discountPercent = await _discountRates.GetPercentAtAsync(DateTime.UtcNow, cancellationToken);
 
             foreach (var outcome in successfulOutcomes)
             {
@@ -80,6 +87,9 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                     var firstSegment = flight.Segments.FirstOrDefault();
                     var lastSegment = flight.Segments.LastOrDefault();
                     var trips = MapTrips(flight.Segments);
+                    // The offer's own price is its primary fare's.
+                    var primaryFare = flight.Fares.FirstOrDefault(f => f.FareId == flight.FareId) ?? flight.Fares.FirstOrDefault();
+                    var offerCommission = primaryFare?.BookingCommissionAmount ?? 0m;
 
                     var session = new FlightOfferSession(
                         client.SupplierCode,
@@ -97,7 +107,10 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                         trips,
                         request.Request.TripType,
                         flight.Fares
-                            .Select(f => new FlightOfferSessionFare(f.FareId, f.AdultBaseFare, f.ChildBaseFare))
+                            .Select(f => new FlightOfferSessionFare(
+                                f.FareId, f.AdultBaseFare, f.ChildBaseFare,
+                                f.BookingCommissionAmount,
+                                CommissionPricing.Discount(f.BookingCommissionAmount, discountPercent)))
                             .ToList());
 
                     var offerId = await _sessionStore.SaveAsync(session, cancellationToken);
@@ -120,22 +133,14 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                                 s.Duration,
                                 s.TripIndex))
                             .ToList(),
-                        flight.TotalAmount,
+                        flight.TotalAmount + CommissionPricing.Retained(offerCommission, discountPercent),
                         flight.CurrencyCode,
                         flight.SeatsAvailable,
-                        flight.Fares
-                            .Select(f => new FareOptionDto(
-                                f.FareId, f.Refundable, f.TotalAmount, f.CurrencyCode, f.CheckInBaggage, f.HandBaggage,
-                                f.BookingTotalAmount > 0 ? f.BookingTotalAmount : f.TotalAmount,
-                                f.FareIdentifier,
-                                f.SpecialReturnId,
-                                f.MatchingSpecialReturnIds ?? Array.Empty<string>(),
-                                f.BookingBaseAmount,
-                                f.AdultBaseFare,
-                                f.ChildBaseFare))
-                            .ToList(),
+                        flight.Fares.Select(f => PriceFare(f, discountPercent)).ToList(),
                         flight.TripLegIndex,
-                        client.SupplierCode));
+                        client.SupplierCode,
+                        flight.TotalAmount + offerCommission,
+                        CommissionPricing.Discount(offerCommission, discountPercent)));
                 }
             }
 
@@ -144,6 +149,32 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
             var sortedOffers = offers.OrderBy(o => o.TotalAmount).ToList();
 
             return new FlightSearchResponseDto(sortedOffers);
+        }
+
+        // The supplier's fare with our commission added and the discount taken off:
+        // what the app shows (list price struck out) and charges.
+        private static FareOptionDto PriceFare(SupplierFareOptionDto f, decimal discountPercent)
+        {
+            var bookingSupplierAmount = f.BookingTotalAmount > 0 ? f.BookingTotalAmount : f.TotalAmount;
+            return new FareOptionDto(
+                f.FareId,
+                f.Refundable,
+                f.TotalAmount + CommissionPricing.Retained(f.AdultCommission, discountPercent),
+                f.CurrencyCode,
+                f.CheckInBaggage,
+                f.HandBaggage,
+                bookingSupplierAmount + CommissionPricing.Retained(f.BookingCommissionAmount, discountPercent),
+                f.FareIdentifier,
+                f.SpecialReturnId,
+                f.MatchingSpecialReturnIds ?? Array.Empty<string>(),
+                f.BookingBaseAmount,
+                f.AdultBaseFare,
+                f.ChildBaseFare,
+                ListAmount: f.TotalAmount + f.AdultCommission,
+                DiscountAmount: CommissionPricing.Discount(f.AdultCommission, discountPercent),
+                BookingListAmount: bookingSupplierAmount + f.BookingCommissionAmount,
+                BookingDiscountAmount: CommissionPricing.Discount(f.BookingCommissionAmount, discountPercent),
+                BookingCommissionAmount: f.BookingCommissionAmount);
         }
 
         // Where the booking's single leg is recorded as going. A combined out-and-back

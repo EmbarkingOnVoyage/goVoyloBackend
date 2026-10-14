@@ -40,7 +40,16 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         // See SupplierFareOptionDto.AdultBaseFare/ChildBaseFare — lets the app show
         // the convenience fee before booking.
         decimal AdultBaseFare = 0m,
-        decimal ChildBaseFare = 0m);
+        decimal ChildBaseFare = 0m,
+        // Commission discount (CommissionPricing). TotalAmount / BookingTotalAmount
+        // are what's charged; ListAmount / BookingListAmount the price shown struck
+        // out (charged + discount). Per adult, and for every searched passenger.
+        decimal ListAmount = 0m,
+        decimal DiscountAmount = 0m,
+        decimal BookingListAmount = 0m,
+        decimal BookingDiscountAmount = 0m,
+        // Our commission on the fare; price breakups show it inside the base fare.
+        decimal BookingCommissionAmount = 0m);
 
     public record FlightOfferDto(
         Guid OfferId,
@@ -60,7 +69,11 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         // server-side in FlightOfferSession; surfaced here so the client can show
         // which supplier an offer comes from (both suppliers' prices are merged into
         // one result set, so nothing else distinguishes them visually).
-        string SupplierCode = "");
+        string SupplierCode = "",
+        // TotalAmount struck out before the commission discount, and the discount
+        // (every searched passenger) — see FareOptionDto.
+        decimal ListAmount = 0m,
+        decimal DiscountAmount = 0m);
 
     public record FlightSearchResponseDto(IReadOnlyList<FlightOfferDto> Offers);
 
@@ -177,9 +190,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         string? CrsPnr,
         string? RecordLocator,
         string? FailureRemark,
-        // The supplier-confirmed amount to charge — see
-        // SupplierTicketingResultDto.ConfirmedTotalAmount. Null means charge the
-        // searched price as before.
+        // The supplier-confirmed amount to charge (see
+        // SupplierTicketingResultDto.ConfirmedTotalAmount) plus the commission not
+        // given back as discount — comparable with the searched price. Null means
+        // charge the searched price as before.
         decimal? ConfirmedTotalAmount = null,
         // GoVoylo's convenience fee, charged on top of the fare total — calculated
         // here from the convenience fee rules, not taken from the app.
@@ -250,7 +264,12 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         decimal ConvenienceFee = 0m,
         // Everything the customer paid (fare, add-ons and convenience fee) — see
         // TripBooking.TotalPaid.
-        decimal TotalPaid = 0m);
+        decimal TotalPaid = 0m,
+        // Our commission on the fare and the part given as discount — see
+        // TripBooking.CommissionAmount. Fare breakups show the base fare with the
+        // commission in it, then the discount taken off.
+        decimal CommissionAmount = 0m,
+        decimal DiscountAmount = 0m);
 
     public record TripBookingSegmentDto(
         int LegIndex,

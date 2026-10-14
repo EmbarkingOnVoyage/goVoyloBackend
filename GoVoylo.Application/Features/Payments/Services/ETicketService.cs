@@ -184,7 +184,8 @@ namespace GoVoylo.Application.Features.Payments.Services
             // seats, meals, extra baggage. Measured against base + taxes rather than
             // the supplier's total, because Tripjack's total already includes the
             // add-ons — the row would come out zero and the summary wouldn't add up.
-            var paidForFlights = booking.TotalPaid - booking.ConvenienceFee;
+            // The commission not given back as discount is part of the fare too.
+            var paidForFlights = booking.TotalPaid - booking.ConvenienceFee - (booking.CommissionAmount - booking.DiscountAmount);
             var fare = details?.BaseFare is { } fareBase && details.TaxesAndFees is { } fareTaxes
                 ? fareBase + fareTaxes
                 : details?.TotalFare;
@@ -207,12 +208,15 @@ namespace GoVoylo.Application.Features.Payments.Services
                 passengerDtos,
                 baggage,
                 new ETicketPaymentDto(
-                    details?.BaseFare,
+                    // Shown with our commission in it, then the discount taken off
+                    // (the price struck out at search, and what was charged).
+                    details?.BaseFare is { } shownBase ? shownBase + booking.CommissionAmount : null,
                     details?.TaxesAndFees,
                     addOns,
                     booking.TotalPaid,
                     booking.CurrencyCode,
-                    booking.ConvenienceFee > 0m ? booking.ConvenienceFee : null),
+                    booking.ConvenienceFee > 0m ? booking.ConvenienceFee : null,
+                    booking.DiscountAmount > 0m ? booking.DiscountAmount : null),
                 contactEmail,
                 contactPhone,
                 tripDtos.Count > 2 || (tripDtos.Count == 2 && !IsRoundTrip(trips)),

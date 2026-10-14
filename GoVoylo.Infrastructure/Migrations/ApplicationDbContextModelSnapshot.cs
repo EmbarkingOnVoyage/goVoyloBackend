@@ -210,6 +210,51 @@ namespace GoVoylo.Infrastructure.Migrations
                     b.ToTable("BookingPayments", (string)null);
                 });
 
+            modelBuilder.Entity("GoVoylo.Domain.Entities.CommissionDiscountRate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTime>("EffectiveFrom")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("effective_from");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("note");
+
+                    b.Property<decimal>("Percent")
+                        .HasColumnType("numeric(6,3)")
+                        .HasColumnName("percent");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EffectiveFrom")
+                        .HasDatabaseName("ix_commission_discount_rates_effective_from");
+
+                    b.ToTable("gv_commission_discount_rates", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("3c1d7b2e-5f4a-4e8b-9c62-0a7d1e4b9f01"),
+                            CreatedAt = new DateTime(2026, 10, 14, 0, 0, 0, 0, DateTimeKind.Utc),
+                            EffectiveFrom = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Note = "Launch offer: 100% of commission as discount (until at least 15 Nov 2026)",
+                            Percent = 100.000m
+                        });
+                });
+
             modelBuilder.Entity("GoVoylo.Domain.Entities.ConvenienceFeePaxBand", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1227,6 +1272,12 @@ namespace GoVoylo.Infrastructure.Migrations
                         .HasColumnType("timestamptz")
                         .HasColumnName("cancelled_at");
 
+                    b.Property<decimal>("CommissionAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("numeric(12,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("commission_amount");
+
                     b.Property<decimal>("ConvenienceFee")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("numeric(12,2)")
@@ -1253,6 +1304,12 @@ namespace GoVoylo.Infrastructure.Migrations
                     b.Property<byte[]>("DeferredSupplierPayloadEncrypted")
                         .HasColumnType("bytea")
                         .HasColumnName("deferred_supplier_payload_encrypted");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("numeric(12,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("discount_amount");
 
                     b.Property<string>("LocalStatus")
                         .IsRequired()
