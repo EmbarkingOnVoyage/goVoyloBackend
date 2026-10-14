@@ -334,6 +334,28 @@ public class Program
             RequestPath = profileImagesPublicBasePath
         });
 
+        // Airline logos for the web and mobile apps: /airline-logos/<IATA code>.svg.
+        // Cached for a week; the CSP stops an SVG from running script if one ever
+        // slipped into the set.
+        var airlineLogosPath = Path.Combine(AppContext.BaseDirectory, "AirlineLogos");
+        if (Directory.Exists(airlineLogosPath))
+        {
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(airlineLogosPath),
+                RequestPath = "/airline-logos",
+                OnPrepareResponse = context =>
+                {
+                    var headers = context.Context.Response.Headers;
+                    headers.CacheControl = "public, max-age=604800";
+                    headers.ContentSecurityPolicy = "default-src 'none'; style-src 'unsafe-inline'; img-src data:";
+                    headers.XContentTypeOptions = "nosniff";
+                    // Loaded by the web app from another origin.
+                    headers.AccessControlAllowOrigin = "*";
+                }
+            });
+        }
+
         // Registered via AddCors above, but that only builds the policy — it
         // still has to be wired into the pipeline here, or every preflight
         // OPTIONS request 405s and the browser never sends the real request.

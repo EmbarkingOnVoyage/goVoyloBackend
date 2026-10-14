@@ -27,4 +27,10 @@
     <ProjectReference Include="..\GoVoylo.Infrastructure\GoVoylo.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Airline marks by IATA code (<CODE>.svg), served at /airline-logos and
+         drawn on the e-ticket PDF. -->
+    <Content Include="AirlineLogos\*.svg" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
