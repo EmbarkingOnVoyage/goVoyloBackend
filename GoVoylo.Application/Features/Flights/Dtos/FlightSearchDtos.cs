@@ -116,7 +116,7 @@ namespace GoVoylo.Application.Features.Flights.Dtos
     // "Male"/"Female") so callers don't need to know Flyshop's numeric codes — the
     // handler maps them internally.
     public record SeatMapTravelerRequestDto(
-        string Title, string FirstName, string LastName, string Gender, string PaxType);
+        string Title, string FirstName, string? LastName, string Gender, string PaxType);
 
     public record SeatMapRowDto(IReadOnlyList<AncillaryOptionDto> Seats);
 
@@ -161,7 +161,9 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         int PaxId,
         string Title,
         string FirstName,
-        string LastName,
+        // Blank for a single-name traveller; suppliers then get the first name
+        // as surname too (BookingNames.Surname).
+        string? LastName,
         string Gender,
         string PaxType,
         DateTime? DateOfBirth = null,
