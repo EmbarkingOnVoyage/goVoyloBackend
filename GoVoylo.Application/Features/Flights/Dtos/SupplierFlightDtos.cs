@@ -266,7 +266,7 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         // plus selected SSRs), when it confirms one at hold time — fares can move
         // between search and booking (confirmed live: an infant fare dropped from
         // 6088.5 at Search to 3088.5 at Review). Null when the supplier doesn't
-        // confirm a whole-booking amount here (Flyshop, for now).
+        // confirm a whole-booking amount here (Flyshop: when Air_Reprint fails).
         decimal? ConfirmedTotalAmount = null);
 
     public record SupplierFareRuleRequestDto(string SearchKey, string FlightKey, string FareId);
