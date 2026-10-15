@@ -43,10 +43,11 @@ public class TripBookingTests
     {
         var booking = CreateDeferredBooking();
 
-        booking.SetConvenienceFee(15.89m);
+        booking.SetConvenienceFee(16m);
 
-        booking.ConvenienceFee.Should().Be(15.89m);
-        booking.PayableAmount.Should().Be(1604.39m);
+        booking.ConvenienceFee.Should().Be(16m);
+        // 1,588.50 + 16 = 1,604.50, charged in whole rupees.
+        booking.PayableAmount.Should().Be(1605m);
     }
 
     [Fact]
@@ -63,16 +64,16 @@ public class TripBookingTests
     public void TotalPaid_UsesTheVerifiedCharge_WhichIncludesAppPricedAddOns()
     {
         var booking = CreateDeferredBooking();
-        booking.SetConvenienceFee(15.89m);
+        booking.SetConvenienceFee(16m);
 
-        booking.TotalPaid.Should().Be(1604.39m);
+        booking.TotalPaid.Should().Be(1605m);
 
-        // Fare 1,588.50 + meals 800 + fee 15.89, charged through Razorpay.
-        booking.RecordPayment(2404.39m);
+        // Fare 1,588.50 + meals 800 + fee 16, charged through Razorpay in whole rupees.
+        booking.RecordPayment(2405m);
 
-        booking.AmountPaid.Should().Be(2404.39m);
-        booking.TotalPaid.Should().Be(2404.39m);
-        booking.PayableAmount.Should().Be(1604.39m);
+        booking.AmountPaid.Should().Be(2405m);
+        booking.TotalPaid.Should().Be(2405m);
+        booking.PayableAmount.Should().Be(1605m);
     }
 
     [Fact]

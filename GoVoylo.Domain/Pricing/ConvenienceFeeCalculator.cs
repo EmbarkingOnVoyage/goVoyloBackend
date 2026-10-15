@@ -13,7 +13,7 @@ namespace GoVoylo.Domain.Pricing
         // Each journey's chargeable amount times its rate (see
         // ConvenienceFeeTripRate.PercentForJourney), times the group factor for
         // the number of adults + children when the rate applies bands, capped per
-        // passenger when the rate has a cap. Rounded to 2 decimals.
+        // passenger when the rate has a cap. Rounded to whole rupees.
         public static decimal Calculate(
             ConvenienceFeeTripRate tripRate,
             IReadOnlyCollection<ConvenienceFeePaxBand> paxBands,
@@ -44,7 +44,8 @@ namespace GoVoylo.Domain.Pricing
                 total = Math.Min(total, cap * chargeablePax);
             }
 
-            return Math.Round(total, 2, MidpointRounding.AwayFromZero);
+            // Whole rupees: prices are shown and charged without paise.
+            return Math.Round(total, 0, MidpointRounding.AwayFromZero);
         }
     }
 }
