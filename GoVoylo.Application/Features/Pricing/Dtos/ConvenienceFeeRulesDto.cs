@@ -17,4 +17,7 @@ namespace GoVoylo.Application.Features.Pricing.Dtos
         bool ApplyPaxBands = true);
 
     public record ConvenienceFeePaxBandDto(int MinPax, decimal Factor);
+
+    // FirstBookingFree: this customer's next booking has no convenience fee.
+    public record ConvenienceFeeOfferDto(bool FirstBookingFree, DateTimeOffset? ValidUntil);
 }
