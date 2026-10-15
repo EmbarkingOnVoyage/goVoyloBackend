@@ -51,7 +51,7 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         // Our commission on the fare; price breakups show it inside the base fare.
         decimal BookingCommissionAmount = 0m,
         // One adult's / one child's fare before the discount — what the
-        // convenience fee is a percentage of (with the add-ons).
+        // convenience fee is a percentage of.
         decimal AdultListFare = 0m,
         decimal ChildListFare = 0m);
 

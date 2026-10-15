@@ -415,8 +415,8 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
 
         // One journey per leg, or per trip of a whole-trip offer (its amount split
         // evenly across trips, since the supplier prices the offer as one). A
-        // journey's amount is what its adults and children pay: their fares before
-        // the commission discount plus the add-ons booked for them. The trip type is
+        // journey's amount is what its adults and children pay for the fare: base
+        // before the commission discount plus taxes (add-ons don't count). The trip type is
         // RoundTrip only for two journeys found by a round-trip search; any other
         // multi-journey booking is MultiCity — the app searches multi-city legs one
         // at a time, so those sessions say OneWay.
@@ -425,7 +425,6 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
         {
             var adults = request.Travelers.Count(t => MapPaxType(t.PaxType) == 0);
             var children = request.Travelers.Count(t => MapPaxType(t.PaxType) == 1);
-            var infantPaxIds = request.Travelers.Where(t => MapPaxType(t.PaxType) == 2).Select(t => t.PaxId).ToHashSet();
 
             var journeys = new List<JourneyFare>();
             for (var i = 0; i < legSummaries.Count; i++)
@@ -436,14 +435,11 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                     ? adults * fare.AdultListFare + children * fare.ChildListFare
                     // A session saved before list fares were kept: the whole booking.
                     : session.TotalAmount + (fare?.BookingCommission ?? 0m);
-                var addOns = request.Legs[i].SelectedSsrs
-                    .Where(s => !infantPaxIds.Contains(s.PaxId))
-                    .Sum(s => SsrPriceBook.PriceOf(session, s.SsrKey));
 
                 var tripCount = Math.Max(1, session.Trips?.Count ?? 1);
                 for (var t = 0; t < tripCount; t++)
                 {
-                    journeys.Add(new JourneyFare((fares + addOns) / tripCount));
+                    journeys.Add(new JourneyFare(fares / tripCount));
                 }
             }
 

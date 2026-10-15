@@ -56,9 +56,6 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetFlightAncillaries
                     o.ApplicablePaxTypes))
                 .ToList();
 
-            await SsrPriceBook.RecordAsync(
-                _sessionStore, request.OfferId, leg.Session, options.Select(o => ((string?)o.SsrKey, o.TotalAmount)), cancellationToken);
-
             return new FlightAncillariesResponseDto(options);
         }
     }
