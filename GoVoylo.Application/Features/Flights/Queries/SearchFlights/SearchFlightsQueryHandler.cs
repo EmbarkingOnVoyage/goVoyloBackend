@@ -4,6 +4,7 @@ using GoVoylo.Application.Features.Pricing.Services;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Interfaces;
 using MediatR;
+using Microsoft.Extensions.Configuration;
 
 namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
 {
@@ -18,9 +19,13 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
             IEnumerable<IFlightSupplierClient> supplierClients,
             IFlightSearchSessionStore sessionStore,
             ISender mediator,
-            ICommissionDiscountRateRepository discountRates)
+            ICommissionDiscountRateRepository discountRates,
+            IConfiguration? configuration = null)
         {
-            _supplierClients = supplierClients.ToList();
+            // A supplier switched off (FlightSupplierSwitch) isn't searched at all.
+            _supplierClients = supplierClients
+                .Where(client => configuration == null || FlightSupplierSwitch.IsEnabled(configuration, client.SupplierCode))
+                .ToList();
             _sessionStore = sessionStore;
             _mediator = mediator;
             _discountRates = discountRates;
