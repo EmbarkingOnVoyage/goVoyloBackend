@@ -19,7 +19,6 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
             RuleForEach(x => x.Travelers).ChildRules(traveler =>
             {
                 traveler.RuleFor(t => t.FirstName).NotEmpty();
-                traveler.RuleFor(t => t.LastName).NotEmpty();
             });
 
             // GST fields are all-optional, but a GST invoice needs all three once any

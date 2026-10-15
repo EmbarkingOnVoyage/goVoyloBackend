@@ -37,7 +37,7 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetSeatMap
                     MapPaxType(t.PaxType),
                     t.Title,
                     t.FirstName,
-                    t.LastName,
+                    BookingNames.Surname(t.FirstName, t.LastName),
                     MapGender(t.Gender)))
                 .ToList();
 
