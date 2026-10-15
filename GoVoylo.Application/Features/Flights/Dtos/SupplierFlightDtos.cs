@@ -115,10 +115,7 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         // fare, kept server-side so the convenience fee charged at booking can't be
         // influenced by the app.
         string TripType = "",
-        IReadOnlyList<FlightOfferSessionFare>? Fares = null,
-        // Add-on and seat prices by SSR key, recorded when the app loads them, so
-        // the convenience fee can include the add-ons booked.
-        IReadOnlyDictionary<string, decimal>? SsrPrices = null);
+        IReadOnlyList<FlightOfferSessionFare>? Fares = null);
 
     // BookingCommission / BookingDiscount: the commission on this fare (every searched
     // passenger) and the part given as discount, fixed at search time so the price
