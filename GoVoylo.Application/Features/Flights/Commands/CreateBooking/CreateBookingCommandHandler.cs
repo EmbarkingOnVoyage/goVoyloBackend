@@ -123,7 +123,9 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
 
             // Worked out before anything is booked with the supplier, from the base
             // fares and trip type the search session recorded server-side.
-            var convenienceFee = await CalculateConvenienceFeeAsync(request, legSummaries, cancellationToken);
+            var convenienceFee = (await _convenienceFeeService.GetOfferAsync(request.UserId, cancellationToken)).FirstBookingFree
+                ? 0m
+                : await CalculateConvenienceFeeAsync(request, legSummaries, cancellationToken);
             var (commission, discount) = CommissionAndDiscount(request, legSummaries);
 
             // A seat/meal/baggage SSR_Key returned by Air_GetSeatMap or Air_GetSSR is
