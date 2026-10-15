@@ -110,7 +110,9 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                             .Select(f => new FlightOfferSessionFare(
                                 f.FareId, f.AdultBaseFare, f.ChildBaseFare,
                                 f.BookingCommissionAmount,
-                                CommissionPricing.Discount(f.BookingCommissionAmount, discountPercent)))
+                                CommissionPricing.Discount(f.BookingCommissionAmount, discountPercent),
+                                f.AdultListFare,
+                                f.ChildListFare))
                             .ToList());
 
                     var offerId = await _sessionStore.SaveAsync(session, cancellationToken);
@@ -174,7 +176,9 @@ namespace GoVoylo.Application.Features.Flights.Queries.SearchFlights
                 DiscountAmount: CommissionPricing.Discount(f.AdultCommission, discountPercent),
                 BookingListAmount: bookingSupplierAmount + f.BookingCommissionAmount,
                 BookingDiscountAmount: CommissionPricing.Discount(f.BookingCommissionAmount, discountPercent),
-                BookingCommissionAmount: f.BookingCommissionAmount);
+                BookingCommissionAmount: f.BookingCommissionAmount,
+                AdultListFare: f.AdultListFare,
+                ChildListFare: f.ChildListFare);
         }
 
         // Where the booking's single leg is recorded as going. A combined out-and-back

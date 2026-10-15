@@ -2,10 +2,13 @@ using GoVoylo.Domain.Common;
 
 namespace GoVoylo.Domain.Entities
 {
-    // Convenience fee rate for one trip type, as a percentage of each chargeable
-    // passenger's base fare per journey: the first journey at FirstJourneyPercent,
-    // every further journey at ExtraJourneyPercent (OneWay 1.00; RoundTrip 0.80 +
-    // 0.80; MultiCity 1.00 + 0.75 each extra). Edited in the database, no deploy.
+    // Convenience fee rate for one trip type, as a percentage of what the adults and
+    // children pay for each journey (fare before the commission discount, plus
+    // their add-ons): the first FullRateJourneys journeys at FirstJourneyPercent,
+    // every further one at ExtraJourneyPercent. ApplyPaxBands applies the group
+    // factor (ConvenienceFeePaxBand). Seeded: OneWay / RoundTrip 2.64% with bands;
+    // MultiCity 2.64% for the first two journeys, 1.98% (75%) after, no bands.
+    // Edited in the database, no deploy.
     public class ConvenienceFeeTripRate : BaseEntity
     {
         public string TripType { get; private set; } = null!;
@@ -15,12 +18,18 @@ namespace GoVoylo.Domain.Entities
         // Most one passenger can be charged for the whole trip; null = no cap.
         public decimal? MaxFeePerPax { get; private set; }
 
+        public int FullRateJourneys { get; private set; } = 1;
+        public bool ApplyPaxBands { get; private set; } = true;
+
         public bool IsActive { get; private set; } = true;
         public DateTime UpdatedAt { get; private set; }
 
         public ConvenienceFeeTripRate(
-            string tripType, decimal firstJourneyPercent, decimal extraJourneyPercent, decimal? maxFeePerPax = null)
+            string tripType, decimal firstJourneyPercent, decimal extraJourneyPercent, decimal? maxFeePerPax = null,
+            int fullRateJourneys = 1, bool applyPaxBands = true)
         {
+            FullRateJourneys = Math.Max(1, fullRateJourneys);
+            ApplyPaxBands = applyPaxBands;
             TripType = tripType;
             FirstJourneyPercent = firstJourneyPercent;
             ExtraJourneyPercent = extraJourneyPercent;
@@ -35,6 +44,6 @@ namespace GoVoylo.Domain.Entities
         }
 
         public decimal PercentForJourney(int journeyIndex) =>
-            journeyIndex == 0 ? FirstJourneyPercent : ExtraJourneyPercent;
+            journeyIndex < FullRateJourneys ? FirstJourneyPercent : ExtraJourneyPercent;
     }
 }
