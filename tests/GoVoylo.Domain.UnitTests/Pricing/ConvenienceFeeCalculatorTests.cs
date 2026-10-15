@@ -33,7 +33,7 @@ public class ConvenienceFeeCalculatorTests
     [Theory]
     [InlineData(1, 264)]                 // 1 x 264
     [InlineData(2, 528)]                 // 2 x 264
-    [InlineData(3, 673.20)]              // 0.85 x (3 x 264)
+    [InlineData(3, 673)]                 // 0.85 x (3 x 264) = 673.20, whole rupees
     [InlineData(5, 1122)]                // 0.85 x (5 x 264)
     [InlineData(7, 1386)]                // 0.75 x (7 x 264)
     public void OneWay_GroupFactorOnEveryPassenger(int pax, decimal expected)
@@ -43,7 +43,7 @@ public class ConvenienceFeeCalculatorTests
 
     [Theory]
     [InlineData(2, 1056)]                // 2 x (2 x 264)
-    [InlineData(3, 1346.40)]             // 2 x (0.85 x (3 x 264))
+    [InlineData(3, 1346)]                // 2 x (0.85 x (3 x 264)) = 1,346.40
     [InlineData(7, 2772)]                // 2 x (0.75 x (7 x 264))
     public void RoundTrip_IsBothJourneysAtTheFullRate(int pax, decimal expected)
     {
@@ -73,7 +73,7 @@ public class ConvenienceFeeCalculatorTests
     {
         // 2 adults + 1 child = 3 passengers -> x0.85
         ConvenienceFeeCalculator.Calculate(OneWay, Bands, new[] { new JourneyFare(30_000m) }, 2, 1)
-            .Should().Be(673.20m);
+            .Should().Be(673m);
     }
 
     [Fact]
