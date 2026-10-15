@@ -144,8 +144,10 @@ namespace GoVoylo.Domain.Entities
         }
 
         // What the customer pays: the supplier total, the commission not given back
-        // as discount, and the convenience fee.
-        public decimal PayableAmount => TotalAmount + (CommissionAmount - DiscountAmount) + ConvenienceFee;
+        // as discount, and the convenience fee — rounded to the nearest rupee, since
+        // prices are shown and charged without paise.
+        public decimal PayableAmount =>
+            Math.Round(TotalAmount + (CommissionAmount - DiscountAmount) + ConvenienceFee, 0, MidpointRounding.AwayFromZero);
 
         // What to show as paid: the verified charge, else (older bookings, or not
         // paid yet) the supplier total plus the convenience fee.
