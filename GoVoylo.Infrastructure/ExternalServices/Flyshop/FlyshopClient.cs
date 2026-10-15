@@ -297,10 +297,37 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
         // nothing is placed here. The temp booking is reported as Status 33 (awaiting
         // payment, as VerifyRazorpayPaymentCommandHandler expects) with no legs:
         // Flight_Ids only exist once Air_Ticketing runs after payment.
-        public Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
+        // The fare can move between search and booking, so the temp booking's own
+        // price is read back (Air_Reprint answers for an unticketed temp booking —
+        // checked on UAT) and becomes the amount the app shows and charges.
+        public async Task<SupplierTicketingResultDto> CreateBlockTicketAsync(
             string bookingRefNo, CancellationToken cancellationToken) =>
-            Task.FromResult(new SupplierTicketingResultDto(
-                bookingRefNo, "33", null, null, null, null, null, Array.Empty<SupplierTicketingLegResultDto>()));
+            new SupplierTicketingResultDto(
+                bookingRefNo, "33", null, null, null, null, null, Array.Empty<SupplierTicketingLegResultDto>(),
+                ConfirmedTotalAmount: await TempBookingTotalAsync(bookingRefNo, cancellationToken));
+
+        // Every passenger's own fare on every PNR, seats/meals/baggage included (a
+        // passenger's Total_Amount already carries them — see GetBookingDetailsAsync).
+        // Null — charge the searched price, as before — when Air_Reprint fails or
+        // doesn't price every passenger: a partial figure would read as a fare change.
+        private async Task<decimal?> TempBookingTotalAsync(string bookingRefNo, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var reprint = await GetReprintAsync(bookingRefNo, null, cancellationToken);
+                var fares = reprint.AirPnrDetails
+                    .SelectMany(p => p.PaxTicketDetails)
+                    .Select(p => p.Fares?.FirstOrDefault()?.FareDetails.FirstOrDefault())
+                    .ToList();
+                return fares.Count > 0 && fares.All(f => f != null && f.TotalAmount > 0)
+                    ? fares.Sum(f => f!.TotalAmount)
+                    : null;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return null;
+            }
+        }
 
         // Flyshop's temp booking is ticketed directly, so deferredBookPayload is
         // always null here.
