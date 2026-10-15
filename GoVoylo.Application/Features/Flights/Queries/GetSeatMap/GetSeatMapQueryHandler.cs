@@ -74,6 +74,11 @@ namespace GoVoylo.Application.Features.Flights.Queries.GetSeatMap
                     seg.Destination))
                 .ToList();
 
+            await SsrPriceBook.RecordAsync(
+                _sessionStore, request.OfferId, leg.Session,
+                segments.SelectMany(s => s.Rows).SelectMany(r => r.Seats).Select(o => ((string?)o.SsrKey, o.TotalAmount)),
+                cancellationToken);
+
             return new SeatMapResponseDto(segments);
         }
 

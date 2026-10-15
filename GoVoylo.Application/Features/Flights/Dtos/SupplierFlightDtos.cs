@@ -41,7 +41,19 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         // The supplier's commission to us on this fare: every searched passenger,
         // and one adult. Part of it is given back as discount (CommissionPricing).
         decimal BookingCommissionAmount = 0m,
-        decimal AdultCommission = 0m);
+        decimal AdultCommission = 0m,
+        // One adult's / one child's whole fare (base + taxes) and the child's
+        // commission — with AdultCommission, the fare before the discount that the
+        // convenience fee is a percentage of. 0 when the supplier didn't split it.
+        decimal AdultTotalFare = 0m,
+        decimal ChildTotalFare = 0m,
+        decimal ChildCommission = 0m)
+    {
+        // Fare before the commission discount for one adult / one child; a fare
+        // that doesn't price children separately charges them the adult fare.
+        public decimal AdultListFare => (AdultTotalFare > 0 ? AdultTotalFare : TotalAmount) + AdultCommission;
+        public decimal ChildListFare => ChildTotalFare > 0 ? ChildTotalFare + ChildCommission : AdultListFare;
+    }
 
     public record SupplierFlightOptionDto(
         string FlightKey,
@@ -103,7 +115,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         // fare, kept server-side so the convenience fee charged at booking can't be
         // influenced by the app.
         string TripType = "",
-        IReadOnlyList<FlightOfferSessionFare>? Fares = null);
+        IReadOnlyList<FlightOfferSessionFare>? Fares = null,
+        // Add-on and seat prices by SSR key, recorded when the app loads them, so
+        // the convenience fee can include the add-ons booked.
+        IReadOnlyDictionary<string, decimal>? SsrPrices = null);
 
     // BookingCommission / BookingDiscount: the commission on this fare (every searched
     // passenger) and the part given as discount, fixed at search time so the price
@@ -113,7 +128,10 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         decimal AdultBaseFare,
         decimal ChildBaseFare,
         decimal BookingCommission = 0m,
-        decimal BookingDiscount = 0m);
+        decimal BookingDiscount = 0m,
+        // One adult's / one child's fare before the discount (SupplierFareOptionDto.AdultListFare).
+        decimal AdultListFare = 0m,
+        decimal ChildListFare = 0m);
 
     public record FlightOfferSessionTrip(
         string Origin,

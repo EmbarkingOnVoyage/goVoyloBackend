@@ -869,7 +869,14 @@ namespace GoVoylo.Infrastructure.ExternalServices.Flyshop
                     ? 0m
                     : TotalForPassengers(fare, adultFareDetail, OnePassenger(searchRequest, child: true), d => d.BasicAmount),
                 BookingCommissionAmount: searchRequest == null ? 0m : CommissionForPassengers(fare, adultFareDetail, searchRequest),
-                AdultCommission: adultFareDetail?.NetCommission ?? 0m);
+                AdultCommission: adultFareDetail?.NetCommission ?? 0m,
+                AdultTotalFare: adultFareDetail?.TotalAmount ?? 0m,
+                ChildTotalFare: searchRequest == null
+                    ? 0m
+                    : TotalForPassengers(fare, adultFareDetail, OnePassenger(searchRequest, child: true)),
+                ChildCommission: searchRequest == null
+                    ? 0m
+                    : CommissionForPassengers(fare, adultFareDetail, OnePassenger(searchRequest, child: true)));
         }
 
         // Net_Commission per passenger of each PAX_Type, over every searched

@@ -1264,7 +1264,10 @@ namespace GoVoylo.Infrastructure.ExternalServices.Tripjack
                         TotalForPassengers(price, OnePassenger(request, child: false), c => c.BaseFare),
                         TotalForPassengers(price, OnePassenger(request, child: true), c => c.BaseFare),
                         TotalForPassengers(price, request, c => c.NetCommission),
-                        TotalForPassengers(price, OnePassenger(request, child: false), c => c.NetCommission));
+                        TotalForPassengers(price, OnePassenger(request, child: false), c => c.NetCommission),
+                        TotalForPassengers(price, OnePassenger(request, child: false)),
+                        TotalForPassengers(price, OnePassenger(request, child: true)),
+                        TotalForPassengers(price, OnePassenger(request, child: true), c => c.NetCommission));
                 })
                 .ToList();
 

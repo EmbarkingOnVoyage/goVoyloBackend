@@ -497,6 +497,10 @@ namespace GoVoylo.Infrastructure.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<bool>("ApplyPaxBands")
+                        .HasColumnType("boolean")
+                        .HasColumnName("apply_pax_bands");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamptz")
@@ -510,6 +514,12 @@ namespace GoVoylo.Infrastructure.Migrations
                     b.Property<decimal>("FirstJourneyPercent")
                         .HasColumnType("numeric(6,3)")
                         .HasColumnName("first_journey_percent");
+
+                    b.Property<int>("FullRateJourneys")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("full_rate_journeys");
 
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
@@ -545,9 +555,11 @@ namespace GoVoylo.Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("6f0e8c1a-2b4d-4c7e-9a31-1d5f2e8b7c01"),
+                            ApplyPaxBands = true,
                             CreatedAt = new DateTime(2026, 10, 8, 0, 0, 0, 0, DateTimeKind.Utc),
-                            ExtraJourneyPercent = 1.00m,
-                            FirstJourneyPercent = 1.00m,
+                            ExtraJourneyPercent = 2.64m,
+                            FirstJourneyPercent = 2.64m,
+                            FullRateJourneys = 1,
                             IsActive = true,
                             TripType = "OneWay",
                             UpdatedAt = new DateTime(2026, 10, 8, 0, 0, 0, 0, DateTimeKind.Utc)
@@ -555,9 +567,11 @@ namespace GoVoylo.Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("6f0e8c1a-2b4d-4c7e-9a31-1d5f2e8b7c02"),
+                            ApplyPaxBands = true,
                             CreatedAt = new DateTime(2026, 10, 8, 0, 0, 0, 0, DateTimeKind.Utc),
-                            ExtraJourneyPercent = 0.80m,
-                            FirstJourneyPercent = 0.80m,
+                            ExtraJourneyPercent = 2.64m,
+                            FirstJourneyPercent = 2.64m,
+                            FullRateJourneys = 2,
                             IsActive = true,
                             TripType = "RoundTrip",
                             UpdatedAt = new DateTime(2026, 10, 8, 0, 0, 0, 0, DateTimeKind.Utc)
@@ -565,9 +579,11 @@ namespace GoVoylo.Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("6f0e8c1a-2b4d-4c7e-9a31-1d5f2e8b7c03"),
+                            ApplyPaxBands = false,
                             CreatedAt = new DateTime(2026, 10, 8, 0, 0, 0, 0, DateTimeKind.Utc),
-                            ExtraJourneyPercent = 0.75m,
-                            FirstJourneyPercent = 1.00m,
+                            ExtraJourneyPercent = 1.98m,
+                            FirstJourneyPercent = 2.64m,
+                            FullRateJourneys = 2,
                             IsActive = true,
                             TripType = "MultiCity",
                             UpdatedAt = new DateTime(2026, 10, 8, 0, 0, 0, 0, DateTimeKind.Utc)

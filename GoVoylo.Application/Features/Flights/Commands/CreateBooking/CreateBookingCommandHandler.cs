@@ -1,6 +1,7 @@
 using GoVoylo.Application.Common;
 using GoVoylo.Application.Common.Exceptions;
 using GoVoylo.Application.Features.Flights.Dtos;
+using GoVoylo.Application.Features.Flights.Queries;
 using GoVoylo.Application.Interfaces;
 using GoVoylo.Domain.Common;
 using GoVoylo.Domain.Entities;
@@ -404,25 +405,37 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
             return (commission, Math.Min(discount, commission));
         }
 
-        // One journey per leg, or per trip of a whole-trip offer (its base fare split
-        // evenly across trips, since the supplier prices the offer as one). The trip
-        // type is RoundTrip only for two journeys found by a round-trip search; any
-        // other multi-journey booking is MultiCity — the app searches multi-city
-        // legs one at a time, so those sessions say OneWay.
+        // One journey per leg, or per trip of a whole-trip offer (its amount split
+        // evenly across trips, since the supplier prices the offer as one). A
+        // journey's amount is what its adults and children pay: their fares before
+        // the commission discount plus the add-ons booked for them. The trip type is
+        // RoundTrip only for two journeys found by a round-trip search; any other
+        // multi-journey booking is MultiCity — the app searches multi-city legs one
+        // at a time, so those sessions say OneWay.
         private async Task<decimal> CalculateConvenienceFeeAsync(
             CreateBookingCommand request, IReadOnlyList<FlightOfferSession> legSummaries, CancellationToken cancellationToken)
         {
-            var journeys = new List<JourneyBaseFare>();
+            var adults = request.Travelers.Count(t => MapPaxType(t.PaxType) == 0);
+            var children = request.Travelers.Count(t => MapPaxType(t.PaxType) == 1);
+            var infantPaxIds = request.Travelers.Where(t => MapPaxType(t.PaxType) == 2).Select(t => t.PaxId).ToHashSet();
+
+            var journeys = new List<JourneyFare>();
             for (var i = 0; i < legSummaries.Count; i++)
             {
                 var session = legSummaries[i];
                 var fare = BookedFare(request, legSummaries, i);
+                var fares = fare is { AdultListFare: > 0 }
+                    ? adults * fare.AdultListFare + children * fare.ChildListFare
+                    // A session saved before list fares were kept: the whole booking.
+                    : session.TotalAmount + (fare?.BookingCommission ?? 0m);
+                var addOns = request.Legs[i].SelectedSsrs
+                    .Where(s => !infantPaxIds.Contains(s.PaxId))
+                    .Sum(s => SsrPriceBook.PriceOf(session, s.SsrKey));
+
                 var tripCount = Math.Max(1, session.Trips?.Count ?? 1);
                 for (var t = 0; t < tripCount; t++)
                 {
-                    journeys.Add(new JourneyBaseFare(
-                        (fare?.AdultBaseFare ?? 0m) / tripCount,
-                        (fare?.ChildBaseFare ?? 0m) / tripCount));
+                    journeys.Add(new JourneyFare((fares + addOns) / tripCount));
                 }
             }
 
@@ -432,12 +445,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                     ? TripTypes.RoundTrip
                     : TripTypes.MultiCity;
 
-            return await _convenienceFeeService.CalculateAsync(
-                tripType,
-                journeys,
-                request.Travelers.Count(t => MapPaxType(t.PaxType) == 0),
-                request.Travelers.Count(t => MapPaxType(t.PaxType) == 1),
-                cancellationToken);
+            return await _convenienceFeeService.CalculateAsync(tripType, journeys, adults, children, cancellationToken);
         }
 
         // Fills passport details from a saved co-traveller's passport on file — see
