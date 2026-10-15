@@ -58,7 +58,7 @@ namespace GoVoylo.Api.Controllers
                 _currentUser.UserId,
                 request.TravelerType,
                 request.FirstName,
-                request.LastName,
+                request.LastName?.Trim() ?? string.Empty,
                 request.DateOfBirth,
                 request.Gender,
                 request.Nationality,
@@ -83,7 +83,7 @@ namespace GoVoylo.Api.Controllers
                 id,
                 request.TravelerType,
                 request.FirstName,
-                request.LastName,
+                request.LastName?.Trim() ?? string.Empty,
                 request.DateOfBirth,
                 request.Gender,
                 request.Nationality,
@@ -224,7 +224,8 @@ namespace GoVoylo.Api.Controllers
     public record TravelerRequest(
         string TravelerType,
         string FirstName,
-        string LastName,
+        // Optional: someone with a single name has none (see BookingNames).
+        string? LastName,
         DateTime DateOfBirth,
         string? Gender,
         string? Nationality,

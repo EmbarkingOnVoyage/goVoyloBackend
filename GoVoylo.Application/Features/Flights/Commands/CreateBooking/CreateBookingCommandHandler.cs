@@ -56,6 +56,14 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
         public async Task<CreateBookingResponseDto> Handle(
             CreateBookingCommand request, CancellationToken cancellationToken)
         {
+            // A single-name traveller is booked with the first name as surname.
+            request = request with
+            {
+                Travelers = request.Travelers
+                    .Select(t => t with { LastName = BookingNames.Surname(t.FirstName, t.LastName) })
+                    .ToList()
+            };
+
             // Route/price display data for each leg, captured from the original search
             // session (Reprice only ever changes FlightKey/FareId) — kept around purely
             // to persist a TripBooking once ticketing succeeds, below.
@@ -193,7 +201,7 @@ namespace GoVoylo.Application.Features.Flights.Commands.CreateBooking
                     MapPaxType(t.PaxType),
                     t.Title,
                     t.FirstName,
-                    t.LastName,
+                    BookingNames.Surname(t.FirstName, t.LastName),
                     MapGender(t.Gender),
                     t.DateOfBirth,
                     t.PassportNumber,
