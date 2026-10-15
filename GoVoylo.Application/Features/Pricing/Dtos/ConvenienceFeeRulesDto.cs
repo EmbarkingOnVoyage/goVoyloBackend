@@ -10,7 +10,11 @@ namespace GoVoylo.Application.Features.Pricing.Dtos
         string TripType,
         decimal FirstJourneyPercent,
         decimal ExtraJourneyPercent,
-        decimal? MaxFeePerPax);
+        decimal? MaxFeePerPax,
+        // Journeys charged at FirstJourneyPercent before ExtraJourneyPercent applies,
+        // and whether the group factor (PaxBands) applies — see ConvenienceFeeTripRate.
+        int FullRateJourneys = 1,
+        bool ApplyPaxBands = true);
 
     public record ConvenienceFeePaxBandDto(int MinPax, decimal Factor);
 }

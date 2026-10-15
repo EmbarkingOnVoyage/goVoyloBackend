@@ -42,6 +42,16 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 .HasColumnName("max_fee_per_pax")
                 .HasColumnType("numeric(12,2)");
 
+            builder.Property(x => x.FullRateJourneys)
+                .HasColumnName("full_rate_journeys")
+                .HasDefaultValue(1)
+                .IsRequired();
+
+            // No database default: with one of true, EF could never seed or insert false.
+            builder.Property(x => x.ApplyPaxBands)
+                .HasColumnName("apply_pax_bands")
+                .IsRequired();
+
             builder.Property(x => x.IsActive)
                 .HasColumnName("is_active")
                 .HasDefaultValue(true)
@@ -64,19 +74,23 @@ namespace GoVoylo.Infrastructure.Persistence.EntityFramework.Configurations
                 new
                 {
                     Id = Guid.Parse("6f0e8c1a-2b4d-4c7e-9a31-1d5f2e8b7c01"), TripType = TripTypes.OneWay,
-                    FirstJourneyPercent = 1.00m, ExtraJourneyPercent = 1.00m, IsActive = true,
+                    FirstJourneyPercent = 2.64m, ExtraJourneyPercent = 2.64m, FullRateJourneys = 1, ApplyPaxBands = true,
+                    IsActive = true,
                     CreatedAt = SeededAt, UpdatedAt = SeededAt
                 },
                 new
                 {
                     Id = Guid.Parse("6f0e8c1a-2b4d-4c7e-9a31-1d5f2e8b7c02"), TripType = TripTypes.RoundTrip,
-                    FirstJourneyPercent = 0.80m, ExtraJourneyPercent = 0.80m, IsActive = true,
+                    FirstJourneyPercent = 2.64m, ExtraJourneyPercent = 2.64m, FullRateJourneys = 2, ApplyPaxBands = true,
+                    IsActive = true,
                     CreatedAt = SeededAt, UpdatedAt = SeededAt
                 },
                 new
                 {
                     Id = Guid.Parse("6f0e8c1a-2b4d-4c7e-9a31-1d5f2e8b7c03"), TripType = TripTypes.MultiCity,
-                    FirstJourneyPercent = 1.00m, ExtraJourneyPercent = 0.75m, IsActive = true,
+                    // First two journeys at 2.64%, the rest at 75% of that; no group factor.
+                    FirstJourneyPercent = 2.64m, ExtraJourneyPercent = 1.98m, FullRateJourneys = 2, ApplyPaxBands = false,
+                    IsActive = true,
                     CreatedAt = SeededAt, UpdatedAt = SeededAt
                 });
         }

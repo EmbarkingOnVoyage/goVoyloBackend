@@ -10,7 +10,7 @@ namespace GoVoylo.Application.Interfaces
         // 0 when no active rate exists for the trip type.
         Task<decimal> CalculateAsync(
             string tripType,
-            IReadOnlyList<JourneyBaseFare> journeys,
+            IReadOnlyList<JourneyFare> journeys,
             int adultCount,
             int childCount,
             CancellationToken cancellationToken);

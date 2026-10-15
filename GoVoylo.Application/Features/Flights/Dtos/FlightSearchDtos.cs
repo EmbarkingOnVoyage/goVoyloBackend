@@ -49,7 +49,11 @@ namespace GoVoylo.Application.Features.Flights.Dtos
         decimal BookingListAmount = 0m,
         decimal BookingDiscountAmount = 0m,
         // Our commission on the fare; price breakups show it inside the base fare.
-        decimal BookingCommissionAmount = 0m);
+        decimal BookingCommissionAmount = 0m,
+        // One adult's / one child's fare before the discount — what the
+        // convenience fee is a percentage of (with the add-ons).
+        decimal AdultListFare = 0m,
+        decimal ChildListFare = 0m);
 
     public record FlightOfferDto(
         Guid OfferId,

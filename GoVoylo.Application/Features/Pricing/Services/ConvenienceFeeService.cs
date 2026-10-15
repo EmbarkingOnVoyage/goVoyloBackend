@@ -21,14 +21,15 @@ namespace GoVoylo.Application.Features.Pricing.Services
 
             return new ConvenienceFeeRulesDto(
                 tripRates
-                    .Select(r => new ConvenienceFeeTripRateDto(r.TripType, r.FirstJourneyPercent, r.ExtraJourneyPercent, r.MaxFeePerPax))
+                    .Select(r => new ConvenienceFeeTripRateDto(
+                        r.TripType, r.FirstJourneyPercent, r.ExtraJourneyPercent, r.MaxFeePerPax, r.FullRateJourneys, r.ApplyPaxBands))
                     .ToList(),
                 paxBands.Select(b => new ConvenienceFeePaxBandDto(b.MinPax, b.Factor)).ToList());
         }
 
         public async Task<decimal> CalculateAsync(
             string tripType,
-            IReadOnlyList<JourneyBaseFare> journeys,
+            IReadOnlyList<JourneyFare> journeys,
             int adultCount,
             int childCount,
             CancellationToken cancellationToken)
