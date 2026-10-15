@@ -3,8 +3,8 @@ using GoVoylo.Domain.Common;
 namespace GoVoylo.Domain.Entities
 {
     // Convenience fee rate for one trip type, as a percentage of what the adults and
-    // children pay for each journey (fare before the commission discount, plus
-    // their add-ons): the first FullRateJourneys journeys at FirstJourneyPercent,
+    // children pay for each journey's fare (base before the commission discount,
+    // plus taxes; add-ons excluded): the first FullRateJourneys journeys at FirstJourneyPercent,
     // every further one at ExtraJourneyPercent. ApplyPaxBands applies the group
     // factor (ConvenienceFeePaxBand). Seeded: OneWay / RoundTrip 2.64% with bands;
     // MultiCity 2.64% for the first two journeys, 1.98% (75%) after, no bands.

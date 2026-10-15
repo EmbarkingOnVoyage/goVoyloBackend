@@ -2,8 +2,8 @@ using GoVoylo.Domain.Entities;
 
 namespace GoVoylo.Domain.Pricing
 {
-    // What the adults and children pay for one journey together: their fares before
-    // the commission discount (base + taxes) plus their add-ons on it. Infants are
+    // What the adults and children pay for one journey's fare together: base before
+    // the commission discount plus taxes (add-ons don't count). Infants are
     // left out — they're never charged the fee. A round trip has two journeys, a
     // multi-city trip one per city pair.
     public record JourneyFare(decimal ChargeableAmount);
